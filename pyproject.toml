@@ -20,3 +20,15 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 package = true
+
+[tool.ruff.lint]
+select = [
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # isort
+    "I",
+]
