@@ -29,10 +29,16 @@ class ScanResult:
 
 
 class Scanner:
-    @classmethod
-    def nmap(cls, ip_address: IPAddressType) -> ScanResult:
+    def __init__(self, *, timeout: int = 30):
+        self.timeout = timeout
+
+    def nmap(self, ip_address: IPAddressType) -> ScanResult:
         nmap = nmap3.Nmap()
-        result = nmap.nmap_version_detection(ip_address, timeout=30)
+        result = nmap.nmap_version_detection(
+            target=ip_address,
+            args=["--version-light"],
+            timeout=self.timeout,
+        )
 
         port_services = []
         for port in result[ip_address]["ports"]:
