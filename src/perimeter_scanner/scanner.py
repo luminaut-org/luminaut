@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address
 
 import nmap3
@@ -6,10 +7,16 @@ import nmap3
 IPAddressType = IPv4Address | IPv6Address
 
 
+class Protocol(StrEnum):
+    TCP = auto()
+    UDP = auto()
+    ICMP = auto()
+
+
 @dataclass
 class NmapPortServices:
     port: int
-    protocol: str
+    protocol: Protocol
     name: str
     product: str
     version: str
@@ -45,7 +52,7 @@ class Scanner:
             port_services.append(
                 NmapPortServices(
                     port=int(port["portid"]),
-                    protocol=port["protocol"],
+                    protocol=Protocol(port["protocol"]),
                     name=port["service"]["name"],
                     product=port["service"]["product"],
                     version=port["service"]["version"],
