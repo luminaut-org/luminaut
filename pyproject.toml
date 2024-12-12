@@ -13,6 +13,7 @@ dependencies = [
 dev = [
     "moto>=5.0.18",
     "pytest>=8.3.3",
+    "ruff>=0.8.3",
 ]
 
 [build-system]
