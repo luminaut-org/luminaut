@@ -1,9 +1,10 @@
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from ipaddress import IPv4Address, IPv6Address, ip_address
-from typing import Any
+from typing import Any, Self
 
 import boto3
 
@@ -74,6 +75,26 @@ class ConfigItem:
     configuration: Ec2Configuration | str
     tags: dict[str, str]
 
+    @classmethod
+    def from_aws_config(cls, aws_config: Mapping[str, Any]) -> Self:
+        config_resource_type = ResourceType(aws_config["resourceType"])
+
+        return cls(
+            resource_type=config_resource_type,
+            resource_id=aws_config["resourceId"],
+            resource_creation_time=aws_config["resourceCreationTime"],
+            account=aws_config["accountId"],
+            region=aws_config["awsRegion"],
+            arn=aws_config["arn"],
+            config_capture_time=aws_config["configurationItemCaptureTime"],
+            config_status=aws_config["configurationItemStatus"],
+            configuration=AwsConfig.build_configuration(
+                config_resource_type,
+                aws_config["configuration"],
+            ),
+            tags=aws_config["tags"],
+        )
+
 
 class AwsConfig:
     def __init__(self):
@@ -130,19 +151,4 @@ class AwsConfig:
 
         config_item = config_items[0]
 
-        config_resource_type = ResourceType(config_item["resourceType"])
-        return ConfigItem(
-            resource_type=config_resource_type,
-            resource_id=config_item["resourceId"],
-            resource_creation_time=config_item["resourceCreationTime"],
-            account=config_item["accountId"],
-            region=config_item["awsRegion"],
-            arn=config_item["arn"],
-            config_capture_time=config_item["configurationItemCaptureTime"],
-            config_status=config_item["configurationItemStatus"],
-            configuration=self.build_configuration(
-                config_resource_type,
-                config_item["configuration"],
-            ),
-            tags=config_item["tags"],
-        )
+        return ConfigItem.from_aws_config(config_item)
