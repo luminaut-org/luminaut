@@ -1,9 +1,11 @@
+import argparse
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from ipaddress import IPv4Address, IPv6Address, ip_address
+from pprint import pprint
 from typing import Any, Self
 
 import boto3
@@ -156,3 +158,24 @@ class AwsConfig:
         config_item = config_items[0]
 
         return ConfigItem.from_aws_config(config_item)
+
+
+if __name__ == "__main__":
+    cli_args = argparse.ArgumentParser()
+    cli_args.add_argument(
+        "RESOURCE_TYPE",
+        type=ResourceType,
+        choices=list(ResourceType),
+    )
+    cli_args.add_argument(
+        "RESOURCE_ID",
+        type=str,
+    )
+    args = cli_args.parse_args()
+
+    aws_config = AwsConfig()
+    config_item = aws_config.get_current_config_for_resource(
+        args.RESOURCE_TYPE,
+        args.RESOURCE_ID,
+    )
+    pprint(config_item)
