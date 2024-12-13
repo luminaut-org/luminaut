@@ -99,31 +99,6 @@ class ConfigItem:
     configuration: Ec2Configuration | str
     tags: dict[str, str]
 
-    @classmethod
-    def from_aws_config(cls, aws_config: Mapping[str, Any]) -> Self:
-        config_resource_type = ResourceType(aws_config["resourceType"])
-
-        return cls(
-            resource_type=config_resource_type,
-            resource_id=aws_config["resourceId"],
-            resource_creation_time=aws_config["resourceCreationTime"],
-            account=aws_config["accountId"],
-            region=aws_config["awsRegion"],
-            arn=aws_config["arn"],
-            config_capture_time=aws_config["configurationItemCaptureTime"],
-            config_status=aws_config["configurationItemStatus"],
-            configuration=AwsConfig.build_configuration(
-                config_resource_type,
-                aws_config["configuration"],
-            ),
-            tags=aws_config["tags"],
-        )
-
-
-class AwsConfig:
-    def __init__(self):
-        self.aws_client = boto3.client("config")
-
     @staticmethod
     def build_configuration(
         resource_type: ResourceType,
@@ -137,6 +112,31 @@ class AwsConfig:
         if resource_type == ResourceType.EC2_Instance:
             return Ec2Configuration.from_aws_config(configuration)
         return configuration
+
+    @classmethod
+    def from_aws_config(cls, aws_config: Mapping[str, Any]) -> Self:
+        config_resource_type = ResourceType(aws_config["resourceType"])
+
+        return cls(
+            resource_type=config_resource_type,
+            resource_id=aws_config["resourceId"],
+            resource_creation_time=aws_config["resourceCreationTime"],
+            account=aws_config["accountId"],
+            region=aws_config["awsRegion"],
+            arn=aws_config["arn"],
+            config_capture_time=aws_config["configurationItemCaptureTime"],
+            config_status=aws_config["configurationItemStatus"],
+            configuration=cls.build_configuration(
+                config_resource_type,
+                aws_config["configuration"],
+            ),
+            tags=aws_config["tags"],
+        )
+
+
+class AwsConfig:
+    def __init__(self):
+        self.aws_client = boto3.client("config")
 
     def get_current_config_for_resource(
         self,
