@@ -61,6 +61,30 @@ class Ec2Configuration:
     subnet_id: str
     vpc_id: str
 
+    @classmethod
+    def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
+        return cls(
+            instance_id=configuration["instanceId"],
+            image_id=configuration["imageId"],
+            launch_time=datetime.fromisoformat(configuration["launchTime"]),
+            tags=configuration["tags"],
+            platform_details=configuration["platformDetails"],
+            private_dns_name=configuration["privateDnsName"],
+            private_ip_address=ip_address(configuration["privateIpAddress"]),
+            public_dns_name=configuration["publicDnsName"],
+            public_ip_address=ip_address(configuration["publicIpAddress"]),
+            network_interfaces=configuration["networkInterfaces"],
+            security_groups=configuration["securityGroups"],
+            state=configuration["state"],
+            state_reason=configuration["stateReason"],
+            usage_operation=configuration["usageOperation"],
+            usage_operation_update_time=datetime.fromisoformat(
+                configuration["usageOperationUpdateTime"]
+            ),
+            subnet_id=configuration["subnetId"],
+            vpc_id=configuration["vpcId"],
+        )
+
 
 @dataclass
 class ConfigItem:
@@ -111,27 +135,7 @@ class AwsConfig:
             return configuration
 
         if resource_type == ResourceType.EC2_Instance:
-            return Ec2Configuration(
-                instance_id=configuration["instanceId"],
-                image_id=configuration["imageId"],
-                launch_time=datetime.fromisoformat(configuration["launchTime"]),
-                tags=configuration["tags"],
-                platform_details=configuration["platformDetails"],
-                private_dns_name=configuration["privateDnsName"],
-                private_ip_address=ip_address(configuration["privateIpAddress"]),
-                public_dns_name=configuration["publicDnsName"],
-                public_ip_address=ip_address(configuration["publicIpAddress"]),
-                network_interfaces=configuration["networkInterfaces"],
-                security_groups=configuration["securityGroups"],
-                state=configuration["state"],
-                state_reason=configuration["stateReason"],
-                usage_operation=configuration["usageOperation"],
-                usage_operation_update_time=datetime.fromisoformat(
-                    configuration["usageOperationUpdateTime"]
-                ),
-                subnet_id=configuration["subnetId"],
-                vpc_id=configuration["vpcId"],
-            )
+            return Ec2Configuration.from_aws_config(configuration)
         return configuration
 
     def get_current_config_for_resource(
