@@ -140,24 +140,25 @@ class AwsConfig:
     def __init__(self):
         self.aws_client = boto3.client("config")
 
-    def get_current_config_for_resource(
+    def get_config_history_for_resource(
         self,
         resource_type: ResourceType,
         resource_id: str,
     ) -> ConfigItem | None:
-        resp = self.aws_client.get_resource_config_history(
+        pagination_client = self.aws_client.get_paginator("get_resource_config_history")
+        pages = pagination_client.paginate(
             resourceType=str(resource_type),
             resourceId=resource_id,
         )
 
-        # get the first item, if any
-        config_items = resp.get("configurationItems")
-        if not config_items or len(config_items) == 0:
-            return None
+        for page in pages:
+            # get the first item, if any
+            config_items = page.get("configurationItems")
+            if not config_items or len(config_items) == 0:
+                return None
 
-        config_item = config_items[0]
-
-        return ConfigItem.from_aws_config(config_item)
+            for config_item in config_items:
+                yield ConfigItem.from_aws_config(config_item)
 
 
 if __name__ == "__main__":
@@ -174,8 +175,9 @@ if __name__ == "__main__":
     args = cli_args.parse_args()
 
     aws_config = AwsConfig()
-    config_item = aws_config.get_current_config_for_resource(
+    config_history = config_item = aws_config.get_config_history_for_resource(
         args.RESOURCE_TYPE,
         args.RESOURCE_ID,
     )
-    pprint(config_item)
+    for config_item in config_history:
+        pprint(config_item)
