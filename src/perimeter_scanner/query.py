@@ -7,7 +7,7 @@ import boto3
 from perimeter_scanner import models
 
 
-class ENI:
+class AwsEni:
     def __init__(self):
         self.ec2_client = boto3.client("ec2")
 
@@ -85,7 +85,7 @@ class Query(ABC):
 
 class QueryPublicAwsEni(Query):
     def __init__(self):
-        self.eni = ENI()
+        self.eni = AwsEni()
 
     def run(self, **kwargs) -> QueryResult:
         data = []
