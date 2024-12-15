@@ -62,12 +62,12 @@ def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
         description=f"Luminaut: Casting light on shadow cloud deployments. {luminaut_art}",
         formatter_class=ArgparseFormatter,
     )
+    cli_args.add_argument(
+        "--config", type=Path, default="luminaut.toml", help="Configuration file."
+    )
     cli_args.add_argument("--log", type=Path, default="luminaut.log", help="Log file.")
     cli_args.add_argument(
         "--verbose", action="store_true", help="Verbose output in the log file."
-    )
-    cli_args.add_argument(
-        "--config", type=Path, default="luminaut.toml", help="Configuration file."
     )
     return cli_args.parse_args(args)
 
