@@ -46,6 +46,31 @@ class ENI:
                 )
 
 
+class AwsConfig:
+    def __init__(self):
+        self.aws_client = boto3.client("config")
+
+    def get_config_history_for_resource(
+        self,
+        resource_type: models.ResourceType,
+        resource_id: str,
+    ) -> models.ConfigItem | None:
+        pagination_client = self.aws_client.get_paginator("get_resource_config_history")
+        pages = pagination_client.paginate(
+            resourceType=str(resource_type),
+            resourceId=resource_id,
+        )
+
+        for page in pages:
+            # get the first item, if any
+            config_items = page.get("configurationItems")
+            if not config_items or len(config_items) == 0:
+                return None
+
+            for config_item in config_items:
+                yield models.ConfigItem.from_aws_config(config_item)
+
+
 @dataclass
 class QueryResult:
     source: str
