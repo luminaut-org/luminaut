@@ -2,13 +2,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from perimeter_scanner.enumerate_eni import ENI, AwsEni
+from perimeter_scanner import models
+from perimeter_scanner.enumerate_eni import ENI
 
 
 @dataclass
 class QueryResult:
     source: str
-    data: list[AwsEni | dict[str, Any]]
+    data: list[models.AwsEni | dict[str, Any]]
 
 
 class Query(ABC):

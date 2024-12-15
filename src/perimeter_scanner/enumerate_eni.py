@@ -1,33 +1,13 @@
-from dataclasses import dataclass
-from datetime import datetime
-
 import boto3
 
-from perimeter_scanner.aws_config import SecurityGroup
-
-
-@dataclass
-class AwsEni:
-    network_interface_id: str
-    public_ip: str
-    private_ip: str
-    attachment_id: str
-    attachment_time: datetime
-    attachment_status: str
-    availability_zone: str
-    security_groups: list[SecurityGroup]
-    status: str
-    vpc_id: str
-    ec2_instance_id: str | None = None
-    public_dns_name: str | None = None
-    private_dns_name: str | None = None
+from perimeter_scanner import models
 
 
 class ENI:
     def __init__(self):
         self.ec2_client = boto3.client("ec2")
 
-    def fetch_enis_with_public_ips(self) -> list[AwsEni]:
+    def fetch_enis_with_public_ips(self) -> list[models.AwsEni]:
         paginator = self.ec2_client.get_paginator("describe_network_interfaces")
         results = paginator.paginate(
             Filters=[
@@ -42,10 +22,10 @@ class ENI:
                 attachment = eni.get("Attachment", {})
                 association = eni.get("Association", {})
                 security_groups = [
-                    SecurityGroup(x["GroupId"], x["GroupName"])
+                    models.SecurityGroup(x["GroupId"], x["GroupName"])
                     for x in eni.get("Groups", [])
                 ]
-                yield AwsEni(
+                yield models.AwsEni(
                     network_interface_id=eni["NetworkInterfaceId"],
                     public_ip=association.get("PublicIp"),
                     private_ip=eni["PrivateIpAddress"],

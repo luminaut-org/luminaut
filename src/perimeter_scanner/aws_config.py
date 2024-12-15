@@ -10,18 +10,14 @@ from typing import Any, Self
 
 import boto3
 
+from perimeter_scanner import models
+
 IPAddress = IPv4Address | IPv6Address
 
 
 class ResourceType(StrEnum):
     EC2_Instance = "AWS::EC2::Instance"
     EC2_NetworkInterface = "AWS::EC2::NetworkInterface"
-
-
-@dataclass
-class SecurityGroup:
-    group_id: str
-    group_name: str
 
 
 @dataclass
@@ -34,7 +30,7 @@ class NetworkInterface:
     attachment_id: str
     attachment_status: str
     description: str
-    security_groups: list[SecurityGroup | dict[str, Any]]
+    security_groups: list[models.SecurityGroup | dict[str, Any]]
     interface_type: str
     private_dns_name: str
     private_ip_address: IPAddress
@@ -55,7 +51,7 @@ class Ec2Configuration:
     public_dns_name: str
     public_ip_address: IPAddress
     network_interfaces: list[NetworkInterface | dict[str, Any]]
-    security_groups: list[SecurityGroup | dict[str, Any]]
+    security_groups: list[models.SecurityGroup | dict[str, Any]]
     state: dict[str, Any]
     state_reason: str
     usage_operation: str
