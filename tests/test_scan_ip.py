@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
-from perimeter_scanner.scanner import NmapScanner, Protocol
+from perimeter_scanner import models
+from perimeter_scanner.scanner import NmapScanner
 
 
 def test_nmap():
@@ -13,7 +14,7 @@ def test_nmap():
             "ports": [
                 {
                     "portid": "1",
-                    "protocol": Protocol.TCP,
+                    "protocol": models.Protocol.TCP,
                     "reason": "syn-ack",
                     "service": {
                         "name": service_name,

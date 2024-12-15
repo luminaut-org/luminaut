@@ -2,7 +2,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from enum import StrEnum
+from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Any, Self
 
@@ -147,3 +147,31 @@ class ConfigItem:
             ),
             tags=aws_config["tags"],
         )
+
+
+class Protocol(StrEnum):
+    TCP = auto()
+    UDP = auto()
+    ICMP = auto()
+
+
+@dataclass
+class NmapPortServices:
+    port: int
+    protocol: Protocol
+    name: str
+    product: str
+    version: str
+    state: str
+
+
+@dataclass
+class ScanFindings:
+    tool: str
+    services: list[NmapPortServices]
+
+
+@dataclass
+class ScanResult:
+    ip: str
+    findings: list[ScanFindings]
