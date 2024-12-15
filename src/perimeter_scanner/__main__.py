@@ -75,10 +75,8 @@ def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
 def main(args: list[str] | None = None) -> None:
     args = configure_cli_args(args)
     configure_logging(args.log, args.verbose)
-    logger.info("Luminaut started.")
     luminaut = Luminaut(LuminautConfig())
     luminaut.run()
-    logger.info("Luminaut finished.")
 
 
 if __name__ == "__main__":

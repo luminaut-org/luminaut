@@ -6,6 +6,8 @@ from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Any, Self
 
+from perimeter_scanner.console import console
+
 IPAddress = IPv4Address | IPv6Address
 
 
@@ -31,16 +33,24 @@ class AwsEni:
     public_dns_name: str | None = None
     private_dns_name: str | None = None
 
-    def as_summary(self) -> str:
-        summary = f"{self.network_interface_id} has public IP {self.public_ip}"
+    def print_to_console(self):
+        console.print(f"[green]{self.public_ip}")
+        console.print("  [bold][underline]Elastic Network Interface")
+        console.print(
+            f"    [orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]"
+        )
         if self.ec2_instance_id:
-            summary += f" and is attached to EC2 instance {self.ec2_instance_id}"
-        if self.attachment_time:
-            summary += f" and was attached at {self.attachment_time}"
+            console.print(
+                f"    EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}"
+            )
         if self.security_groups:
-            summary += f" with security groups {', '.join(x.group_id for x in self.security_groups)}"
-        summary += f" in VPC {self.vpc_id}"
-        return summary
+            security_group_list = ", ".join(
+                [
+                    f"[orange1]{sg.group_name}[/orange1] ({sg.group_id})"
+                    for sg in self.security_groups
+                ]
+            )
+            console.print(f"    Security Groups: {security_group_list}")
 
 
 class ResourceType(StrEnum):
