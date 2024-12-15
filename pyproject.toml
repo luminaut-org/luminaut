@@ -9,6 +9,9 @@ dependencies = [
     "python3-nmap>=1.9.1",
 ]
 
+[project.scripts]
+luminaut = "perimeter_scanner.__main__:main"
+
 [dependency-groups]
 dev = [
     "moto>=5.0.18",
