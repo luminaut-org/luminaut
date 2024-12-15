@@ -6,6 +6,8 @@ from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Any, Self
 
+from rich.panel import Panel
+
 from perimeter_scanner.console import console
 
 IPAddress = IPv4Address | IPv6Address
@@ -34,15 +36,10 @@ class AwsEni:
     private_dns_name: str | None = None
 
     def print_to_console(self):
-        console.print(f"[green]{self.public_ip}")
-        console.print("  [bold][underline]Elastic Network Interface")
-        console.print(
-            f"    [orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]"
-        )
+        rich_text = "[bold underline]AWS Elastic Network Interface[/bold underline]\n"
+        rich_text += f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
-            console.print(
-                f"    EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}"
-            )
+            rich_text += f"EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}\n"
         if self.security_groups:
             security_group_list = ", ".join(
                 [
@@ -50,7 +47,14 @@ class AwsEni:
                     for sg in self.security_groups
                 ]
             )
-            console.print(f"    Security Groups: {security_group_list}")
+            rich_text += f"Security Groups: {security_group_list}\n"
+        console.print(
+            Panel(
+                rich_text,
+                title=self.public_ip,
+                title_align="left",
+            )
+        )
 
 
 class ResourceType(StrEnum):
