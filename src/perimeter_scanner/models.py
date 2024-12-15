@@ -6,6 +6,7 @@ from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Any, Self
 
+from rich.emoji import Emoji
 from rich.panel import Panel
 
 IPAddress = IPv4Address | IPv6Address
@@ -34,7 +35,7 @@ class AwsEni:
     private_dns_name: str | None = None
 
     def build_rich_panel(self) -> Panel:
-        rich_text = "[bold underline]AWS Elastic Network Interface[/bold underline]\n"
+        rich_text = f"[bold underline]{Emoji('cloud')} AWS Elastic Network Interface[/bold underline]\n"
         rich_text += f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
             rich_text += f"EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}\n"

@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from rich.emoji import Emoji
+
 from perimeter_scanner.console import console
 from perimeter_scanner.query import QueryPublicAwsEni
 from perimeter_scanner.scanner import NmapScanner
@@ -27,9 +29,7 @@ class Luminaut:
                     nmap_results.append(service.build_rich_text())
 
             if nmap_results:
-                panel.renderable += (
-                    "\n[bold underline]Nmap Scan Results[/bold underline]\n"
-                )
+                panel.renderable += f"\n[bold underline]{Emoji('mag')} Nmap Scan Results[/bold underline]\n"
                 panel.renderable += "\n".join(nmap_results)
 
             console.print(panel)
