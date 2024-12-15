@@ -22,7 +22,7 @@ class NmapScanner(Scanner):
         nmap = nmap3.Nmap()
         result = nmap.nmap_version_detection(
             target=ip_address,
-            args=["--version-light"],
+            args="--version-light -Pn",
             timeout=self.timeout,
         )
 

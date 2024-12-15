@@ -8,8 +8,6 @@ from typing import Any, Self
 
 from rich.panel import Panel
 
-from perimeter_scanner.console import console
-
 IPAddress = IPv4Address | IPv6Address
 
 
@@ -35,7 +33,7 @@ class AwsEni:
     public_dns_name: str | None = None
     private_dns_name: str | None = None
 
-    def print_to_console(self):
+    def build_rich_panel(self) -> Panel:
         rich_text = "[bold underline]AWS Elastic Network Interface[/bold underline]\n"
         rich_text += f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
@@ -48,12 +46,10 @@ class AwsEni:
                 ]
             )
             rich_text += f"Security Groups: {security_group_list}\n"
-        console.print(
-            Panel(
-                rich_text,
-                title=self.public_ip,
-                title_align="left",
-            )
+        return Panel(
+            rich_text,
+            title=self.public_ip,
+            title_align="left",
         )
 
 
@@ -188,6 +184,9 @@ class NmapPortServices:
     product: str
     version: str
     state: str
+
+    def build_rich_text(self) -> str:
+        return f"[green]{self.protocol}/{self.port}[/green] {self.name} {self.product} {self.version} {self.state}"
 
 
 @dataclass
