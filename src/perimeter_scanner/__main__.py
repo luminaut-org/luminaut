@@ -2,6 +2,8 @@ import argparse
 import logging
 from pathlib import Path
 
+from perimeter_scanner.luminaut import Luminaut, LuminautConfig
+
 logger = logging.getLogger()
 logger.getChild("boto3").setLevel(logging.ERROR)
 logger.getChild("botocore").setLevel(logging.ERROR)
@@ -48,7 +50,9 @@ def main(args: list[str] | None = None) -> None:
     args = configure_cli_args(args)
     configure_logging(args.log, args.verbose)
     logger.info("Luminaut started.")
-    logger.debug(f"Is verbose? {args.verbose}")
+    luminaut = Luminaut(LuminautConfig())
+    luminaut.run()
+    logger.info("Luminaut finished.")
 
 
 if __name__ == "__main__":
