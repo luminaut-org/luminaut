@@ -16,4 +16,4 @@ class Luminaut:
         # Step 1: Enumerate ENIs with public IPs
         enis_with_public_ips = QueryPublicAwsEni().run()
         for eni in enis_with_public_ips.data:
-            print(eni)
+            print(eni.as_summary())

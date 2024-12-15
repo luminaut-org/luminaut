@@ -31,6 +31,17 @@ class AwsEni:
     public_dns_name: str | None = None
     private_dns_name: str | None = None
 
+    def as_summary(self) -> str:
+        summary = f"{self.network_interface_id} has public IP {self.public_ip}"
+        if self.ec2_instance_id:
+            summary += f" and is attached to EC2 instance {self.ec2_instance_id}"
+        if self.attachment_time:
+            summary += f" and was attached at {self.attachment_time}"
+        if self.security_groups:
+            summary += f" with security groups {', '.join(x.group_id for x in self.security_groups)}"
+        summary += f" in VPC {self.vpc_id}"
+        return summary
+
 
 class ResourceType(StrEnum):
     EC2_Instance = "AWS::EC2::Instance"
