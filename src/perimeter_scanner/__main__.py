@@ -9,6 +9,26 @@ logger.getChild("boto3").setLevel(logging.ERROR)
 logger.getChild("botocore").setLevel(logging.ERROR)
 
 
+luminaut_art = r"""
+          _..._
+        .'     '.
+       /    .-""-\
+     .-|   /:.   |
+     |  \  |:.   /.-'-.
+     | .-'-;:__.'    =/
+     .'=  *=|     _.='
+    /   _.  |    ;
+   ;-.-'|    \   |
+  /   | \    _\  _\
+  \__/'._;.  ==' ==\
+           \    \   |
+           /    /   /
+           /-._/-._/
+           \   `\  \
+            `-._/._/
+"""
+
+
 def configure_logging(log_file: Path, verbose: bool) -> None:
     # Allow all messages to pass through the root handler.
     logger.setLevel(logging.DEBUG)
@@ -31,10 +51,16 @@ def configure_logging(log_file: Path, verbose: bool) -> None:
     logger.addHandler(log_console)
 
 
+class ArgparseFormatter(
+    argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
+):
+    pass
+
+
 def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
     cli_args = argparse.ArgumentParser(
-        description="Luminaut: Casting light on shadow cloud deployments.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description=f"Luminaut: Casting light on shadow cloud deployments. {luminaut_art}",
+        formatter_class=ArgparseFormatter,
     )
     cli_args.add_argument("--log", type=Path, default="luminaut.log", help="Log file.")
     cli_args.add_argument(
