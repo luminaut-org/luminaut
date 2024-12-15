@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from perimeter_scanner.scanner import Protocol, Scanner
+from perimeter_scanner.scanner import NmapScanner, Protocol
 
 
 def test_nmap():
@@ -28,7 +28,7 @@ def test_nmap():
 
     with patch("perimeter_scanner.scanner.nmap3") as mocked_nmap3:
         mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
-        nmap_results = Scanner(timeout=1).nmap(ip_addr)
+        nmap_results = NmapScanner(timeout=1).nmap(ip_addr)
 
     assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
     assert ip_addr == nmap_results.ip

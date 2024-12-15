@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address
@@ -35,9 +36,18 @@ class ScanResult:
     findings: list[ScanFindings]
 
 
-class Scanner:
-    def __init__(self, *, timeout: int = 30):
+class Scanner(ABC):
+    def __init__(self, *, timeout: int = 30, **kwargs):
         self.timeout = timeout
+
+    @abstractmethod
+    def run(self, ip_address: IPAddressType) -> ScanResult:
+        pass
+
+
+class NmapScanner(Scanner):
+    def run(self, ip_address: IPAddressType) -> ScanResult:
+        return self.nmap(ip_address)
 
     def nmap(self, ip_address: IPAddressType) -> ScanResult:
         nmap = nmap3.Nmap()
