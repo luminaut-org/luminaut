@@ -29,7 +29,7 @@ def configure_logging(log_file: Path, verbose: bool) -> None:
     logger.addHandler(log_console)
 
 
-def main(args: list[str] | None = None) -> None:
+def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
     cli_args = argparse.ArgumentParser(
         description="Luminaut: Casting light on shadow cloud deployments.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -41,7 +41,11 @@ def main(args: list[str] | None = None) -> None:
     cli_args.add_argument(
         "--config", type=Path, default="luminaut.toml", help="Configuration file."
     )
-    args = cli_args.parse_args(args)
+    return cli_args.parse_args(args)
+
+
+def main(args: list[str] | None = None) -> None:
+    args = configure_cli_args(args)
     configure_logging(args.log, args.verbose)
     logger.info("Luminaut started.")
     logger.debug(f"Is verbose? {args.verbose}")
