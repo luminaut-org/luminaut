@@ -132,9 +132,11 @@ class ConfigItem:
     resource_creation_time: datetime | None = None
 
     def build_rich_text(self) -> str:
-        rich_text = f"[bold]{self.resource_type}[/bold] [orange1]{self.resource_id}[/orange1] created at [cyan]{self.resource_creation_time}[/cyan]\n"
-        rich_text += f"Account: [orange1]{self.account}[/orange1] Region: [cyan]{self.region}[/cyan]\n"
-        rich_text += f"Config captured at [cyan]{self.config_capture_time}[/cyan] with status {self.config_status}\n"
+        rich_text = f"[cyan]{self.config_capture_time}[/cyan]\n"
+        rich_text += f"  [bold]Status {self.config_status}[/bold]\n"
+        rich_text += f"  [bold orange1]{self.resource_type}[/bold orange1] [orange1]{self.resource_id}[/orange1]"
+        rich_text += f" created at {self.resource_creation_time or 'a time unknown to AWS Config'}\n"
+        rich_text += f"  Account: [orange1]{self.account}[/orange1] Region: [cyan]{self.region}[/cyan]\n"
         return rich_text
 
     @staticmethod
@@ -188,7 +190,7 @@ class NmapPortServices:
     state: str
 
     def build_rich_text(self) -> str:
-        return f"[green]{self.protocol}/{self.port}[/green] {self.name} {self.product} {self.version} {self.state}"
+        return f"[green]{self.protocol}/{self.port}[/green] status: {self.state} service: {self.name} {self.product} {self.version}\n"
 
 
 @dataclass
