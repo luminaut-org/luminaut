@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from perimeter_scanner.console import console
-from perimeter_scanner.query import QueryPublicAwsEni
+from perimeter_scanner.query import Aws
 from perimeter_scanner.scanner import NmapScanner
 
 
@@ -16,7 +16,7 @@ class Luminaut:
 
     def run(self):
         # Step 1: Enumerate ENIs with public IPs
-        scan_results = QueryPublicAwsEni().run()
+        scan_results = Aws().fetch_enis_with_public_ips()
         for scan_result in scan_results:
             # Step 2: Run the various tools that depend on the IP address
             nmap_results = NmapScanner().run(scan_result.ip)
