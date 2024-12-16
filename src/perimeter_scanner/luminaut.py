@@ -29,7 +29,9 @@ class Luminaut:
                     nmap_results.append(service.build_rich_text())
 
             if nmap_results:
-                panel.renderable += f"\n[bold underline]{Emoji('mag')} Nmap Scan Results[/bold underline]\n"
+                panel.renderable += (
+                    f"\n[bold underline]{Emoji('mag')} Nmap Scan[/bold underline]\n"
+                )
                 panel.renderable += "\n".join(nmap_results)
 
             console.print(panel)
