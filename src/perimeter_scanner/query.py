@@ -79,22 +79,26 @@ class Aws:
             resourceType=str(resource_type),
             resourceId=resource_id,
         )
-        scan_result = models.ScanResult(
-            ip=ip,
-            eni_id=resource_id,
-            findings=[],
-        )
+
+        resources = []
         for page in pages:
             if progress and task_id:
                 progress.update(task_id, total=len(page.get("configurationItems", [])))
             for config_item in page.get("configurationItems", []):
-                scan_result.findings.append(
-                    models.ScanFindings(
-                        tool="AWS Config",
-                        emoji=Emoji("cloud"),
-                        resources=[models.ConfigItem.from_aws_config(config_item)],
-                    )
-                )
+                resources.append(models.ConfigItem.from_aws_config(config_item))
                 if progress and task_id:
                     progress.update(task_id, advance=1, refresh=True)
+
+        scan_result = models.ScanResult(
+            ip=ip,
+            eni_id=resource_id,
+            findings=[
+                models.ScanFindings(
+                    tool="AWS Config",
+                    emoji=Emoji("cloud"),
+                    resources=resources,
+                )
+            ],
+        )
+
         return scan_result
