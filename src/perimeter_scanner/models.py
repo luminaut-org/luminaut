@@ -95,6 +95,11 @@ class Ec2Configuration:
 
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
+        public_ip_address = (
+            ip_address(configuration["publicIpAddress"])
+            if configuration.get("publicIpAddress")
+            else None
+        )
         return cls(
             instance_id=configuration["instanceId"],
             image_id=configuration["imageId"],
@@ -104,9 +109,7 @@ class Ec2Configuration:
             private_dns_name=configuration["privateDnsName"],
             private_ip_address=ip_address(configuration["privateIpAddress"]),
             public_dns_name=configuration["publicDnsName"],
-            public_ip_address=ip_address(configuration["publicIpAddress"])
-            if configuration.get("publicIpAddress")
-            else None,
+            public_ip_address=public_ip_address,
             network_interfaces=configuration["networkInterfaces"],
             security_groups=configuration["securityGroups"],
             state=configuration["state"],
