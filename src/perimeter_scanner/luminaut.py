@@ -13,6 +13,12 @@ class LuminautConfig:
     pass
 
 
+default_progress_columns = [
+    *progress.Progress.get_default_columns(),
+    progress.TimeElapsedColumn(),
+]
+
+
 class Luminaut:
     def __init__(self, config: LuminautConfig):
         self.config = config
@@ -20,8 +26,7 @@ class Luminaut:
     def run(self):
         # Step 1: Enumerate ENIs with public IPs
         with progress.Progress(
-            *progress.Progress.get_default_columns(),
-            progress.TimeElapsedColumn(),
+            *default_progress_columns,
             transient=True,
         ) as task_progress:
             task_progress.add_task("Enumerating ENIs with public IPs", total=None)
@@ -30,8 +35,7 @@ class Luminaut:
         for scan_result in scan_results:
             # Step 2: Run the various tools that depend on the IP address
             with progress.Progress(
-                *progress.Progress.get_default_columns(),
-                progress.TimeElapsedColumn(),
+                *default_progress_columns,
                 transient=True,
             ) as task_progress:
                 task_progress.add_task(
@@ -41,8 +45,7 @@ class Luminaut:
                 scan_result.findings.extend(nmap_results.findings)
 
             with progress.Progress(
-                *progress.Progress.get_default_columns(),
-                progress.TimeElapsedColumn(),
+                *default_progress_columns,
                 transient=True,
             ) as task_progress:
                 task = task_progress.add_task(
