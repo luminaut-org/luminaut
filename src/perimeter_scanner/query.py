@@ -1,8 +1,5 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any
-
 import boto3
+from rich.emoji import Emoji
 
 from perimeter_scanner import models
 
@@ -71,24 +68,23 @@ class AwsConfig:
                 yield models.ConfigItem.from_aws_config(config_item)
 
 
-@dataclass
-class QueryResult:
-    source: str
-    data: list[models.AwsEni | dict[str, Any]]
-
-
-class Query(ABC):
-    @abstractmethod
-    def run(self, **kwargs) -> QueryResult:
-        pass
-
-
-class QueryPublicAwsEni(Query):
+class QueryPublicAwsEni:
     def __init__(self):
         self.eni = AwsEni()
 
-    def run(self, **kwargs) -> QueryResult:
-        data = []
+    def run(self) -> list[models.ScanResult]:
+        scan_results = []
         for eni in self.eni.fetch_enis_with_public_ips():
-            data.append(eni)
-        return QueryResult(source="Public AWS ENI", data=data)
+            scan_results.append(
+                models.ScanResult(
+                    ip=eni.public_ip,
+                    findings=[
+                        models.ScanFindings(
+                            tool="AWS Elastic Network Interfaces",
+                            resources=[eni],
+                            emoji=Emoji("cloud"),
+                        )
+                    ],
+                )
+            )
+        return scan_results

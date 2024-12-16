@@ -1,6 +1,6 @@
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
@@ -35,8 +35,7 @@ class AwsEni:
     private_dns_name: str | None = None
 
     def build_rich_panel(self) -> Panel:
-        rich_text = f"[bold underline]{Emoji('cloud')} AWS Elastic Network Interface[/bold underline]\n"
-        rich_text += f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
+        rich_text = f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
             rich_text += f"EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}\n"
         if self.security_groups:
@@ -47,11 +46,7 @@ class AwsEni:
                 ]
             )
             rich_text += f"Security Groups: {security_group_list}\n"
-        return Panel(
-            rich_text,
-            title=self.public_ip,
-            title_align="left",
-        )
+        return rich_text
 
 
 class ResourceType(StrEnum):
@@ -193,10 +188,26 @@ class NmapPortServices:
 @dataclass
 class ScanFindings:
     tool: str
-    services: list[NmapPortServices]
+    services: list[NmapPortServices] = field(default_factory=list)
+    resources: list[AwsEni | ConfigItem] = field(default_factory=list)
+    emoji: Emoji | None = Emoji("mag")
+
+    def build_rich_text(self) -> str:
+        rich_text = f"[bold underline]{self.emoji if self.emoji else ''} {self.tool}[/bold underline]\n"
+        for resource in self.resources:
+            rich_text += resource.build_rich_panel()
+
+        for service in self.services:
+            rich_text += service.build_rich_text()
+
+        return rich_text
 
 
 @dataclass
 class ScanResult:
     ip: str
     findings: list[ScanFindings]
+
+    def build_rich_panel(self) -> Panel:
+        rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
+        return Panel(rich_text, title=self.ip, title_align="left")

@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from rich.emoji import Emoji
-
 from perimeter_scanner.console import console
 from perimeter_scanner.query import QueryPublicAwsEni
 from perimeter_scanner.scanner import NmapScanner
@@ -18,20 +16,11 @@ class Luminaut:
 
     def run(self):
         # Step 1: Enumerate ENIs with public IPs
-        enis_with_public_ips = QueryPublicAwsEni().run()
-        for eni in enis_with_public_ips.data:
-            panel = eni.build_rich_panel()
+        scan_results = QueryPublicAwsEni().run()
+        for scan_result in scan_results:
+            # Step 2: Run the various tools that depend on the IP address
+            nmap_results = NmapScanner().run(scan_result.ip)
+            scan_result.findings.extend(nmap_results.findings)
 
-            nmap_results = []
-            scan_results = NmapScanner().run(eni.public_ip)
-            for scan_finding in scan_results.findings:
-                for service in scan_finding.services:
-                    nmap_results.append(service.build_rich_text())
-
-            if nmap_results:
-                panel.renderable += (
-                    f"\n[bold underline]{Emoji('mag')} Nmap Scan[/bold underline]\n"
-                )
-                panel.renderable += "\n".join(nmap_results)
-
+            panel = scan_result.build_rich_panel()
             console.print(panel)
