@@ -61,5 +61,23 @@ class Luminaut:
                 )
                 scan_result.findings.extend(aws_config_results.findings)
 
+                for eni_resource in scan_result.get_eni_resources():
+                    # Scan for AWS config changes related to EC2 instances associated with an ENI
+                    if not eni_resource.ec2_instance_id:
+                        continue
+
+                    task_progress.add_task(
+                        f"Checking AWS Config for {eni_resource.ec2_instance_id}",
+                        total=None,
+                    )
+                    aws_config_results = Aws().get_config_history_for_resource(
+                        models.ResourceType.EC2_Instance,
+                        eni_resource.ec2_instance_id,
+                        scan_result.ip,
+                        progress=progress,
+                        task_id=task,
+                    )
+                    scan_result.findings.extend(aws_config_results.findings)
+
             panel = scan_result.build_rich_panel()
             console.print(panel)

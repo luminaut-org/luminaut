@@ -83,7 +83,6 @@ class Ec2Configuration:
     private_dns_name: str
     private_ip_address: IPAddress
     public_dns_name: str
-    public_ip_address: IPAddress
     network_interfaces: list[NetworkInterface | dict[str, Any]]
     security_groups: list[SecurityGroup | dict[str, Any]]
     state: dict[str, Any]
@@ -92,6 +91,7 @@ class Ec2Configuration:
     usage_operation_update_time: datetime
     subnet_id: str
     vpc_id: str
+    public_ip_address: IPAddress | None = None
 
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
@@ -104,7 +104,9 @@ class Ec2Configuration:
             private_dns_name=configuration["privateDnsName"],
             private_ip_address=ip_address(configuration["privateIpAddress"]),
             public_dns_name=configuration["publicDnsName"],
-            public_ip_address=ip_address(configuration["publicIpAddress"]),
+            public_ip_address=ip_address(configuration["publicIpAddress"])
+            if configuration.get("publicIpAddress")
+            else None,
             network_interfaces=configuration["networkInterfaces"],
             security_groups=configuration["securityGroups"],
             state=configuration["state"],
@@ -190,7 +192,7 @@ class NmapPortServices:
     state: str
 
     def build_rich_text(self) -> str:
-        return f"[green]{self.protocol}/{self.port}[/green] status: {self.state} service: {self.name} {self.product} {self.version}\n"
+        return f"[green]{self.protocol}/{self.port}[/green] Status: {self.state} Service: {self.name} {self.product} {self.version}\n"
 
 
 @dataclass
@@ -220,3 +222,11 @@ class ScanResult:
     def build_rich_panel(self) -> Panel:
         rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
         return Panel(rich_text, title=self.ip, title_align="left")
+
+    def get_eni_resources(self) -> list[AwsEni]:
+        eni_resources = []
+        for finding in self.findings:
+            for resource in finding.resources:
+                if isinstance(resource, AwsEni):
+                    eni_resources.append(resource)
+        return eni_resources
