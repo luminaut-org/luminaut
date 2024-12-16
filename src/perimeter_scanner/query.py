@@ -1,5 +1,6 @@
 import boto3
 from rich.emoji import Emoji
+from rich.progress import Progress
 
 from perimeter_scanner import models
 
@@ -7,6 +8,7 @@ from perimeter_scanner import models
 class Aws:
     def __init__(self):
         self.ec2_client = boto3.client("ec2")
+        self.aws_client = boto3.client("config")
 
     def fetch_enis_with_public_ips(self) -> list[models.ScanResult]:
         paginator = self.ec2_client.get_paginator("describe_network_interfaces")
@@ -33,6 +35,7 @@ class Aws:
                 scan_results.append(
                     models.ScanResult(
                         ip=public_ip,
+                        eni_id=eni["NetworkInterfaceId"],
                         findings=[
                             models.ScanFindings(
                                 tool="AWS Elastic Network Interfaces",
@@ -63,27 +66,35 @@ class Aws:
 
         return scan_results
 
-
-class AwsConfig:
-    def __init__(self):
-        self.aws_client = boto3.client("config")
-
     def get_config_history_for_resource(
         self,
         resource_type: models.ResourceType,
         resource_id: str,
-    ) -> models.ConfigItem | None:
+        ip: models.IPAddress,
+        progress: Progress = None,
+        task_id: int = None,
+    ) -> models.ScanResult:
         pagination_client = self.aws_client.get_paginator("get_resource_config_history")
         pages = pagination_client.paginate(
             resourceType=str(resource_type),
             resourceId=resource_id,
         )
-
+        scan_result = models.ScanResult(
+            ip=ip,
+            eni_id=resource_id,
+            findings=[],
+        )
         for page in pages:
-            # get the first item, if any
-            config_items = page.get("configurationItems")
-            if not config_items or len(config_items) == 0:
-                return None
-
-            for config_item in config_items:
-                yield models.ConfigItem.from_aws_config(config_item)
+            if progress and task_id:
+                progress.update(task_id, total=len(page.get("configurationItems", [])))
+            for config_item in page.get("configurationItems", []):
+                scan_result.findings.append(
+                    models.ScanFindings(
+                        tool="AWS Config",
+                        emoji=Emoji("cloud"),
+                        resources=[models.ConfigItem.from_aws_config(config_item)],
+                    )
+                )
+                if progress and task_id:
+                    progress.update(task_id, advance=1, refresh=True)
+        return scan_result

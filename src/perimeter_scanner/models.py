@@ -34,7 +34,7 @@ class AwsEni:
     public_dns_name: str | None = None
     private_dns_name: str | None = None
 
-    def build_rich_panel(self) -> Panel:
+    def build_rich_text(self) -> Panel:
         rich_text = f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
             rich_text += f"EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}\n"
@@ -122,7 +122,6 @@ class Ec2Configuration:
 class ConfigItem:
     resource_type: ResourceType
     resource_id: str
-    resource_creation_time: datetime
     account: str
     region: str
     arn: str
@@ -130,6 +129,13 @@ class ConfigItem:
     config_status: str
     configuration: Ec2Configuration | str
     tags: dict[str, str]
+    resource_creation_time: datetime | None = None
+
+    def build_rich_text(self) -> str:
+        rich_text = f"[bold]{self.resource_type}[/bold] [orange1]{self.resource_id}[/orange1] created at [cyan]{self.resource_creation_time}[/cyan]\n"
+        rich_text += f"Account: [orange1]{self.account}[/orange1] Region: [cyan]{self.region}[/cyan]\n"
+        rich_text += f"Config captured at [cyan]{self.config_capture_time}[/cyan] with status {self.config_status}\n"
+        return rich_text
 
     @staticmethod
     def build_configuration(
@@ -152,7 +158,7 @@ class ConfigItem:
         return cls(
             resource_type=config_resource_type,
             resource_id=aws_config["resourceId"],
-            resource_creation_time=aws_config["resourceCreationTime"],
+            resource_creation_time=aws_config.get("resourceCreationTime"),
             account=aws_config["accountId"],
             region=aws_config["awsRegion"],
             arn=aws_config["arn"],
@@ -195,7 +201,7 @@ class ScanFindings:
     def build_rich_text(self) -> str:
         rich_text = f"[bold underline]{self.emoji if self.emoji else ''} {self.tool}[/bold underline]\n"
         for resource in self.resources:
-            rich_text += resource.build_rich_panel()
+            rich_text += resource.build_rich_text()
 
         for service in self.services:
             rich_text += service.build_rich_text()
@@ -207,6 +213,7 @@ class ScanFindings:
 class ScanResult:
     ip: str
     findings: list[ScanFindings]
+    eni_id: str | None = None
 
     def build_rich_panel(self) -> Panel:
         rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
