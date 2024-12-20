@@ -4,7 +4,6 @@ FROM python:3.12-slim-bookworm AS base
 
 RUN apt-get update &&\
     apt-get install -y --no-install-recommends curl git && \
-    rm -rf /var/lib/apt/lists/* && \
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
