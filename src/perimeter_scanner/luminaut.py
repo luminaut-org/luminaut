@@ -60,6 +60,7 @@ class Luminaut:
                     task_id=task,
                 )
                 scan_result.findings.extend(aws_config_results.findings)
+                task_progress.stop_task(task)
 
                 for eni_resource in scan_result.get_eni_resources():
                     # Scan for AWS config changes related to EC2 instances associated with an ENI
