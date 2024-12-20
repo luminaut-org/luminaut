@@ -1,6 +1,7 @@
 import nmap3
 
 from perimeter_scanner import models
+from perimeter_scanner.tools.aws import Aws
 
 
 class Scanner:
@@ -30,3 +31,17 @@ class Scanner:
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
         return models.ScanResult(ip=ip_address, findings=[nmap_findings])
+
+    @staticmethod
+    def aws_fetch_public_enis() -> list[models.ScanResult]:
+        return Aws().fetch_enis_with_public_ips()
+
+    @staticmethod
+    def aws_get_config_history_for_resource(
+        resource_type: models.ResourceType,
+        resource_id: str,
+        ip_address: models.IPAddress,
+    ) -> models.ScanResult:
+        return Aws().get_config_history_for_resource(
+            resource_type, resource_id, ip_address
+        )
