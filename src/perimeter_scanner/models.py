@@ -74,6 +74,44 @@ class NetworkInterface:
 
 
 @dataclass
+class Ec2InstanceStateReason:
+    # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_StateReason.html
+    code: int | None = None
+    message: str | None = None
+
+    def __bool__(self) -> bool:
+        return isinstance(self.message, str) and len(self.message) > 0
+
+    @classmethod
+    def from_aws_config(cls, state: dict[str, Any]) -> Self:
+        if not state:
+            return cls()
+        return cls(
+            code=state.get("code"),
+            message=state.get("message"),
+        )
+
+
+@dataclass
+class Ec2InstanceState:
+    # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceState.html
+    code: int | None = None
+    name: str | None = None
+
+    def __bool__(self) -> bool:
+        return isinstance(self.name, str) and len(self.name) > 0
+
+    @classmethod
+    def from_aws_config(cls, state: dict[str, Any]) -> Self:
+        if not state:
+            return cls()
+        return cls(
+            code=state.get("code"),
+            name=state.get("name"),
+        )
+
+
+@dataclass
 class Ec2Configuration:
     instance_id: str
     image_id: str
@@ -85,13 +123,31 @@ class Ec2Configuration:
     public_dns_name: str
     network_interfaces: list[NetworkInterface | dict[str, Any]]
     security_groups: list[SecurityGroup | dict[str, Any]]
-    state: dict[str, Any]
-    state_reason: str
+    state: Ec2InstanceState | None
+    state_reason: Ec2InstanceStateReason | None
     usage_operation: str
     usage_operation_update_time: datetime
     subnet_id: str
     vpc_id: str
     public_ip_address: IPAddress | None = None
+
+    def build_rich_text(self) -> str:
+        rich_text = ""
+
+        if self.state:
+            # More often than not, the state is populated and state_reason is not.
+            # On shutdown events, the state_reason is populated with a message.
+            rich_text += f"  Instance state: [green]{self.state.name}[/green]"
+            if self.state_reason:
+                rich_text += f" ({self.state_reason.message})"
+            rich_text += "\n"
+
+        elif self.state_reason:
+            rich_text += (
+                f"  Instance state: [green]{self.state_reason.message}[/green]\n"
+            )
+
+        return rich_text
 
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
@@ -112,8 +168,10 @@ class Ec2Configuration:
             public_ip_address=public_ip_address,
             network_interfaces=configuration["networkInterfaces"],
             security_groups=configuration["securityGroups"],
-            state=configuration["state"],
-            state_reason=configuration["stateReason"],
+            state=Ec2InstanceState.from_aws_config(configuration["state"]),
+            state_reason=Ec2InstanceStateReason.from_aws_config(
+                configuration["stateReason"]
+            ),
             usage_operation=configuration["usageOperation"],
             usage_operation_update_time=datetime.fromisoformat(
                 configuration["usageOperationUpdateTime"]
@@ -142,6 +200,10 @@ class ConfigItem:
         rich_text += f"  [bold orange1]{self.resource_type}[/bold orange1] [orange1]{self.resource_id}[/orange1]"
         rich_text += f" created at {self.resource_creation_time or 'a time unknown to AWS Config'}\n"
         rich_text += f"  Account: [orange1]{self.account}[/orange1] Region: [cyan]{self.region}[/cyan]\n"
+
+        if hasattr(self.configuration, "build_rich_text"):
+            rich_text += self.configuration.build_rich_text()
+
         return rich_text
 
     @staticmethod
