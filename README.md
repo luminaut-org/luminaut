@@ -48,3 +48,5 @@ For development, install the following tools:
 Once installed, clone this repository and run: `uv sync` to install and configure your environment.
 
 If that completed successfully, you should be able to run tests with `uv run pytest` or show the help information with `uv run luminaut --help`.
+
+Before contributing code, run `pre-commit install` to install the pre-commit tools.
