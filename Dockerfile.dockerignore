@@ -1,0 +1,8 @@
+# Ignore all files
+*/*.*
+.*
+
+# Except these
+!uv.lock
+!pyproject.toml
+!src/**/*.py
