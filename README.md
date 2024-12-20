@@ -21,7 +21,7 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
             `-._/._/
 ```
 
-## Usage
+## Introduction
 
 Luminaut is a framework that assembles tools and APIs commonly used to understand the scope of exposure for triage. This includes:
 - Fetching configurations from AWS
