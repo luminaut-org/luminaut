@@ -1,58 +1,37 @@
-from dataclasses import dataclass
-from enum import StrEnum, auto
-from ipaddress import IPv4Address, IPv6Address
+from abc import ABC, abstractmethod
 
 import nmap3
 
-IPAddressType = IPv4Address | IPv6Address
+from perimeter_scanner import models
 
 
-class Protocol(StrEnum):
-    TCP = auto()
-    UDP = auto()
-    ICMP = auto()
-
-
-@dataclass
-class NmapPortServices:
-    port: int
-    protocol: Protocol
-    name: str
-    product: str
-    version: str
-    state: str
-
-
-@dataclass
-class ScanFindings:
-    tool: str
-    services: list[NmapPortServices]
-
-
-@dataclass
-class ScanResult:
-    ip: str
-    findings: list[ScanFindings]
-
-
-class Scanner:
-    def __init__(self, *, timeout: int = 30):
+class Scanner(ABC):
+    def __init__(self, *, timeout: int = 30, **kwargs):
         self.timeout = timeout
 
-    def nmap(self, ip_address: IPAddressType) -> ScanResult:
+    @abstractmethod
+    def run(self, ip_address: models.IPAddress) -> models.ScanResult:
+        pass
+
+
+class NmapScanner(Scanner):
+    def run(self, ip_address: models.IPAddress) -> models.ScanResult:
+        return self.nmap(ip_address)
+
+    def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
         nmap = nmap3.Nmap()
         result = nmap.nmap_version_detection(
             target=ip_address,
-            args=["--version-light"],
+            args="--version-light -Pn",
             timeout=self.timeout,
         )
 
         port_services = []
         for port in result[ip_address]["ports"]:
             port_services.append(
-                NmapPortServices(
+                models.NmapPortServices(
                     port=int(port["portid"]),
-                    protocol=Protocol(port["protocol"]),
+                    protocol=models.Protocol(port["protocol"]),
                     name=port["service"]["name"],
                     product=port["service"]["product"],
                     version=port["service"]["version"],
@@ -60,5 +39,5 @@ class Scanner:
                 )
             )
 
-        nmap_findings = ScanFindings(tool="nmap", services=port_services)
-        return ScanResult(ip=ip_address, findings=[nmap_findings])
+        nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
+        return models.ScanResult(ip=ip_address, findings=[nmap_findings])
