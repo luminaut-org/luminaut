@@ -1,22 +1,11 @@
-from abc import ABC, abstractmethod
-
 import nmap3
 
 from perimeter_scanner import models
 
 
-class Scanner(ABC):
+class Scanner:
     def __init__(self, *, timeout: int = 30, **kwargs):
         self.timeout = timeout
-
-    @abstractmethod
-    def run(self, ip_address: models.IPAddress) -> models.ScanResult:
-        pass
-
-
-class NmapScanner(Scanner):
-    def run(self, ip_address: models.IPAddress) -> models.ScanResult:
-        return self.nmap(ip_address)
 
     def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
         nmap = nmap3.Nmap()

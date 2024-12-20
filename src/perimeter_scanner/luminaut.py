@@ -5,7 +5,7 @@ from rich import progress
 from perimeter_scanner import models
 from perimeter_scanner.console import console
 from perimeter_scanner.query import Aws
-from perimeter_scanner.scanner import NmapScanner
+from perimeter_scanner.scanner import Scanner
 
 
 @dataclass
@@ -41,7 +41,7 @@ class Luminaut:
                 task_progress.add_task(
                     f"Scanning {scan_result.ip} with nmap", total=None
                 )
-                nmap_results = NmapScanner().run(scan_result.ip)
+                nmap_results = Scanner().nmap(scan_result.ip)
                 scan_result.findings.extend(nmap_results.findings)
 
             with progress.Progress(
