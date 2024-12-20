@@ -1,6 +1,5 @@
 import boto3
 from rich.emoji import Emoji
-from rich.progress import Progress
 
 from perimeter_scanner import models
 
@@ -71,8 +70,6 @@ class Aws:
         resource_type: models.ResourceType,
         resource_id: str,
         ip: models.IPAddress,
-        progress: Progress = None,
-        task_id: int = None,
     ) -> models.ScanResult:
         pagination_client = self.aws_client.get_paginator("get_resource_config_history")
         pages = pagination_client.paginate(
@@ -82,12 +79,8 @@ class Aws:
 
         resources = []
         for page in pages:
-            if progress and task_id:
-                progress.update(task_id, total=len(page.get("configurationItems", [])))
             for config_item in page.get("configurationItems", []):
                 resources.append(models.ConfigItem.from_aws_config(config_item))
-                if progress and task_id:
-                    progress.update(task_id, advance=1, refresh=True)
 
         scan_result = models.ScanResult(
             ip=ip,

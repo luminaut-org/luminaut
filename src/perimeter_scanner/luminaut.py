@@ -29,26 +29,22 @@ class Luminaut:
             *default_progress_columns,
             transient=True,
         ) as task_progress:
-            task_progress.add_task("Enumerating ENIs with public IPs", total=None)
+            task_id = task_progress.add_task(
+                "Enumerating ENIs with public IPs", total=None
+            )
             scan_results = scanner.aws_fetch_public_enis()
+            task_progress.stop_task(task_id)
 
-        for scan_result in scan_results:
-            # Step 2: Run the various tools that depend on the IP address
-            with progress.Progress(
-                *default_progress_columns,
-                transient=True,
-            ) as task_progress:
-                task_progress.add_task(
+            for scan_result in scan_results:
+                # Step 2: Run the various tools that depend on the IP address
+                task_id = task_progress.add_task(
                     f"Scanning {scan_result.ip} with nmap", total=None
                 )
                 nmap_results = scanner.nmap(scan_result.ip)
                 scan_result.findings.extend(nmap_results.findings)
+                task_progress.stop_task(task_id)
 
-            with progress.Progress(
-                *default_progress_columns,
-                transient=True,
-            ) as task_progress:
-                task = task_progress.add_task(
+                task_id = task_progress.add_task(
                     f"Checking AWS Config for {scan_result.eni_id}",
                     total=None,
                 )
@@ -58,7 +54,7 @@ class Luminaut:
                     scan_result.ip,
                 )
                 scan_result.findings.extend(aws_config_results.findings)
-                task_progress.stop_task(task)
+                task_progress.stop_task(task_id)
 
                 for eni_resource in scan_result.get_eni_resources():
                     # Scan for AWS config changes related to EC2 instances associated with an ENI
