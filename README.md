@@ -31,6 +31,12 @@ Luminaut is a framework that assembles tools and APIs commonly used to understan
 
 ## Installation
 
+### Using docker
+
+Run `docker build --tag luminaut:latest` to build the container.
+
+You can then run the container with `docker run luminaut --help`
+
 ### For development
 
 For development, install the following tools:
