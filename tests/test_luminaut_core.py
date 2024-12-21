@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock, patch
 
 from luminaut import Luminaut, LuminautConfig, models
 
@@ -7,6 +8,18 @@ class LuminautCore(unittest.TestCase):
     def setUp(self):
         self.config = LuminautConfig()
         self.luminaut = Luminaut(self.config)
+
+    @patch("luminaut.core.console")
+    def test_report_to_console_only_if_enabled(self, mock_console: Mock):
+        self.config.report.console = True
+        self.luminaut.report([models.ScanResult(ip="10.0.0.1", findings=[])])
+        mock_console.print.assert_called_once()
+
+        mock_console.print.reset_mock()
+
+        self.config.report.console = False
+        self.luminaut.report([models.ScanResult(ip="10.0.0.1", findings=[])])
+        mock_console.print.assert_not_called()
 
     def test_discover_public_ips_only_runs_if_aws_enabled(self):
         self.config.aws = models.LuminautConfigToolAws(enabled=False)

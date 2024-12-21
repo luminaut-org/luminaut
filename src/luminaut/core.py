@@ -29,9 +29,10 @@ class Luminaut:
             self.report(scan_results)
 
     def report(self, scan_results):
-        for scan_result in scan_results:
-            panel = scan_result.build_rich_panel()
-            console.print(panel)
+        if self.config.report.console:
+            for scan_result in scan_results:
+                panel = scan_result.build_rich_panel()
+                console.print(panel)
 
     def discover_public_ips(self) -> list[models.ScanResult]:
         scan_results = []
