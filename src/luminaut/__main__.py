@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from luminaut.core import Luminaut, LuminautConfig
+from luminaut import Luminaut, models
 
 logger = logging.getLogger()
 logger.getChild("boto3").setLevel(logging.ERROR)
@@ -76,7 +76,8 @@ def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
 def main(args: list[str] | None = None) -> None:
     args = configure_cli_args(args)
     configure_logging(args.log, args.verbose)
-    luminaut = Luminaut(LuminautConfig())
+    config = models.LuminautConfig(aws=models.LuminautConfigToolAws(enabled=True))
+    luminaut = Luminaut(config)
     luminaut.run()
 
 

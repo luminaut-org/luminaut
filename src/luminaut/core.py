@@ -54,43 +54,37 @@ class Luminaut:
         return updated_scan_results
 
     def run_nmap(self, scan_result: models.ScanResult) -> models.ScanResult:
-        task_id = self.task_progress.add_task(
-            f"Scanning {scan_result.ip} with nmap", total=None
-        )
-        nmap_results = self.scanner.nmap(scan_result.ip)
-        scan_result.findings.extend(nmap_results.findings)
-        self.task_progress.stop_task(task_id)
+        with TaskProgress(self.task_progress, f"Scanning {scan_result.ip} with nmap"):
+            nmap_results = self.scanner.nmap(scan_result.ip)
+            scan_result.findings.extend(nmap_results.findings)
         return scan_result
 
     def gather_aws_config_history(
         self, scan_result: models.ScanResult
     ) -> models.ScanResult:
-        task_id = self.task_progress.add_task(
-            f"Checking AWS Config for {scan_result.eni_id}",
-            total=None,
-        )
-        aws_config_results = self.scanner.aws_get_config_history_for_resource(
-            models.ResourceType.EC2_NetworkInterface,
-            scan_result.eni_id,
-            scan_result.ip,
-        )
-        scan_result.findings.extend(aws_config_results.findings)
-        self.task_progress.stop_task(task_id)
+        task_description = f"Checking AWS Config for {scan_result.eni_id}"
+
+        with TaskProgress(self.task_progress, task_description):
+            aws_config_results = self.scanner.aws_get_config_history_for_resource(
+                models.ResourceType.EC2_NetworkInterface,
+                scan_result.eni_id,
+                scan_result.ip,
+            )
+            scan_result.findings.extend(aws_config_results.findings)
 
         for eni_resource in scan_result.get_eni_resources():
             # Scan for AWS config changes related to EC2 instances associated with an ENI
             if not eni_resource.ec2_instance_id:
                 continue
 
-            task_id = self.task_progress.add_task(
-                f"Checking AWS Config for {eni_resource.ec2_instance_id}",
-                total=None,
-            )
-            aws_config_results = self.scanner.aws_get_config_history_for_resource(
-                models.ResourceType.EC2_Instance,
-                eni_resource.ec2_instance_id,
-                scan_result.ip,
-            )
-            scan_result.findings.extend(aws_config_results.findings)
-            self.task_progress.stop_task(task_id)
+            task_description = f"Checking AWS Config for {eni_resource.ec2_instance_id}"
+
+            with TaskProgress(self.task_progress, task_description):
+                aws_config_results = self.scanner.aws_get_config_history_for_resource(
+                    models.ResourceType.EC2_Instance,
+                    eni_resource.ec2_instance_id,
+                    scan_result.ip,
+                )
+                scan_result.findings.extend(aws_config_results.findings)
+
         return scan_result
