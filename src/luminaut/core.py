@@ -24,7 +24,7 @@ class Luminaut:
             self.task_progress = task_progress
             scan_results = self.discover_public_ips()
 
-            scan_results = self.gather_eni_context(scan_results)
+            scan_results = self.gather_public_ip_context(scan_results)
 
             for scan_result in scan_results:
                 panel = scan_result.build_rich_panel()
@@ -40,7 +40,7 @@ class Luminaut:
 
         return scan_results
 
-    def gather_eni_context(self, scan_results: list[models.ScanResult]):
+    def gather_public_ip_context(self, scan_results: list[models.ScanResult]):
         updated_scan_results = []
 
         for scan_result in scan_results:
