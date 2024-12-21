@@ -1,5 +1,11 @@
+import json
+from dataclasses import asdict
+from typing import TextIO
+
 from rich.console import Console
 from rich.progress import Progress
+
+from luminaut.models import ScanResult
 
 console = Console()
 
@@ -23,3 +29,8 @@ class TaskProgress:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.task_progress and self.task_id:
             self.task_progress.stop_task(self.task_id)
+
+
+def write_json_report(scan_result: ScanResult, output: TextIO):
+    json_result = asdict(scan_result)  # type: ignore
+    json.dump(json_result, output)  # type: ignore
