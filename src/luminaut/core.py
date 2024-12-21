@@ -40,7 +40,9 @@ class Luminaut:
 
         return scan_results
 
-    def gather_public_ip_context(self, scan_results: list[models.ScanResult]):
+    def gather_public_ip_context(
+        self, scan_results: list[models.ScanResult]
+    ) -> list[models.ScanResult]:
         updated_scan_results = []
 
         for scan_result in scan_results:
