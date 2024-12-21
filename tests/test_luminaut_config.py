@@ -4,19 +4,19 @@ from io import BytesIO
 from luminaut import LuminautConfig
 
 sample_toml_config = b"""
-[luminaut.report]
+[report]
 console = true
 json = false
 
-[luminaut.tool.aws]
+[tool.aws]
 enabled = true
 aws_profile = "default"
 aws_regions = ['us-east-1']
 
-[luminaut.tool.aws.config]
+[tool.aws.config]
 enabled = false
 
-[luminaut.tool.nmap]
+[tool.nmap]
 enabled = true
 timeout = 300
 """

@@ -60,12 +60,10 @@ class LuminautConfig:
         toml_data = tomllib.load(toml_file)
 
         luminaut_config = cls(
-            report=LuminautConfigReport(
-                **toml_data.get("luminaut", {}).get("report", {})
-            )
+            report=LuminautConfigReport(**toml_data.get("report", {}))
         )
 
-        if tool_config := toml_data.get("luminaut", {}).get("tool"):
+        if tool_config := toml_data.get("tool"):
             luminaut_config.aws = LuminautConfigToolAws.from_dict(
                 tool_config.get("aws", {})
             )
