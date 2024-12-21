@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from luminaut.luminaut import Luminaut, LuminautConfig
+from luminaut.core import Luminaut, LuminautConfig
 
 logger = logging.getLogger()
 logger.getChild("boto3").setLevel(logging.ERROR)
