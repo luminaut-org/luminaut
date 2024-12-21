@@ -59,15 +59,15 @@ class LuminautCore(unittest.TestCase):
             )
         )
 
-        self.config.aws = models.LuminautConfigToolAws(enabled=False)
-        self.config.aws.config = models.LuminautConfigTool(enabled=True)
+        self.config.aws.enabled = False
+        self.config.aws.config.enabled = True
         scan_result = self.luminaut.gather_aws_config_history(
             models.ScanResult(ip="10.0.0.1", findings=[])
         )
         self.assertEqual([], scan_result.findings)
 
         self.config.aws.enabled = True
-        self.config.aws.config = models.LuminautConfigTool(enabled=False)
+        self.config.aws.config.enabled = False
         scan_result = self.luminaut.gather_aws_config_history(
             models.ScanResult(ip="10.0.0.1", findings=[])
         )
