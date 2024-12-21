@@ -34,3 +34,9 @@ class TaskProgress:
 def write_json_report(scan_result: ScanResult, output: TextIO):
     json_result = asdict(scan_result)  # type: ignore
     json.dump(json_result, output)  # type: ignore
+
+
+def write_jsonl_report(scan_results: list[ScanResult], output: TextIO):
+    for scan_result in scan_results:
+        write_json_report(scan_result, output)
+        output.write("\n")

@@ -1,9 +1,10 @@
+import copy
 import json
 import unittest
 from io import StringIO
 
 from luminaut import models
-from luminaut.report import write_json_report
+from luminaut.report import write_json_report, write_jsonl_report
 
 
 class JsonReport(unittest.TestCase):
@@ -36,3 +37,19 @@ class JsonReport(unittest.TestCase):
 
         self.assertIsInstance(json_result, dict)
         self.assertEqual("nginx", json_result["findings"][0]["services"][0]["product"])
+
+    def test_generate_jsonl_report(self):
+        second_result = copy.deepcopy(self.scan_result)
+        second_result.ip = "10.1.1.1"
+
+        scan_results = [self.scan_result, second_result]
+
+        output_file = StringIO()
+        write_jsonl_report(scan_results, output_file)
+
+        output_file.seek(0)
+        for scan_result, line in zip(scan_results, output_file, strict=True):
+            json_result = json.loads(line)
+
+            self.assertIsInstance(json_result, dict)
+            self.assertEqual(scan_result.ip, json_result["ip"])
