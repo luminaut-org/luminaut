@@ -1,3 +1,7 @@
+# Tool exclusions
+luminaut.toml
+*.log
+
 # IDE configs
 .vscode/
 
