@@ -1,7 +1,7 @@
 from rich import progress
 
 from luminaut import models
-from luminaut.console import TaskProgress, console
+from luminaut.report import TaskProgress, console
 from luminaut.scanner import Scanner
 
 default_progress_columns = [
