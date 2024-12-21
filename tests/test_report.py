@@ -7,8 +7,8 @@ from luminaut.report import write_json_report
 
 
 class JsonReport(unittest.TestCase):
-    def test_generate_json_report(self):
-        result = models.ScanResult(
+    def setUp(self):
+        self.scan_result = models.ScanResult(
             ip="10.0.0.1",
             findings=[
                 models.ScanFindings(
@@ -26,8 +26,10 @@ class JsonReport(unittest.TestCase):
                 ),
             ],
         )
+
+    def test_generate_json_report(self):
         output_file = StringIO()
-        write_json_report(result, output_file)
+        write_json_report(self.scan_result, output_file)
 
         output_file.seek(0)
         json_result = json.load(output_file)
