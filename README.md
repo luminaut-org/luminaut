@@ -50,3 +50,23 @@ Once installed, clone this repository and run: `uv sync` to install and configur
 If that completed successfully, you should be able to run tests with `uv run pytest` or show the help information with `uv run luminaut --help`.
 
 Before contributing code, run `pre-commit install` to install the pre-commit tools.
+
+## Usage
+
+No arguments are required to run luminaut. The default is to look for a `luminaut.toml` file in the same directory
+and run available tools to start detecting resources.
+
+Luminaut help is available with the argument `--help`.
+
+```
+$ luminaut --help                       
+usage: luminaut [-h] [--config CONFIG] [--log LOG] [--verbose]
+
+Luminaut: Casting light on shadow cloud deployments. 
+
+options:
+  -h, --help       show this help message and exit
+  --config CONFIG  Configuration file. (default: luminaut.toml)
+  --log LOG        Log file. (default: luminaut.log)
+  --verbose        Verbose output in the log file. (default: False)
+```
