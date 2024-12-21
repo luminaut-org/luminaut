@@ -1,7 +1,7 @@
 from rich import progress
 
 from luminaut import models
-from luminaut.console import console
+from luminaut.console import TaskProgress, console
 from luminaut.scanner import Scanner
 
 default_progress_columns = [
@@ -34,14 +34,9 @@ class Luminaut:
         scan_results = []
 
         if self.config.aws.enabled:
-            task_id = None
-            if self.task_progress:
-                task_id = self.task_progress.add_task(
-                    "Enumerating ENIs with public IPs", total=None
-                )
-            scan_results = self.scanner.aws_fetch_public_enis()
-            if self.task_progress and task_id:
-                self.task_progress.stop_task(task_id)
+            task_description = "Enumerating AWS ENIs with public IPs"
+            with TaskProgress(self.task_progress, task_description):
+                scan_results = self.scanner.aws_fetch_public_enis()
 
         return scan_results
 
