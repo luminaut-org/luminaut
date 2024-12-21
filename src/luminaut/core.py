@@ -30,12 +30,19 @@ class Luminaut:
                 panel = scan_result.build_rich_panel()
                 console.print(panel)
 
-    def discover_public_ips(self):
-        task_id = self.task_progress.add_task(
-            "Enumerating ENIs with public IPs", total=None
-        )
-        scan_results = self.scanner.aws_fetch_public_enis()
-        self.task_progress.stop_task(task_id)
+    def discover_public_ips(self) -> list[models.ScanResult]:
+        scan_results = []
+
+        if self.config.aws.enabled:
+            task_id = None
+            if self.task_progress:
+                task_id = self.task_progress.add_task(
+                    "Enumerating ENIs with public IPs", total=None
+                )
+            scan_results = self.scanner.aws_fetch_public_enis()
+            if self.task_progress and task_id:
+                self.task_progress.stop_task(task_id)
+
         return scan_results
 
     def gather_eni_context(self, scan_results: list[models.ScanResult]):
