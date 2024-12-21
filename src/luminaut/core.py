@@ -63,6 +63,9 @@ class Luminaut:
     def gather_aws_config_history(
         self, scan_result: models.ScanResult
     ) -> models.ScanResult:
+        if self.config.aws.enabled is False or self.config.aws.config.enabled is False:
+            return scan_result
+
         task_description = f"Checking AWS Config for {scan_result.eni_id}"
 
         with TaskProgress(self.task_progress, task_description):
