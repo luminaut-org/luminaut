@@ -1,7 +1,7 @@
-import json
 from dataclasses import asdict
 from typing import TextIO
 
+import orjson
 from rich.console import Console
 from rich.progress import Progress
 
@@ -33,7 +33,8 @@ class TaskProgress:
 
 def write_json_report(scan_result: ScanResult, output: TextIO):
     json_result = asdict(scan_result)  # type: ignore
-    json.dump(json_result, output)  # type: ignore
+    serialized_data = orjson.dumps(json_result)  # type: ignore
+    output.write(serialized_data.decode("utf-8"))
 
 
 def write_jsonl_report(scan_results: list[ScanResult], output: TextIO):

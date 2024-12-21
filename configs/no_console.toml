@@ -1,6 +1,6 @@
-[reports]
+[report]
 console = false
-json = false
+json = true
 
 [tool.aws]
 enabled = true

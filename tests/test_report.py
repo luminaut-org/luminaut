@@ -1,7 +1,9 @@
 import copy
-import json
 import unittest
+from datetime import datetime
 from io import StringIO
+
+import orjson
 
 from luminaut import models
 from luminaut.report import write_json_report, write_jsonl_report
@@ -25,6 +27,22 @@ class JsonReport(unittest.TestCase):
                         )
                     ],
                 ),
+                models.ScanFindings(
+                    tool="aws-config",
+                    resources=[
+                        models.ConfigItem(
+                            resource_type=models.ResourceType.EC2_Instance,
+                            resource_id="i-1234567890abcdef0",
+                            account="123456789012",
+                            region="us-east-1",
+                            arn="bar",
+                            configuration="foo",
+                            config_status="OK",
+                            config_capture_time=datetime.today(),
+                            tags={"Name": "test"},
+                        )
+                    ],
+                ),
             ],
         )
 
@@ -33,7 +51,7 @@ class JsonReport(unittest.TestCase):
         write_json_report(self.scan_result, output_file)
 
         output_file.seek(0)
-        json_result = json.load(output_file)
+        json_result = orjson.loads(output_file.read())
 
         self.assertIsInstance(json_result, dict)
         self.assertEqual("nginx", json_result["findings"][0]["services"][0]["product"])
@@ -49,7 +67,7 @@ class JsonReport(unittest.TestCase):
 
         output_file.seek(0)
         for scan_result, line in zip(scan_results, output_file, strict=True):
-            json_result = json.loads(line)
+            json_result = orjson.loads(line)
 
             self.assertIsInstance(json_result, dict)
             self.assertEqual(scan_result.ip, json_result["ip"])
