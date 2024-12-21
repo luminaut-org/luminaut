@@ -76,7 +76,11 @@ def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
 def main(args: list[str] | None = None) -> None:
     args = configure_cli_args(args)
     configure_logging(args.log, args.verbose)
-    config = models.LuminautConfig(aws=models.LuminautConfigToolAws(enabled=True))
+    config = models.LuminautConfig(
+        report=models.LuminautConfigReport(console=True, json=True),
+        aws=models.LuminautConfigToolAws(enabled=True),
+        nmap=models.LuminautConfigTool(enabled=True),
+    )
     luminaut = Luminaut(config)
     luminaut.run()
 

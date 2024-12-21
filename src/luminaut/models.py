@@ -44,7 +44,14 @@ class LuminautConfigToolAws(LuminautConfigTool):
 
 
 @dataclass
+class LuminautConfigReport:
+    console: bool = True
+    json: bool = False
+
+
+@dataclass
 class LuminautConfig:
+    report: LuminautConfigReport = field(default_factory=LuminautConfigReport)
     aws: LuminautConfigToolAws | None = None
     nmap: LuminautConfigTool | None = None
 
@@ -52,7 +59,11 @@ class LuminautConfig:
     def from_toml(cls, toml_file: BinaryIO) -> Self:
         toml_data = tomllib.load(toml_file)
 
-        luminaut_config = cls()
+        luminaut_config = cls(
+            report=LuminautConfigReport(
+                **toml_data.get("luminaut", {}).get("report", {})
+            )
+        )
 
         if tool_config := toml_data.get("luminaut", {}).get("tool"):
             luminaut_config.aws = LuminautConfigToolAws.from_dict(
