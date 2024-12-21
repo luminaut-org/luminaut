@@ -46,18 +46,19 @@ class Luminaut:
         updated_scan_results = []
 
         for scan_result in scan_results:
-            scan_result = self.run_nmap(scan_result)
+            scan_result.findings += self.run_nmap(scan_result)
             scan_result = self.gather_aws_config_history(scan_result)
 
             updated_scan_results.append(scan_result)
 
         return updated_scan_results
 
-    def run_nmap(self, scan_result: models.ScanResult) -> models.ScanResult:
-        with TaskProgress(self.task_progress, f"Scanning {scan_result.ip} with nmap"):
-            nmap_results = self.scanner.nmap(scan_result.ip)
-            scan_result.findings.extend(nmap_results.findings)
-        return scan_result
+    def run_nmap(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
+        if self.config.nmap.enabled:
+            task_description = f"Scanning {scan_result.ip} with nmap"
+            with TaskProgress(self.task_progress, task_description):
+                return self.scanner.nmap(scan_result.ip).findings
+        return []
 
     def gather_aws_config_history(
         self, scan_result: models.ScanResult

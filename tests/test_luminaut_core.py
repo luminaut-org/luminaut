@@ -19,3 +19,20 @@ class LuminautCore(unittest.TestCase):
 
         scan_results = self.luminaut.discover_public_ips()
         self.assertEqual(expected_result, scan_results[0])
+
+    def test_nmap_only_runs_if_enabled(self):
+        self.config.nmap = models.LuminautConfigTool(enabled=False)
+        empty_scan_results = models.ScanResult(ip="10.0.0.1", findings=[])
+        scan_findings = [models.ScanFindings(tool="unittest")]
+        self.luminaut.scanner.nmap = lambda ip: models.ScanResult(
+            ip="10.0.0.1", findings=scan_findings
+        )
+
+        nmap_findings = self.luminaut.run_nmap(empty_scan_results)
+
+        self.assertEqual([], nmap_findings)
+
+        self.config.nmap.enabled = True
+
+        nmap_findings = self.luminaut.run_nmap(empty_scan_results)
+        self.assertEqual(scan_findings, nmap_findings)
