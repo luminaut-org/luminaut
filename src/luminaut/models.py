@@ -101,7 +101,7 @@ class AwsEni:
     public_dns_name: str | None = None
     private_dns_name: str | None = None
 
-    def build_rich_text(self) -> Panel:
+    def build_rich_text(self) -> str:
         rich_text = f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
             rich_text += f"EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}\n"
