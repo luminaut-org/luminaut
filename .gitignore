@@ -4,6 +4,7 @@ luminaut.toml
 
 # IDE configs
 .vscode/
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
