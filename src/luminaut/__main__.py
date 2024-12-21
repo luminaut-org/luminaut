@@ -64,7 +64,7 @@ def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
         formatter_class=ArgparseFormatter,
     )
     cli_args.add_argument(
-        "--config", type=Path, default="luminaut.toml", help="Configuration file."
+        "--config", type=Path, default=None, help="Configuration file."
     )
     cli_args.add_argument("--log", type=Path, default="luminaut.log", help="Log file.")
     cli_args.add_argument(
@@ -81,7 +81,9 @@ def load_config(config_file: Path) -> models.LuminautConfig:
 def main(args: list[str] | None = None) -> None:
     args = configure_cli_args(args)
     configure_logging(args.log, args.verbose)
-    config = load_config(args.config)
+    config = models.LuminautConfig()
+    if args.config and args.config.exists():
+        config = load_config(args.config)
     luminaut = Luminaut(config)
     luminaut.run()
 

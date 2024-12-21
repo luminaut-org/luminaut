@@ -30,7 +30,9 @@ class LuminautConfigTool:
 class LuminautConfigToolAws(LuminautConfigTool):
     aws_profile: str | None = None
     aws_regions: list[str] | None = None
-    config: LuminautConfigTool | None = None
+    config: LuminautConfigTool = field(
+        default_factory=lambda: LuminautConfigTool(enabled=True)
+    )
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
@@ -52,8 +54,12 @@ class LuminautConfigReport:
 @dataclass
 class LuminautConfig:
     report: LuminautConfigReport = field(default_factory=LuminautConfigReport)
-    aws: LuminautConfigToolAws | None = None
-    nmap: LuminautConfigTool | None = None
+    aws: LuminautConfigToolAws = field(
+        default_factory=lambda: LuminautConfigToolAws(enabled=True)
+    )
+    nmap: LuminautConfigTool = field(
+        default_factory=lambda: LuminautConfigTool(enabled=True)
+    )
 
     @classmethod
     def from_toml(cls, toml_file: BinaryIO) -> Self:
