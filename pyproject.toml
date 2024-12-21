@@ -1,7 +1,7 @@
 [project]
-name = "perimeter-scanner"
+name = "luminaut"
 version = "0.1.0"
-description = "Add your description here"
+description = "Casting light on shadow cloud deplouments"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.scripts]
-luminaut = "perimeter_scanner.__main__:main"
+luminaut = "luminaut.__main__:main"
 
 [dependency-groups]
 dev = [

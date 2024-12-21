@@ -1,7 +1,7 @@
 import nmap3
 
-from perimeter_scanner import models
-from perimeter_scanner.tools.aws import Aws
+from luminaut import models
+from luminaut.tools.aws import Aws
 
 
 class Scanner:

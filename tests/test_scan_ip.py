@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
-from perimeter_scanner import models
-from perimeter_scanner.scanner import Scanner
+from luminaut import models
+from luminaut.scanner import Scanner
 
 
 def test_nmap():
@@ -27,7 +27,7 @@ def test_nmap():
         }
     }
 
-    with patch("perimeter_scanner.scanner.nmap3") as mocked_nmap3:
+    with patch("luminaut.scanner.nmap3") as mocked_nmap3:
         mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
         nmap_results = Scanner(timeout=1).nmap(ip_addr)
 

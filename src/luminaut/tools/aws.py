@@ -1,7 +1,7 @@
 import boto3
 from rich.emoji import Emoji
 
-from perimeter_scanner import models
+from luminaut import models
 
 
 class Aws:

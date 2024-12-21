@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 from rich import progress
 
-from perimeter_scanner import models
-from perimeter_scanner.console import console
-from perimeter_scanner.scanner import Scanner
+from luminaut import models
+from luminaut.console import console
+from luminaut.scanner import Scanner
 
 
 @dataclass
