@@ -5,7 +5,7 @@ from luminaut.tools.aws import Aws
 
 
 class Scanner:
-    def __init__(self, *, timeout: int = 30, **kwargs):
+    def __init__(self, *, timeout: int = None, **kwargs):
         self.timeout = timeout
 
     def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
