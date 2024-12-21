@@ -1,16 +1,8 @@
-from dataclasses import dataclass
-
 from rich import progress
 
 from luminaut import models
 from luminaut.console import console
 from luminaut.scanner import Scanner
-
-
-@dataclass
-class LuminautConfig:
-    pass
-
 
 default_progress_columns = [
     *progress.Progress.get_default_columns(),
@@ -19,7 +11,7 @@ default_progress_columns = [
 
 
 class Luminaut:
-    def __init__(self, config: LuminautConfig):
+    def __init__(self, config: models.LuminautConfig):
         self.config = config
         self.scanner = Scanner()
         self.task_progress = None

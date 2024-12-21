@@ -1,15 +1,69 @@
 import json
+import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
-from typing import Any, Self
+from typing import Any, BinaryIO, Self
 
 from rich.emoji import Emoji
 from rich.panel import Panel
 
 IPAddress = IPv4Address | IPv6Address
+
+
+@dataclass
+class LuminautConfigTool:
+    enabled: bool
+    timeout: int | None = None
+    binary_path: str | None = None
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> Self:
+        return cls(
+            enabled=config["enabled"],
+            timeout=config.get("timeout"),
+            binary_path=config.get("binary_path"),
+        )
+
+
+@dataclass
+class LuminautConfigToolAws(LuminautConfigTool):
+    aws_profile: str | None = None
+    aws_regions: list[str] | None = None
+    config: LuminautConfigTool | None = None
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> Self:
+        aws_config = super().from_dict(config)
+
+        aws_config.aws_profile = config.get("aws_profile")
+        aws_config.aws_regions = config.get("aws_regions")
+        aws_config.config = LuminautConfigTool.from_dict(config.get("config", {}))
+
+        return aws_config
+
+
+@dataclass
+class LuminautConfig:
+    aws: LuminautConfigToolAws | None = None
+    nmap: LuminautConfigTool | None = None
+
+    @classmethod
+    def from_toml(cls, toml_file: BinaryIO) -> Self:
+        toml_data = tomllib.load(toml_file)
+
+        luminaut_config = cls()
+
+        if tool_config := toml_data.get("luminaut", {}).get("tool"):
+            luminaut_config.aws = LuminautConfigToolAws.from_dict(
+                tool_config.get("aws", {})
+            )
+            luminaut_config.nmap = LuminautConfigTool.from_dict(
+                tool_config.get("nmap", {})
+            )
+        return luminaut_config
 
 
 @dataclass
