@@ -1,5 +1,4 @@
 import boto3
-from rich.emoji import Emoji
 
 from luminaut import models
 
@@ -38,7 +37,7 @@ class Aws:
                         findings=[
                             models.ScanFindings(
                                 tool="AWS Elastic Network Interfaces",
-                                emoji=Emoji("cloud"),
+                                emoji_name="cloud",
                                 resources=[
                                     models.AwsEni(
                                         network_interface_id=eni["NetworkInterfaceId"],
@@ -88,7 +87,7 @@ class Aws:
             findings=[
                 models.ScanFindings(
                     tool="AWS Config",
-                    emoji=Emoji("cloud"),
+                    emoji_name="cloud",
                     resources=resources,
                 )
             ],

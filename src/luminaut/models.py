@@ -332,10 +332,10 @@ class ScanFindings:
     tool: str
     services: list[NmapPortServices] = field(default_factory=list)
     resources: list[AwsEni | ConfigItem] = field(default_factory=list)
-    emoji: Emoji | None = Emoji("mag")
+    emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
-        rich_text = f"[bold underline]{self.emoji if self.emoji else ''} {self.tool}[/bold underline]\n"
+        rich_text = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
         for resource in self.resources:
             rich_text += resource.build_rich_text()
 
