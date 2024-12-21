@@ -53,7 +53,7 @@ class Luminaut:
 
         return updated_scan_results
 
-    def run_nmap(self, scan_result: models.ScanResult):
+    def run_nmap(self, scan_result: models.ScanResult) -> models.ScanResult:
         task_id = self.task_progress.add_task(
             f"Scanning {scan_result.ip} with nmap", total=None
         )
