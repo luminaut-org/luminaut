@@ -7,6 +7,10 @@ from luminaut import Luminaut, LuminautConfig, models
 class LuminautCore(unittest.TestCase):
     def setUp(self):
         self.config = LuminautConfig()
+
+        # Disable during unittests
+        self.config.report.console = False
+
         self.luminaut = Luminaut(self.config)
 
     @patch("luminaut.core.console")
@@ -20,6 +24,18 @@ class LuminautCore(unittest.TestCase):
         self.config.report.console = False
         self.luminaut.report([models.ScanResult(ip="10.0.0.1", findings=[])])
         mock_console.print.assert_not_called()
+
+    @patch("luminaut.core.write_jsonl_report")
+    def test_report_to_jsonl_only_if_enabled(self, mock_write_jsonl_report: Mock):
+        self.config.report.json = True
+        self.luminaut.report([models.ScanResult(ip="10.0.0.1", findings=[])])
+        mock_write_jsonl_report.assert_called_once()
+
+        mock_write_jsonl_report.reset_mock()
+
+        self.config.report.json = False
+        self.luminaut.report([models.ScanResult(ip="10.0.0.1", findings=[])])
+        mock_write_jsonl_report.assert_not_called()
 
     def test_discover_public_ips_only_runs_if_aws_enabled(self):
         self.config.aws = models.LuminautConfigToolAws(enabled=False)

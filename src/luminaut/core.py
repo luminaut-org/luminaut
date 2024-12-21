@@ -1,7 +1,9 @@
+import sys
+
 from rich import progress
 
 from luminaut import models
-from luminaut.report import TaskProgress, console
+from luminaut.report import TaskProgress, console, write_jsonl_report
 from luminaut.scanner import Scanner
 
 default_progress_columns = [
@@ -28,7 +30,9 @@ class Luminaut:
 
             self.report(scan_results)
 
-    def report(self, scan_results):
+    def report(self, scan_results: list[models.ScanResult]) -> None:
+        if self.config.report.json:
+            write_jsonl_report(scan_results, sys.stdout)
         if self.config.report.console:
             for scan_result in scan_results:
                 panel = scan_result.build_rich_panel()
