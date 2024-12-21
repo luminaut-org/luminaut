@@ -7,6 +7,7 @@ from luminaut.luminaut import Luminaut, LuminautConfig
 logger = logging.getLogger()
 logger.getChild("boto3").setLevel(logging.ERROR)
 logger.getChild("botocore").setLevel(logging.ERROR)
+logger.getChild("urllib3.connectionpool").setLevel(logging.ERROR)
 
 
 luminaut_art = r"""
