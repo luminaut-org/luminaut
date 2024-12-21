@@ -5,9 +5,9 @@ description = "Casting light on shadow cloud deplouments"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "boto3>=1.35.53",
-    "python3-nmap>=1.9.1",
-    "rich>=13.9.4",
+    "boto3~=1.35.53",
+    "python3-nmap~=1.9.1",
+    "rich~=13.9.4",
 ]
 
 [project.scripts]
