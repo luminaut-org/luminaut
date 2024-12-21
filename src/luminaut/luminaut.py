@@ -25,7 +25,6 @@ class Luminaut:
         self.task_progress = None
 
     def run(self):
-        # Step 1: Enumerate ENIs with public IPs
         with progress.Progress(
             *default_progress_columns,
             transient=True,
@@ -45,11 +44,11 @@ class Luminaut:
 
     def gather_eni_context(self, scan_results: list[models.ScanResult]):
         updated_scan_results = []
-        for scan_result in scan_results:
-            # Step 2: Run the various tools that depend on the IP address
-            scan_result = self.run_nmap(scan_result)
 
+        for scan_result in scan_results:
+            scan_result = self.run_nmap(scan_result)
             scan_result = self.gather_aws_config_history(scan_result)
+
             updated_scan_results.append(scan_result)
 
         return updated_scan_results
