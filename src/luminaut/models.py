@@ -17,14 +17,12 @@ IPAddress = IPv4Address | IPv6Address
 class LuminautConfigTool:
     enabled: bool
     timeout: int | None = None
-    binary_path: str | None = None
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
         return cls(
             enabled=config["enabled"],
             timeout=config.get("timeout"),
-            binary_path=config.get("binary_path"),
         )
 
 

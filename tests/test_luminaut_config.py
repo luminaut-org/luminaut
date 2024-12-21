@@ -15,7 +15,6 @@ enabled = false
 [luminaut.tool.nmap]
 enabled = true
 timeout = 300
-binary_path = "/usr/bin/nmap"
 """
 
 
@@ -29,8 +28,8 @@ class TestLuminautConfig(unittest.TestCase):
         self.assertEqual(loaded_config.aws.aws_profile, "default")
         self.assertEqual(loaded_config.aws.aws_regions, ["us-east-1"])
 
+        self.assertTrue(loaded_config.nmap.enabled)
         self.assertEqual(loaded_config.nmap.timeout, 300)
-        self.assertEqual(loaded_config.nmap.binary_path, "/usr/bin/nmap")
 
 
 if __name__ == "__main__":
