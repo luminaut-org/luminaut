@@ -22,17 +22,21 @@ class Luminaut:
             transient=True,
         ) as task_progress:
             self.task_progress = task_progress
-            task_id = self.task_progress.add_task(
-                "Enumerating ENIs with public IPs", total=None
-            )
-            scan_results = self.scanner.aws_fetch_public_enis()
-            self.task_progress.stop_task(task_id)
+            scan_results = self.discover_public_ips()
 
             scan_results = self.gather_eni_context(scan_results)
 
             for scan_result in scan_results:
                 panel = scan_result.build_rich_panel()
                 console.print(panel)
+
+    def discover_public_ips(self):
+        task_id = self.task_progress.add_task(
+            "Enumerating ENIs with public IPs", total=None
+        )
+        scan_results = self.scanner.aws_fetch_public_enis()
+        self.task_progress.stop_task(task_id)
+        return scan_results
 
     def gather_eni_context(self, scan_results: list[models.ScanResult]):
         updated_scan_results = []
