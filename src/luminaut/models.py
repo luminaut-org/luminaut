@@ -104,7 +104,7 @@ class SecurityGroupRule:
     target_type: SecurityGroupRuleTargetType | None = None
 
     def build_rich_text(self) -> str:
-        return f"  [bold]{self.target_type} {self.target}[/bold] {self.direction} {self.from_port} to {self.to_port} {self.protocol} ({self.rule_id}: {self.description})\n"
+        return f"  [green]{self.target}[/green] {self.direction} [blue]{self.from_port}[/blue] to [blue]{self.to_port}[/blue] [magenta]{self.protocol}[/magenta] ({self.rule_id}: {self.description})\n"
 
     def is_permissive(self) -> bool:
         if self.target_type == SecurityGroupRuleTargetType.CIDR:
