@@ -1,0 +1,10 @@
+[report]
+console = true
+json = false
+
+[tool.aws]
+enabled = true
+config.enabled = false
+
+[tool.nmap]
+enabled = true
