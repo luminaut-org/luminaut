@@ -103,6 +103,9 @@ class SecurityGroupRule:
     target: str | None = None
     target_type: SecurityGroupRuleTargetType | None = None
 
+    def build_rich_text(self) -> str:
+        return f"  [bold]{self.target_type} {self.target}[/bold] {self.direction} {self.from_port} to {self.to_port} {self.protocol} ({self.rule_id}: {self.description})\n"
+
     def is_permissive(self) -> bool:
         if self.target_type == SecurityGroupRuleTargetType.CIDR:
             ip = ip_address(self.target.split("/")[0])
@@ -150,6 +153,13 @@ class SecurityGroup:
     group_id: str
     group_name: str
     rules: list[SecurityGroupRule] = field(default_factory=list)
+
+    def build_rich_text(self):
+        rich_text = f"[orange1]{self.group_name}[/orange1] ({self.group_id})\n"
+        for rule in self.rules:
+            if hasattr(rule, "build_rich_text"):
+                rich_text += rule.build_rich_text()
+        return rich_text
 
 
 @dataclass
@@ -370,7 +380,7 @@ class NmapPortServices:
 class ScanFindings:
     tool: str
     services: list[NmapPortServices] = field(default_factory=list)
-    resources: list[AwsEni | ConfigItem] = field(default_factory=list)
+    resources: list[AwsEni | ConfigItem | SecurityGroup] = field(default_factory=list)
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
