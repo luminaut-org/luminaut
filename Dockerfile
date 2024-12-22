@@ -9,7 +9,8 @@ RUN apt-get update &&\
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /app
-COPY uv.lock pyproject.toml README.md src /app/
+COPY uv.lock pyproject.toml README.md /app/
+COPY src /app/src
 RUN uv build
 
 FROM python:3.12-slim-bookworm AS final
