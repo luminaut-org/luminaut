@@ -198,24 +198,6 @@ class Ec2Configuration:
     vpc_id: str
     public_ip_address: IPAddress | None = None
 
-    def build_rich_text(self) -> str:
-        rich_text = ""
-
-        if self.state:
-            # More often than not, the state is populated and state_reason is not.
-            # On shutdown events, the state_reason is populated with a message.
-            rich_text += f"  Instance state: [green]{self.state.name}[/green]"
-            if self.state_reason:
-                rich_text += f" ({self.state_reason.message})"
-            rich_text += "\n"
-
-        elif self.state_reason:
-            rich_text += (
-                f"  Instance state: [green]{self.state_reason.message}[/green]\n"
-            )
-
-        return rich_text
-
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
         public_ip_address = (
@@ -260,18 +242,6 @@ class ConfigItem:
     configuration: Ec2Configuration | str
     tags: dict[str, str]
     resource_creation_time: datetime | None = None
-
-    def build_rich_text(self) -> str:
-        rich_text = f"[cyan]{self.config_capture_time}[/cyan]\n"
-        rich_text += f"  [bold]Status {self.config_status}[/bold]\n"
-        rich_text += f"  [bold orange1]{self.resource_type}[/bold orange1] [orange1]{self.resource_id}[/orange1]"
-        rich_text += f" created at {self.resource_creation_time or 'a time unknown to AWS Config'}\n"
-        rich_text += f"  Account: [orange1]{self.account}[/orange1] Region: [cyan]{self.region}[/cyan]\n"
-
-        if hasattr(self.configuration, "build_rich_text"):
-            rich_text += self.configuration.build_rich_text()
-
-        return rich_text
 
     @staticmethod
     def build_configuration(
@@ -337,10 +307,12 @@ class ScanFindings:
     def build_rich_text(self) -> str:
         rich_text = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
         for resource in self.resources:
-            rich_text += resource.build_rich_text()
+            if hasattr(resource, "build_rich_text"):
+                rich_text += resource.build_rich_text()
 
         for service in self.services:
-            rich_text += service.build_rich_text()
+            if hasattr(service, "build_rich_text"):
+                rich_text += service.build_rich_text()
 
         return rich_text
 
