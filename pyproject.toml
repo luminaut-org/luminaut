@@ -1,6 +1,6 @@
 [project]
 name = "luminaut"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Casting light on shadow cloud deplouments"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,6 +25,10 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/luminaut/__init__.py"
+pattern = '^__version__ = "(?P<version>[^"]+)"'
 
 [tool.uv]
 package = true
