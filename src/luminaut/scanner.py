@@ -54,3 +54,9 @@ class Scanner:
         return Aws().get_config_history_for_resource(
             resource_type, resource_id, ip_address
         )
+
+    @staticmethod
+    def aws_populate_permissive_ingress_security_group_rules(
+        security_group: models.SecurityGroup,
+    ) -> models.SecurityGroup:
+        return Aws().populate_permissive_ingress_security_group_rules(security_group)
