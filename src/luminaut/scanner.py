@@ -5,15 +5,15 @@ from luminaut.tools.aws import Aws
 
 
 class Scanner:
-    def __init__(self, *, timeout: int = None, **kwargs):
-        self.timeout = timeout
+    def __init__(self, *, config: models.LuminautConfig):
+        self.config = config
 
     def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
         nmap = nmap3.Nmap()
         result = nmap.nmap_version_detection(
             target=ip_address,
             args="--version-light -Pn",
-            timeout=self.timeout,
+            timeout=self.config.nmap.timeout,
         )
 
         port_services = []
