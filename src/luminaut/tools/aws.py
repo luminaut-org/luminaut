@@ -68,8 +68,7 @@ class Aws:
         self,
         resource_type: models.ResourceType,
         resource_id: str,
-        ip: models.IPAddress,
-    ) -> models.ScanResult:
+    ) -> list[models.ConfigItem]:
         pagination_client = self.aws_client.get_paginator("get_resource_config_history")
         pages = pagination_client.paginate(
             resourceType=str(resource_type),
@@ -81,19 +80,7 @@ class Aws:
             for config_item in page.get("configurationItems", []):
                 resources.append(models.ConfigItem.from_aws_config(config_item))
 
-        scan_result = models.ScanResult(
-            ip=ip,
-            eni_id=resource_id,
-            findings=[
-                models.ScanFindings(
-                    tool="AWS Config",
-                    emoji_name="cloud",
-                    resources=resources,
-                )
-            ],
-        )
-
-        return scan_result
+        return resources
 
     def populate_permissive_ingress_security_group_rules(
         self, security_group: models.SecurityGroup

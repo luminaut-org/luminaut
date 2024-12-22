@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 from luminaut import Luminaut, LuminautConfig, models
@@ -67,30 +68,37 @@ class LuminautCore(unittest.TestCase):
         self.assertEqual(scan_findings, nmap_findings)
 
     def test_aws_config_only_runs_if_enabled(self):
-        test_finding = models.ScanFindings(tool="unittest")
+        test_finding = models.ScanFindings(
+            tool="unittest",
+            resources=[
+                models.ConfigItem(
+                    resource_id="unittest",
+                    resource_type=models.ResourceType.EC2_Instance,
+                    configuration="",
+                    account="unittest",
+                    region="unittest",
+                    config_capture_time=datetime.now(),
+                    config_status="unittest",
+                    arn="foo",
+                    tags={},
+                )
+            ],
+        )
+        initial_scan_result = models.ScanResult(ip="10.0.0.1", findings=[])
         self.luminaut.scanner.aws_get_config_history_for_resource = (
-            lambda *args: models.ScanResult(
-                ip="10.0.0.1",
-                findings=[test_finding],
-            )
+            lambda *args, **kwargs: [test_finding]
         )
 
         self.config.aws.enabled = False
         self.config.aws.config.enabled = True
-        scan_result = self.luminaut.gather_aws_config_history(
-            models.ScanResult(ip="10.0.0.1", findings=[])
-        )
-        self.assertEqual([], scan_result.findings)
+        scan_result = self.luminaut.gather_aws_config_history(initial_scan_result)
+        self.assertEqual([], scan_result.resources)
 
         self.config.aws.enabled = True
         self.config.aws.config.enabled = False
-        scan_result = self.luminaut.gather_aws_config_history(
-            models.ScanResult(ip="10.0.0.1", findings=[])
-        )
-        self.assertEqual([], scan_result.findings)
+        scan_result = self.luminaut.gather_aws_config_history(initial_scan_result)
+        self.assertEqual([], scan_result.resources)
 
         self.config.aws.config.enabled = True
-        scan_result = self.luminaut.gather_aws_config_history(
-            models.ScanResult(ip="10.0.0.1", findings=[])
-        )
-        self.assertEqual([test_finding], scan_result.findings)
+        scan_result = self.luminaut.gather_aws_config_history(initial_scan_result)
+        self.assertEqual([test_finding], scan_result.resources)
