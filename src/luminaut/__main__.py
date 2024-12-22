@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from luminaut import Luminaut, models
+from luminaut import Luminaut, __version__, models
 
 logger = logging.getLogger()
 logger.getChild("boto3").setLevel(logging.ERROR)
@@ -69,6 +69,9 @@ def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
     cli_args.add_argument("--log", type=Path, default="luminaut.log", help="Log file.")
     cli_args.add_argument(
         "--verbose", action="store_true", help="Verbose output in the log file."
+    )
+    cli_args.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
     return cli_args.parse_args(args)
 
