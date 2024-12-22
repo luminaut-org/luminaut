@@ -385,13 +385,25 @@ class ScanFindings:
 
     def build_rich_text(self) -> str:
         rich_text = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
+        other_resources = 0
         for resource in self.resources:
             if hasattr(resource, "build_rich_text"):
                 rich_text += resource.build_rich_text()
+            else:
+                other_resources += 1
 
+        if other_resources:
+            rich_text += f"  {other_resources} additional resources discovered."
+
+        other_services = 0
         for service in self.services:
             if hasattr(service, "build_rich_text"):
                 rich_text += service.build_rich_text()
+            else:
+                other_services += 1
+
+        if other_services:
+            rich_text += f"  {other_services} additional services discovered."
 
         return rich_text
 
