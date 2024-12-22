@@ -7,7 +7,8 @@ from luminaut.report import TaskProgress, console, write_jsonl_report
 from luminaut.scanner import Scanner
 
 default_progress_columns = [
-    *progress.Progress.get_default_columns(),
+    progress.TextColumn("{task.description}"),
+    progress.SpinnerColumn(),
     progress.TimeElapsedColumn(),
 ]
 
@@ -19,16 +20,13 @@ class Luminaut:
         self.task_progress = None
 
     def run(self):
-        with progress.Progress(
-            *default_progress_columns,
-            transient=True,
-        ) as task_progress:
+        with progress.Progress(*default_progress_columns) as task_progress:
             self.task_progress = task_progress
             scan_results = self.discover_public_ips()
 
             scan_results = self.gather_public_ip_context(scan_results)
 
-            self.report(scan_results)
+        self.report(scan_results)
 
     def report(self, scan_results: list[models.ScanResult]) -> None:
         if self.config.report.json:
