@@ -64,7 +64,7 @@ def configure_cli_args(args: list[str] | None = None) -> argparse.Namespace:
         formatter_class=ArgparseFormatter,
     )
     cli_args.add_argument(
-        "--config", type=Path, default=None, help="Configuration file."
+        "-c", "--config", type=Path, default=None, help="Configuration file."
     )
     cli_args.add_argument("--log", type=Path, default="luminaut.log", help="Log file.")
     cli_args.add_argument(
