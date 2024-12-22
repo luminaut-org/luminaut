@@ -1,7 +1,12 @@
+import logging
+import subprocess
+
 import nmap3
 
 from luminaut import models
 from luminaut.tools.aws import Aws
+
+logger = logging.getLogger(__name__)
 
 
 class Scanner:
@@ -10,11 +15,15 @@ class Scanner:
 
     def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
         nmap = nmap3.Nmap()
-        result = nmap.nmap_version_detection(
-            target=ip_address,
-            args="--version-light -Pn",
-            timeout=self.config.nmap.timeout,
-        )
+        try:
+            result = nmap.nmap_version_detection(
+                target=ip_address,
+                args="--version-light -Pn",
+                timeout=self.config.nmap.timeout,
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning(f"nmap scan for {ip_address} timed out")
+            return models.ScanResult(ip=ip_address, findings=[])
 
         port_services = []
         for port in result[ip_address]["ports"]:
