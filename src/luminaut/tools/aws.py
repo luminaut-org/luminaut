@@ -94,3 +94,23 @@ class Aws:
         )
 
         return scan_result
+
+    def populate_permissive_ingress_security_group_rules(
+        self, security_group: models.SecurityGroup
+    ) -> models.SecurityGroup:
+        aws_client = self.ec2_client.get_paginator("describe_security_group_rules")
+
+        paginator = aws_client.paginate(
+            Filters=[{"Name": "group-id", "Values": [security_group.group_id]}]
+        )
+
+        for page in paginator:
+            for rule in page["SecurityGroupRules"]:
+                sg_rule = models.SecurityGroupRule.from_describe_rule(rule)
+                if (
+                    sg_rule.direction == models.Direction.INGRESS
+                    and sg_rule.is_permissive()
+                ):
+                    security_group.rules.append(sg_rule)
+
+        return security_group

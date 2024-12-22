@@ -11,6 +11,7 @@ from rich.emoji import Emoji
 from rich.panel import Panel
 
 IPAddress = IPv4Address | IPv6Address
+QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
 
 
 @dataclass
@@ -79,10 +80,76 @@ class LuminautConfig:
         return luminaut_config
 
 
+class Direction(StrEnum):
+    INGRESS = auto()
+    EGRESS = auto()
+
+
+class SecurityGroupRuleTargetType(StrEnum):
+    CIDR = auto()
+    SECURITY_GROUP = auto()
+    PREFIX_LIST = auto()
+
+
+@dataclass
+class SecurityGroupRule:
+    direction: Direction
+    protocol: "Protocol"
+    from_port: int
+    to_port: int
+    rule_id: str
+    description: str | None = None
+    # Target is a CIDR block or a security group ID
+    target: str | None = None
+    target_type: SecurityGroupRuleTargetType | None = None
+
+    def is_permissive(self) -> bool:
+        if self.target_type == SecurityGroupRuleTargetType.CIDR:
+            ip = ip_address(self.target.split("/")[0])
+            return ip.is_global or ip in QUAD_ZERO_ADDRESSES
+
+        # Prefix lists, security groups, and non-global IPs are
+        # not considered permissive in the context of the individual rule.
+        # Prefix lists and security group targets require further
+        # inspection for overall service permissiveness in the context
+        # of the environment.
+        return False
+
+    @classmethod
+    def from_describe_rule(cls, rule: dict[str, Any]) -> Self:
+        # Parse the result from calling boto3.ec2.client.describe_security_group_rules
+
+        if pl_id := rule.get("PrefixListId"):
+            target = pl_id
+            target_type = SecurityGroupRuleTargetType.PREFIX_LIST
+        elif target_group_id := rule.get("ReferencedGroupInfo", {}).get("GroupId"):
+            target = target_group_id
+            target_type = SecurityGroupRuleTargetType.SECURITY_GROUP
+        elif ip_range := (rule.get("CidrIpv4") or rule.get("CidrIpv6")):
+            target = ip_range
+            target_type = SecurityGroupRuleTargetType.CIDR
+        else:
+            raise NotImplementedError(
+                f"Unknown target type for rule: {rule.get('SecurityGroupRuleId')}"
+            )
+
+        return cls(
+            direction=Direction.EGRESS if rule["IsEgress"] else Direction.INGRESS,
+            protocol=Protocol(rule["IpProtocol"]),
+            from_port=rule["FromPort"],
+            to_port=rule["ToPort"],
+            rule_id=rule["SecurityGroupRuleId"],
+            description=rule.get("Description"),
+            target=target,
+            target_type=target_type,
+        )
+
+
 @dataclass
 class SecurityGroup:
     group_id: str
     group_name: str
+    rules: list[SecurityGroupRule] = field(default_factory=list)
 
 
 @dataclass
@@ -282,6 +349,8 @@ class Protocol(StrEnum):
     TCP = auto()
     UDP = auto()
     ICMP = auto()
+    ICMPv6 = auto()
+    ALL = "-1"
 
 
 @dataclass
