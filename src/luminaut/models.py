@@ -384,7 +384,8 @@ class ScanFindings:
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
-        rich_text = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
+        rich_title = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
+        rich_text = ""
         other_resources = 0
         for resource in self.resources:
             if hasattr(resource, "build_rich_text"):
@@ -405,7 +406,13 @@ class ScanFindings:
         if other_services:
             rich_text += f"  {other_services} additional services discovered."
 
-        return rich_text
+        if rich_text:
+            return rich_title + rich_text
+
+        return (
+            rich_title
+            + "No findings to report to the console. See JSON report for full details."
+        )
 
 
 @dataclass
