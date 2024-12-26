@@ -387,10 +387,83 @@ class NmapPortServices:
         return f"[green]{self.protocol}/{self.port}[/green] Status: {self.state} Service: {self.name} {self.product} {self.version}\n"
 
 
+class ShodanService:
+    timestamp: datetime
+    port: int | None = None
+    protocol: Protocol | None = None
+    product: str | None = None
+    data: str | None = None
+    operating_system: str | None = None
+    cpe: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    http_server: str | None = None
+    http_title: str | None = None
+    opt_heartbleed: str | None = None
+    opt_vulnerabilities: list[str] = field(default_factory=list)
+
+    def build_rich_text(self) -> str:
+        rich_text = ""
+        if self.protocol and self.port:
+            rich_text = f"[green]{self.protocol}/{self.port}[/green]"
+        if self.product:
+            rich_text += f" {self.product}"
+
+        if rich_text:
+            # Add newline after title line
+            rich_text += "\n"
+
+        http_information = ""
+        if self.http_server:
+            http_information += f"HTTP Server: {self.http_server}"
+        if self.http_title:
+            if http_information:
+                http_information += " "
+            http_information += f"HTTP Title: {self.http_title}"
+
+        if http_information:
+            rich_text += "  " + http_information + "\n"
+
+        if self.opt_vulnerabilities:
+            rich_text += (
+                "  Vulnerabilities: " + ", ".join(self.opt_vulnerabilities) + "\n"
+            )
+
+        return rich_text
+
+    @classmethod
+    def from_shodan_host(cls, service: Mapping[str, Any]) -> Self:
+        return cls(
+            timestamp=datetime.fromisoformat(service["timestamp"]),
+            port=service.get("port"),
+            protocol=Protocol(service["transport"])
+            if service.get("transport")
+            else None,
+            product=service.get("product"),
+            data=service.get("data"),
+            operating_system=service.get("os"),
+            cpe=service.get("cpe", []),
+            tags=service.get("tags", []),
+            http_server=service.get("http", {}).get("server"),
+            http_title=service.get("http", {}).get("title"),
+            opt_heartbleed=service.get("opts", {}).get("heartbleed"),
+            opt_vulnerabilities=service.get("opts", {}).get("vulns", []),
+        )
+
+
+class Hostname:
+    name: str
+    timestamp: datetime | None = None
+
+
+class Vulnerabilities:
+    cve: str
+    references: list[str] = field(default_factory=list)
+
+
 @dataclass
 class ScanFindings:
     tool: str
-    services: list[NmapPortServices] = field(default_factory=list)
+    services: list[NmapPortServices | ShodanService] = field(default_factory=list)
     resources: list[AwsEni | ConfigItem | SecurityGroup] = field(default_factory=list)
     emoji_name: str | None = "mag"
 
