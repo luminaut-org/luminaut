@@ -22,7 +22,7 @@ class LuminautConfigTool:
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
         return cls(
-            enabled=config["enabled"],
+            enabled=config.get("enabled", True),
             timeout=config.get("timeout"),
         )
 
