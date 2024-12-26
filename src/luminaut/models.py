@@ -28,6 +28,17 @@ class LuminautConfigTool:
 
 
 @dataclass
+class LuminautConfigToolShodan(LuminautConfigTool):
+    api_key: str | None = None
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> Self:
+        shodan_config = super().from_dict(config)
+        shodan_config.api_key = config.get("api_key")
+        return shodan_config
+
+
+@dataclass
 class LuminautConfigToolAws(LuminautConfigTool):
     aws_profile: str | None = None
     aws_regions: list[str] | None = None
@@ -57,6 +68,7 @@ class LuminautConfig:
     report: LuminautConfigReport = field(default_factory=LuminautConfigReport)
     aws: LuminautConfigToolAws = field(default_factory=LuminautConfigToolAws)
     nmap: LuminautConfigTool = field(default_factory=LuminautConfigTool)
+    shodan: LuminautConfigToolShodan = field(default_factory=LuminautConfigToolShodan)
 
     @classmethod
     def from_toml(cls, toml_file: BinaryIO) -> Self:
@@ -72,6 +84,9 @@ class LuminautConfig:
             )
             luminaut_config.nmap = LuminautConfigTool.from_dict(
                 tool_config.get("nmap", {})
+            )
+            luminaut_config.shodan = LuminautConfigToolShodan.from_dict(
+                tool_config.get("shodan", {})
             )
         return luminaut_config
 
