@@ -16,7 +16,7 @@ QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
 
 @dataclass
 class LuminautConfigTool:
-    enabled: bool
+    enabled: bool = True
     timeout: int | None = None
 
     @classmethod
@@ -55,12 +55,8 @@ class LuminautConfigReport:
 @dataclass
 class LuminautConfig:
     report: LuminautConfigReport = field(default_factory=LuminautConfigReport)
-    aws: LuminautConfigToolAws = field(
-        default_factory=lambda: LuminautConfigToolAws(enabled=True)
-    )
-    nmap: LuminautConfigTool = field(
-        default_factory=lambda: LuminautConfigTool(enabled=True)
-    )
+    aws: LuminautConfigToolAws = field(default_factory=LuminautConfigToolAws)
+    nmap: LuminautConfigTool = field(default_factory=LuminautConfigTool)
 
     @classmethod
     def from_toml(cls, toml_file: BinaryIO) -> Self:
