@@ -70,3 +70,25 @@ options:
   --log LOG        Log file. (default: luminaut.log)
   --verbose        Verbose output in the log file. (default: False)
 ```
+
+## Configuration
+
+Luminaut uses a configuration file to define the tools and services to use. The default configuration will run with all tools enabled, though during runtime any tool not found will be skipped. The default reporting uses console output with JSON reporting disabled.
+
+The configuration file is a TOML file with the following structure and defaults:
+
+```toml
+[report]
+console = true  # Rich STDOUT console output
+json = false  # JSON lines output, written to STDOUT.
+
+[tools.aws]
+enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
+config.enabled = true  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history.
+
+[tools.nmap]
+enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path.
+```
+
+The source of truth for the luminaut configuration is located in `luminaut.models.LuminautConfig`.
+
