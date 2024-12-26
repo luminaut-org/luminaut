@@ -3,8 +3,4 @@ console = false
 json = true
 
 [tool.aws]
-enabled = true
 config.enabled = false
-
-[tool.nmap]
-enabled = true
