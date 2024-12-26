@@ -2,6 +2,7 @@ import logging
 import subprocess
 
 import nmap3
+import nmap3.exceptions
 
 from luminaut import models
 from luminaut.tools.aws import Aws
@@ -21,6 +22,9 @@ class Scanner:
                 args="--version-light -Pn",
                 timeout=self.config.nmap.timeout,
             )
+        except nmap3.exceptions.NmapNotInstalledError as e:
+            logger.warning(f"Skipping nmap, not found: {e}")
+            return models.ScanResult(ip=ip_address, findings=[])
         except subprocess.TimeoutExpired:
             logger.warning(f"nmap scan for {ip_address} timed out")
             return models.ScanResult(ip=ip_address, findings=[])
