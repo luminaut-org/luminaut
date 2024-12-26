@@ -53,6 +53,7 @@ class Luminaut:
 
         for scan_result in scan_results:
             scan_result.findings += self.run_nmap(scan_result)
+            scan_result.findings += self.query_shodan(scan_result)
             scan_result.findings.append(self.gather_security_group_rules(scan_result))
             scan_result.findings.append(self.gather_aws_config_history(scan_result))
 
@@ -65,6 +66,13 @@ class Luminaut:
             task_description = f"Scanning {scan_result.ip} with nmap"
             with TaskProgress(self.task_progress, task_description):
                 return self.scanner.nmap(scan_result.ip).findings
+        return []
+
+    def query_shodan(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
+        if self.config.shodan.enabled:
+            task_description = f"Querying Shodan for {scan_result.ip}"
+            with TaskProgress(self.task_progress, task_description):
+                return [self.scanner.shodan(scan_result.ip)]
         return []
 
     def gather_aws_config_history(

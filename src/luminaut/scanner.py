@@ -3,6 +3,7 @@ import subprocess
 
 import nmap3
 import nmap3.exceptions
+import shodan
 
 from luminaut import models
 from luminaut.tools.aws import Aws
@@ -61,3 +62,26 @@ class Scanner:
         security_group: models.SecurityGroup,
     ) -> models.SecurityGroup:
         return Aws().populate_permissive_ingress_security_group_rules(security_group)
+
+    def shodan(self, ip_address: models.IPAddress) -> models.ScanFindings:
+        shodan_findings = models.ScanFindings(
+            tool="shodan", emoji_name="globe_with_meridians"
+        )
+
+        if not self.config.shodan.api_key:
+            logger.warning("Skipping Shodan scan, missing API key")
+            return shodan_findings
+
+        shodan_client = shodan.Shodan(self.config.shodan.api_key)
+        try:
+            host = shodan_client.host(ip_address)
+        except shodan.APIError as e:
+            logger.error(f"Shodan error: {e}")
+            return shodan_findings
+
+        for service in host["data"]:
+            shodan_findings.services.append(
+                models.ShodanService.from_shodan_host(service)
+            )
+
+        return shodan_findings
