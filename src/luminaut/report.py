@@ -1,3 +1,4 @@
+import sys
 from dataclasses import asdict
 from typing import TextIO
 
@@ -7,7 +8,7 @@ from rich.progress import Progress
 
 from luminaut.models import ScanResult
 
-console = Console()
+console = Console(stderr=True, force_terminal=sys.stderr.isatty())
 
 
 class TaskProgress:
