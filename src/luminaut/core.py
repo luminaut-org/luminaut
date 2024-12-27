@@ -20,7 +20,9 @@ class Luminaut:
         self.task_progress = None
 
     def run(self):
-        with progress.Progress(*default_progress_columns) as task_progress:
+        with progress.Progress(
+            *default_progress_columns, console=console
+        ) as task_progress:
             self.task_progress = task_progress
             scan_results = self.discover_public_ips()
 
