@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
+from pathlib import Path
 from typing import Any, BinaryIO, Self
 
 from rich.emoji import Emoji
@@ -61,6 +62,7 @@ class LuminautConfigToolAws(LuminautConfigTool):
 class LuminautConfigReport:
     console: bool = True
     json: bool = False
+    json_file: Path | None = None
 
 
 @dataclass

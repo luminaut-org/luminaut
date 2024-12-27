@@ -1,3 +1,4 @@
+import logging
 import sys
 
 from rich import progress
@@ -6,6 +7,7 @@ from luminaut import models
 from luminaut.report import TaskProgress, console, write_jsonl_report
 from luminaut.scanner import Scanner
 
+logger = logging.getLogger(__name__)
 default_progress_columns = [
     progress.TextColumn("{task.description}"),
     progress.SpinnerColumn(),
@@ -32,7 +34,12 @@ class Luminaut:
 
     def report(self, scan_results: list[models.ScanResult]) -> None:
         if self.config.report.json:
-            write_jsonl_report(scan_results, sys.stdout)
+            if self.config.report.json_file:
+                with self.config.report.json_file.open("w") as target:
+                    write_jsonl_report(scan_results, target)
+            else:
+                write_jsonl_report(scan_results, sys.stdout)
+
         if self.config.report.console:
             for scan_result in scan_results:
                 panel = scan_result.build_rich_panel()
