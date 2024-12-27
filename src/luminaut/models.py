@@ -319,7 +319,7 @@ class Ec2Configuration:
 
 
 @dataclass
-class ConfigItem:
+class AwsConfigItem:
     resource_type: ResourceType
     resource_id: str
     account: str
@@ -474,7 +474,7 @@ class Vulnerability:
 class ScanFindings:
     tool: str
     services: list[NmapPortServices | ShodanService] = field(default_factory=list)
-    resources: list[AwsEni | ConfigItem | SecurityGroup | Hostname] = field(
+    resources: list[AwsEni | AwsConfigItem | SecurityGroup | Hostname] = field(
         default_factory=list
     )
     risks: list[Vulnerability] = field(default_factory=list)

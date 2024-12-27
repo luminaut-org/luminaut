@@ -54,7 +54,7 @@ class Scanner:
     def aws_get_config_history_for_resource(
         resource_type: models.ResourceType,
         resource_id: str,
-    ) -> list[models.ConfigItem]:
+    ) -> list[models.AwsConfigItem]:
         return Aws().get_config_history_for_resource(resource_type, resource_id)
 
     @staticmethod

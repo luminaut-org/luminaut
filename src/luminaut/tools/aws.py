@@ -68,7 +68,7 @@ class Aws:
         self,
         resource_type: models.ResourceType,
         resource_id: str,
-    ) -> list[models.ConfigItem]:
+    ) -> list[models.AwsConfigItem]:
         pagination_client = self.aws_client.get_paginator("get_resource_config_history")
         pages = pagination_client.paginate(
             resourceType=str(resource_type),
@@ -78,7 +78,7 @@ class Aws:
         resources = []
         for page in pages:
             for config_item in page.get("configurationItems", []):
-                resources.append(models.ConfigItem.from_aws_config(config_item))
+                resources.append(models.AwsConfigItem.from_aws_config(config_item))
 
         return resources
 

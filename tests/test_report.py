@@ -30,7 +30,7 @@ class JsonReport(unittest.TestCase):
                 models.ScanFindings(
                     tool="aws-config",
                     resources=[
-                        models.ConfigItem(
+                        models.AwsConfigItem(
                             resource_type=models.ResourceType.EC2_Instance,
                             resource_id="i-1234567890abcdef0",
                             account="123456789012",

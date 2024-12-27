@@ -71,7 +71,7 @@ class LuminautCore(unittest.TestCase):
         test_finding = models.ScanFindings(
             tool="unittest",
             resources=[
-                models.ConfigItem(
+                models.AwsConfigItem(
                     resource_id="unittest",
                     resource_type=models.ResourceType.EC2_Instance,
                     configuration="",
