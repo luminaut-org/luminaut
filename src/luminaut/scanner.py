@@ -36,9 +36,9 @@ class Scanner:
                 models.NmapPortServices(
                     port=int(port["portid"]),
                     protocol=models.Protocol(port["protocol"]),
-                    name=port["service"]["name"],
-                    product=port["service"]["product"],
-                    version=port["service"]["version"],
+                    name=port["service"].get("name"),
+                    product=port["service"].get("product"),
+                    version=port["service"].get("version"),
                     state=port["state"],
                 )
             )

@@ -393,13 +393,26 @@ class Protocol(StrEnum):
 class NmapPortServices:
     port: int
     protocol: Protocol
-    name: str
-    product: str
-    version: str
     state: str
+    name: str | None = None
+    product: str | None = None
+    version: str | None = None
 
     def build_rich_text(self) -> str:
-        return f"[green]{self.protocol}/{self.port}[/green] Status: {self.state} Service: {self.name} {self.product} {self.version}\n"
+        rich_text = f"[green]{self.protocol}/{self.port}[/green] Status: [cyan]{self.state}[/cyan]"
+
+        service_details = ""
+        for attr in ["name", "product", "version"]:
+            if value := getattr(self, attr):
+                service_details += f"{attr.capitalize()}: [cyan]{value}[/cyan] "
+
+        if service_details:
+            rich_text += f" {service_details}"
+
+        if not rich_text.endswith("\n"):
+            rich_text += "\n"
+
+        return rich_text
 
 
 @dataclass
