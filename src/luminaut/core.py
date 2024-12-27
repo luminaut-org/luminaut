@@ -37,6 +37,7 @@ class Luminaut:
             if self.config.report.json_file:
                 with self.config.report.json_file.open("w") as target:
                     write_jsonl_report(scan_results, target)
+                logger.info("Saved scan results to %s", self.config.report.json_file)
             else:
                 write_jsonl_report(scan_results, sys.stdout)
 
