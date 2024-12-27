@@ -470,14 +470,17 @@ class Vulnerability:
         return f"  Vulnerability: [red]{self.cve}[/red] ({self.timestamp})\n"
 
 
+FindingServices = list[NmapPortServices | ShodanService]
+FindingResources = list[AwsEni | AwsConfigItem | SecurityGroup | Hostname]
+FindingRisks = list[Vulnerability]
+
+
 @dataclass
 class ScanFindings:
     tool: str
-    services: list[NmapPortServices | ShodanService] = field(default_factory=list)
-    resources: list[AwsEni | AwsConfigItem | SecurityGroup | Hostname] = field(
-        default_factory=list
-    )
-    risks: list[Vulnerability] = field(default_factory=list)
+    services: FindingServices = field(default_factory=list)
+    resources: FindingResources = field(default_factory=list)
+    risks: FindingRisks = field(default_factory=list)
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
