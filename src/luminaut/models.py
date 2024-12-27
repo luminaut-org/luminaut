@@ -477,13 +477,14 @@ class ScanFindings:
     resources: list[AwsEni | ConfigItem | SecurityGroup | Hostname] = field(
         default_factory=list
     )
+    risks: list[Vulnerability] = field(default_factory=list)
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
         rich_title = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
         rich_text = ""
 
-        for attribute in ["services", "resources"]:
+        for attribute in ["services", "resources", "risks"]:
             other = 0
             for item in getattr(self, attribute):
                 if hasattr(item, "build_rich_text"):

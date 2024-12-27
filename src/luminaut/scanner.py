@@ -93,7 +93,7 @@ class Scanner:
             )
 
         for vuln in host["vulns"]:
-            shodan_findings.services.append(
+            shodan_findings.risks.append(
                 models.Vulnerability(
                     cve=vuln,
                     references=[
