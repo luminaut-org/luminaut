@@ -387,6 +387,7 @@ class NmapPortServices:
         return f"[green]{self.protocol}/{self.port}[/green] Status: {self.state} Service: {self.name} {self.product} {self.version}\n"
 
 
+@dataclass
 class ShodanService:
     timestamp: datetime
     port: int | None = None
@@ -450,21 +451,34 @@ class ShodanService:
         )
 
 
+@dataclass
 class Hostname:
     name: str
     timestamp: datetime | None = None
 
+    def build_rich_text(self) -> str:
+        return f"  Hostname: [orange1]{self.name}[/orange1] ({self.timestamp})\n"
 
-class Vulnerabilities:
+
+@dataclass
+class Vulnerability:
     cve: str
     references: list[str] = field(default_factory=list)
+    timestamp: datetime | None = None
+
+    def build_rich_text(self) -> str:
+        return f"  Vulnerability: [red]{self.cve}[/red] ({self.timestamp})\n"
 
 
 @dataclass
 class ScanFindings:
     tool: str
-    services: list[NmapPortServices | ShodanService] = field(default_factory=list)
-    resources: list[AwsEni | ConfigItem | SecurityGroup] = field(default_factory=list)
+    services: list[NmapPortServices | ShodanService | Vulnerability] = field(
+        default_factory=list
+    )
+    resources: list[AwsEni | ConfigItem | SecurityGroup | Hostname] = field(
+        default_factory=list
+    )
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
@@ -495,7 +509,7 @@ class ScanFindings:
 
         return (
             rich_title
-            + "No findings to report to the console. See JSON report for full details."
+            + "No findings to report to the console. See JSON report for full details.\n"
         )
 
 

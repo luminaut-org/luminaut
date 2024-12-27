@@ -65,7 +65,7 @@ class Scanner:
 
     def shodan(self, ip_address: models.IPAddress) -> models.ScanFindings:
         shodan_findings = models.ScanFindings(
-            tool="shodan", emoji_name="globe_with_meridians"
+            tool="Shodan.io", emoji_name="globe_with_meridians"
         )
 
         if not self.config.shodan.api_key:
@@ -82,6 +82,26 @@ class Scanner:
         for service in host["data"]:
             shodan_findings.services.append(
                 models.ShodanService.from_shodan_host(service)
+            )
+
+        for domain in host["domains"]:
+            shodan_findings.resources.append(
+                models.Hostname(
+                    name=domain,
+                    timestamp=host["last_update"],
+                )
+            )
+
+        for vuln in host["vulns"]:
+            shodan_findings.services.append(
+                models.Vulnerability(
+                    cve=vuln,
+                    references=[
+                        f"https://nvd.nist.gov/vuln/detail/{vuln}",
+                        f"https://www.cve.org/CVERecord?id={vuln}",
+                    ],
+                    timestamp=host["last_update"],
+                )
             )
 
         return shodan_findings
