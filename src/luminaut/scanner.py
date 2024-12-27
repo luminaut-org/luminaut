@@ -92,16 +92,4 @@ class Scanner:
                 )
             )
 
-        for vuln in host["vulns"]:
-            shodan_findings.risks.append(
-                models.Vulnerability(
-                    cve=vuln,
-                    references=[
-                        f"https://nvd.nist.gov/vuln/detail/{vuln}",
-                        f"https://www.cve.org/CVERecord?id={vuln}",
-                    ],
-                    timestamp=host["last_update"],
-                )
-            )
-
         return shodan_findings

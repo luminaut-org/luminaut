@@ -400,7 +400,7 @@ class ShodanService:
     http_server: str | None = None
     http_title: str | None = None
     opt_heartbleed: str | None = None
-    opt_vulnerabilities: list[str] = field(default_factory=list)
+    opt_vulnerabilities: list["Vulnerability"] = field(default_factory=list)
 
     def build_rich_text(self) -> str:
         rich_text = ""
@@ -425,14 +425,26 @@ class ShodanService:
             rich_text += "  " + http_information + "\n"
 
         if self.opt_vulnerabilities:
-            rich_text += (
-                "  Vulnerabilities: " + ", ".join(self.opt_vulnerabilities) + "\n"
+            rich_text += "".join(
+                x.build_rich_text() for x in self.opt_vulnerabilities[:5]
             )
+            if len(self.opt_vulnerabilities) > 5:
+                rich_text += f"  {len(self.opt_vulnerabilities)} total vulnerabilities found. See JSON for full report.\n"
 
         return rich_text
 
     @classmethod
     def from_shodan_host(cls, service: Mapping[str, Any]) -> Self:
+        vulns = []
+        for cve, vuln_data in service.get("vulns", {}).items():
+            vulns.append(
+                Vulnerability.from_shodan(
+                    cve,
+                    vuln_data,
+                    datetime.fromisoformat(service["timestamp"]),
+                )
+            )
+
         return cls(
             timestamp=datetime.fromisoformat(service["timestamp"]),
             port=service.get("port"),
@@ -447,7 +459,7 @@ class ShodanService:
             http_server=service.get("http", {}).get("server"),
             http_title=service.get("http", {}).get("title"),
             opt_heartbleed=service.get("opts", {}).get("heartbleed"),
-            opt_vulnerabilities=service.get("opts", {}).get("vulns", []),
+            opt_vulnerabilities=vulns,
         )
 
 
@@ -463,16 +475,35 @@ class Hostname:
 @dataclass
 class Vulnerability:
     cve: str
+    cvss: float | None = None
+    cvss_version: int | None = None
+    summary: str | None = None
     references: list[str] = field(default_factory=list)
     timestamp: datetime | None = None
 
     def build_rich_text(self) -> str:
-        return f"  Vulnerability: [red]{self.cve}[/red] ({self.timestamp})\n"
+        emphasis = self.cve
+        if self.cvss:
+            emphasis += f" (CVSS: {self.cvss})"
+
+        return f"  Vulnerability: [red]{emphasis}[/red]\n"
+
+    @classmethod
+    def from_shodan(
+        cls, cve: str, shodan_data: Mapping[str, Any], timestamp: datetime
+    ) -> Self:
+        return cls(
+            cve=cve,
+            cvss=shodan_data.get("cvss"),
+            cvss_version=shodan_data.get("cvss_version"),
+            summary=shodan_data.get("summary"),
+            references=shodan_data.get("references", []),
+            timestamp=timestamp,
+        )
 
 
 FindingServices = list[NmapPortServices | ShodanService]
 FindingResources = list[AwsEni | AwsConfigItem | SecurityGroup | Hostname]
-FindingRisks = list[Vulnerability]
 
 
 @dataclass
@@ -480,14 +511,13 @@ class ScanFindings:
     tool: str
     services: FindingServices = field(default_factory=list)
     resources: FindingResources = field(default_factory=list)
-    risks: FindingRisks = field(default_factory=list)
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
         rich_title = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
         rich_text = ""
 
-        for attribute in ["services", "resources", "risks"]:
+        for attribute in ["services", "resources"]:
             other = 0
             for item in getattr(self, attribute):
                 if hasattr(item, "build_rich_text"):
