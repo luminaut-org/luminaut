@@ -473,9 +473,7 @@ class Vulnerability:
 @dataclass
 class ScanFindings:
     tool: str
-    services: list[NmapPortServices | ShodanService | Vulnerability] = field(
-        default_factory=list
-    )
+    services: list[NmapPortServices | ShodanService] = field(default_factory=list)
     resources: list[AwsEni | ConfigItem | SecurityGroup | Hostname] = field(
         default_factory=list
     )
@@ -484,25 +482,17 @@ class ScanFindings:
     def build_rich_text(self) -> str:
         rich_title = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
         rich_text = ""
-        other_resources = 0
-        for resource in self.resources:
-            if hasattr(resource, "build_rich_text"):
-                rich_text += resource.build_rich_text()
-            else:
-                other_resources += 1
 
-        if other_resources:
-            rich_text += f"  {other_resources} additional resources discovered."
+        for attribute in ["services", "resources"]:
+            other = 0
+            for item in getattr(self, attribute):
+                if hasattr(item, "build_rich_text"):
+                    rich_text += item.build_rich_text()
+                else:
+                    other += 1
 
-        other_services = 0
-        for service in self.services:
-            if hasattr(service, "build_rich_text"):
-                rich_text += service.build_rich_text()
-            else:
-                other_services += 1
-
-        if other_services:
-            rich_text += f"  {other_services} additional services discovered."
+            if other:
+                rich_text += f"  {other} additional {attribute} discovered."
 
         if rich_text:
             return rich_title + rich_text
