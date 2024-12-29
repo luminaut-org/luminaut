@@ -10,16 +10,18 @@ from luminaut.tools.whatweb import Whatweb
 
 
 class TestWhatweb(unittest.TestCase):
-    def test_tool_found(self):
-        config = LuminautConfig(whatweb=LuminautConfigTool(enabled=True))
+    def setUp(self):
+        self.config = LuminautConfig(whatweb=LuminautConfigTool(enabled=True))
+        self.whatweb = Whatweb(config=self.config)
 
+    def test_tool_found(self):
         with patch("shutil.which") as mock:
             mock.return_value = "/usr/bin/whatweb"
-            self.assertTrue(Whatweb(config).exists())
+            self.assertTrue(self.whatweb.exists())
 
-        self.assertFalse(Whatweb(config).exists())
+        self.assertFalse(self.whatweb.exists())
 
-        self.assertFalse(Whatweb(config).exists())
+        self.assertFalse(Whatweb().exists())
 
     def test_read_json(self):
         content = {"key": "value"}
