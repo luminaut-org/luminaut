@@ -12,12 +12,14 @@ RUN uv build
 
 FROM fedora:41 AS final
 
-COPY --from=base /app/dist /app/dist
 RUN dnf install -y nmap python3 python3-pip whatweb which && \
-    pip install --no-cache-dir /app/dist/*.whl && \
     dnf clean all && \
     rm -rf /var/cache/dnf /tmp/* /var/tmp/* && \
-    useradd -m -s /bin/bash app && \
+    mkdir /app && \
+    useradd -m -s /bin/bash app
+
+COPY --from=base /app/dist /app/dist
+RUN pip install --no-cache-dir /app/dist/*.whl && \
     chown -R app:app /app
 
 USER app:app
