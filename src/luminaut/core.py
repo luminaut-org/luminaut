@@ -62,10 +62,10 @@ class Luminaut:
         updated_scan_results = []
 
         for scan_result in scan_results:
+            scan_result.findings.append(self.gather_security_group_rules(scan_result))
             scan_result.findings += self.run_nmap(scan_result)
             scan_result.findings += self.query_shodan(scan_result)
             scan_result.findings += self.run_whatweb(scan_result)
-            scan_result.findings.append(self.gather_security_group_rules(scan_result))
             scan_result.findings.append(self.gather_aws_config_history(scan_result))
 
             updated_scan_results.append(scan_result)
@@ -90,7 +90,33 @@ class Luminaut:
         if self.config.whatweb.enabled:
             task_description = f"Running Whatweb for {scan_result.ip}"
             with TaskProgress(self.task_progress, task_description):
-                return [self.scanner.whatweb(scan_result.ip)]
+                ports = []
+
+                if security_group_rules := scan_result.get_security_group_rules():
+                    for sg_rule in security_group_rules:
+                        if sg_rule.from_port < 1 or sg_rule.to_port < 1:
+                            continue
+                        ports += [
+                            x for x in range(sg_rule.from_port, sg_rule.to_port + 1)
+                        ]
+
+                if not ports:
+                    ports = [
+                        80,
+                        443,
+                        3000,
+                        5000,
+                        8000,
+                        8080,
+                        8443,
+                        8888,
+                    ]  # Common defaults to scan
+
+                targets = [f"{scan_result.ip}:{port}" for port in ports]
+
+                if whatweb_findings := self.scanner.whatweb(targets):
+                    return [whatweb_findings]
+
         return []
 
     def gather_aws_config_history(

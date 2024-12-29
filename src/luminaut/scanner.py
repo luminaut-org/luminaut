@@ -95,19 +95,18 @@ class Scanner:
 
         return shodan_findings
 
-    def whatweb(self, ip_address: models.IPAddress) -> models.ScanFindings | None:
+    def whatweb(self, targets: list[str]) -> models.ScanFindings | None:
         finding = models.ScanFindings(tool="Whatweb", emoji_name="spider_web")
-        try:
-            result = Whatweb(self.config).run(ip_address)
-        except RuntimeError as e:
-            logger.warning(f"Skipping Whatweb, not found: {e}")
-            return None
-        except subprocess.TimeoutExpired:
-            logger.warning(f"Whatweb scan for {ip_address} timed out")
-            return None
-        except subprocess.CalledProcessError as e:
-            logger.warning(f"Whatweb scan for {ip_address} failed: {e}")
-            return None
+        for target in targets:
+            try:
+                result = Whatweb(self.config).run(target)
+                finding.services.append(result)
+            except RuntimeError as e:
+                logger.warning(f"Skipping Whatweb, not found: {e}")
+                return None
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Whatweb scan for {target} timed out")
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Whatweb scan for {target} failed: {e}")
 
-        finding.services.append(result)
         return finding

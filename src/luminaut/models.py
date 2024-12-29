@@ -593,3 +593,11 @@ class ScanResult:
                 if isinstance(resource, AwsEni):
                     eni_resources.append(resource)
         return eni_resources
+
+    def get_security_group_rules(self) -> list[SecurityGroupRule]:
+        sg_rules = []
+        for finding in self.findings:
+            for resource in finding.resources:
+                if isinstance(resource, SecurityGroup):
+                    sg_rules.extend(resource.rules)
+        return sg_rules
