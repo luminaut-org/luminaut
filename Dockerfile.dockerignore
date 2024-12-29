@@ -1,8 +1,9 @@
 # Ignore all files
-*/*.*
-.*
+**/*.*
 
 # Except these
 !uv.lock
 !pyproject.toml
+!README.md
 !src/**/*.py
+!configs/*.toml
