@@ -20,3 +20,8 @@ class Whatweb:
     def read_json(json_result: Path) -> dict[str, Any]:
         with json_result.open("rb") as f:
             return json.loads(f.read())
+
+    @staticmethod
+    def read_brief(brief_result: Path) -> str:
+        with brief_result.open("r") as f:
+            return f.read()

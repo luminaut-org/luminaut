@@ -22,15 +22,26 @@ class TestWhatweb(unittest.TestCase):
         self.assertFalse(Whatweb(config).exists())
 
     def test_read_json(self):
+        content = {"key": "value"}
         with tempfile.NamedTemporaryFile("wb", delete=False) as json_file:
-            content = {"key": "value"}
             json_file.write(json.dumps(content))
 
         json_file_path = Path(json_file.name)
 
         result = Whatweb.read_json(json_file_path)
-        self.assertEqual(result, {"key": "value"})
+        self.assertEqual(result, content)
         json_file_path.unlink()
+
+    def test_read_brief(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as brief_file:
+            content = "foo"
+            brief_file.write(content)
+
+        file_path = Path(brief_file.name)
+
+        result = Whatweb.read_brief(file_path)
+        self.assertEqual(result, content)
+        file_path.unlink()
 
 
 if __name__ == "__main__":
