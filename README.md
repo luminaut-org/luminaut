@@ -71,6 +71,20 @@ options:
   --verbose        Verbose output in the log file. (default: False)
 ```
 
+### Usage with docker
+
+You may run luminaut with docker by mounting the configuration file and running the container. Replace `--help` with any other arguments you would like to pass to luminaut. Note that saved files, such as the log file and JSON reports, will be saved within the container. You may want to mount another volume to save the report files.
+
+Bash, zsh, and similar terminals:
+```bash
+$ docker run -it -v ~/.aws:/root/aws -v $(pwd)/configs:/app/configs luminaut --help
+```
+
+Powershell:
+```powershell
+$ docker run -it -v $env:USERPROFILE\.aws:/root/aws -v ${PWD}\configs:/app/configs luminaut --help
+```
+
 ## Configuration
 
 Luminaut uses a configuration file to define the tools and services to use. The default configuration will run with all tools enabled, though during runtime any tool not found will be skipped. The default reporting uses console output with JSON reporting disabled.
