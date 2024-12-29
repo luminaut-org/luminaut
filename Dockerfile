@@ -20,6 +20,10 @@ RUN pip install /app/dist/*.whl && \
     apt-get update &&\
     apt-get install -y --no-install-recommends nmap && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    useradd -m -s /bin/bash app && \
+    chown -R app:app /app
+
+USER app:app
 
 ENTRYPOINT ["luminaut"]
