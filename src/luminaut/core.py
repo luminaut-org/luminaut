@@ -90,33 +90,11 @@ class Luminaut:
         if self.config.whatweb.enabled:
             task_description = f"Running Whatweb for {scan_result.ip}"
             with TaskProgress(self.task_progress, task_description):
-                targets = self.generate_ip_port_targets(scan_result)
-
+                targets = scan_result.generate_ip_port_targets()
                 if whatweb_findings := self.scanner.whatweb(targets):
                     return [whatweb_findings]
 
         return []
-
-    def generate_ip_port_targets(self, scan_result):
-        ports = []
-        if security_group_rules := scan_result.get_security_group_rules():
-            for sg_rule in security_group_rules:
-                if sg_rule.from_port < 1 or sg_rule.to_port < 1:
-                    continue
-                ports += [x for x in range(sg_rule.from_port, sg_rule.to_port + 1)]
-        if not ports:
-            ports = [
-                80,
-                443,
-                3000,
-                5000,
-                8000,
-                8080,
-                8443,
-                8888,
-            ]  # Common defaults to scan
-        targets = [f"{scan_result.ip}:{port}" for port in ports]
-        return targets
 
     def gather_aws_config_history(
         self, scan_result: models.ScanResult

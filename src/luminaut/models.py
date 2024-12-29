@@ -601,3 +601,24 @@ class ScanResult:
                 if isinstance(resource, SecurityGroup):
                     sg_rules.extend(resource.rules)
         return sg_rules
+
+    def generate_ip_port_targets(self) -> list[str]:
+        ports = []
+        if security_group_rules := self.get_security_group_rules():
+            for sg_rule in security_group_rules:
+                if sg_rule.from_port < 1 or sg_rule.to_port < 1:
+                    continue
+                ports += [x for x in range(sg_rule.from_port, sg_rule.to_port + 1)]
+        if not ports:
+            ports = [
+                80,
+                443,
+                3000,
+                5000,
+                8000,
+                8080,
+                8443,
+                8888,
+            ]  # Common defaults to scan
+        targets = [f"{self.ip}:{port}" for port in ports]
+        return targets
