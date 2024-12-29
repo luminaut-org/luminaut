@@ -84,6 +84,7 @@ class LuminautConfig:
     aws: LuminautConfigToolAws = field(default_factory=LuminautConfigToolAws)
     nmap: LuminautConfigTool = field(default_factory=LuminautConfigTool)
     shodan: LuminautConfigToolShodan = field(default_factory=LuminautConfigToolShodan)
+    whatweb: LuminautConfigTool = field(default_factory=LuminautConfigTool)
 
     @classmethod
     def from_toml(cls, toml_file: BinaryIO) -> Self:
