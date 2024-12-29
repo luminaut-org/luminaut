@@ -7,6 +7,7 @@ import shodan
 
 from luminaut import models
 from luminaut.tools.aws import Aws
+from luminaut.tools.whatweb import Whatweb
 
 logger = logging.getLogger(__name__)
 
@@ -93,3 +94,20 @@ class Scanner:
             )
 
         return shodan_findings
+
+    def whatweb(self, ip_address: models.IPAddress) -> models.ScanFindings | None:
+        finding = models.ScanFindings(tool="Whatweb", emoji_name="spider_web")
+        try:
+            result = Whatweb(self.config).run(ip_address)
+        except RuntimeError as e:
+            logger.warning(f"Skipping Whatweb, not found: {e}")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.warning(f"Whatweb scan for {ip_address} timed out")
+            return None
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Whatweb scan for {ip_address} failed: {e}")
+            return None
+
+        finding.services.append(result)
+        return finding

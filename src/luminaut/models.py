@@ -537,7 +537,7 @@ class Whatweb:
     json_data: dict[str, Any]
 
 
-FindingServices = list[NmapPortServices | ShodanService]
+FindingServices = list[NmapPortServices | ShodanService | Whatweb]
 FindingResources = list[AwsEni | AwsConfigItem | SecurityGroup | Hostname]
 
 

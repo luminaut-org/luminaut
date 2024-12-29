@@ -6,11 +6,11 @@ from typing import Any
 
 import orjson as json
 
-from luminaut import LuminautConfig, models
+from luminaut import models
 
 
 class Whatweb:
-    def __init__(self, config: LuminautConfig | None = None):
+    def __init__(self, config: models.LuminautConfig | None = None):
         self.config = config
         self.brief_file = Path(tempfile.NamedTemporaryFile(delete=False).name)
         self.json_file = Path(tempfile.NamedTemporaryFile(delete=False).name)
