@@ -45,6 +45,30 @@ class TestWhatweb(unittest.TestCase):
         self.assertEqual(result, content)
         file_path.unlink()
 
+    def test_build_command(self):
+        target = "10.0.0.1"
+        expected_command_components = [
+            "whatweb",
+            target,
+            "--log-brief",
+            self.whatweb.brief_file,
+            "--log-json",
+            self.whatweb.json_file,
+        ]
+
+        command = self.whatweb.build_command(target)
+
+        self.assertEqual(expected_command_components, command)
+
+    def test_temporary_files_removed_on_deletion(self):
+        brief_file = self.whatweb.brief_file
+        json_file = self.whatweb.json_file
+
+        del self.whatweb
+
+        self.assertFalse(brief_file.exists())
+        self.assertFalse(json_file.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
