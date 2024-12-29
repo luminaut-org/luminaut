@@ -26,7 +26,12 @@ class Whatweb:
 
         command = self.build_command(target)
         timeout = self.config.whatweb.timeout if self.config else None
-        subprocess.run(command, check=True, timeout=timeout)
+        subprocess.run(
+            command,
+            check=True,
+            timeout=timeout,
+            capture_output=True,
+        )
 
         return self.build_data_class()
 
