@@ -77,12 +77,12 @@ You may run luminaut with docker by mounting the configuration file and running 
 
 Bash, zsh, and similar terminals:
 ```bash
-$ docker run -it -v ~/.aws:/root/aws -v $(pwd)/configs:/app/configs luminaut --help
+$ docker run -it -v ~/.aws:/home/app/.aws -v $(pwd)/configs:/app/configs luminaut --help
 ```
 
 Powershell:
 ```powershell
-$ docker run -it -v $env:USERPROFILE\.aws:/root/aws -v ${PWD}\configs:/app/configs luminaut --help
+$ docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -v ${PWD}\configs:/app/configs luminaut --help
 ```
 
 ## Configuration
