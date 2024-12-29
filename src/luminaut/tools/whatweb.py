@@ -1,4 +1,5 @@
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,16 @@ class Whatweb:
         # Clean up files when the object is deleted.
         self.brief_file.unlink()
         self.json_file.unlink()
+
+    def run(self, target: str) -> models.Whatweb:
+        if not self.exists():
+            raise RuntimeError("Whatweb is not found on path.")
+
+        command = self.build_command(target)
+        timeout = self.config.whatweb.timeout if self.config else None
+        subprocess.run(command, check=True, timeout=timeout)
+
+        return self.build_data_class()
 
     def exists(self) -> bool:
         if self.config and self.config.whatweb.enabled:
