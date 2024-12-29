@@ -71,6 +71,22 @@ options:
   --verbose        Verbose output in the log file. (default: False)
 ```
 
+### Example
+
+By default, Luminaut will run all available tools. It requires your AWS profile to be configured with the necessary permissions, otherwise the first step of public IP detection on ENIs will fail.
+
+```bash
+$ luminaut
+```
+
+The AWS Config scanner takes at least 50 seconds to run per resource type. If you would like to disable this, you can do so as shown in the provided `configs/disable_aws_config.toml` configuration file. You can provide this configuration with `-c configs/disable_aws_config.toml`.
+
+```bash
+$ luminaut -c configs/disable_aws_config.toml
+```
+
+Similarly, if you'd like to enable Shodan, you will need to specify a configuration file that includes the Shodan API key. See the [Configuration](#configuration) section for more information on the configuration file specification.
+
 ### Usage with docker
 
 You may run luminaut with docker by mounting the configuration file and running the container. Replace `--help` with any other arguments you would like to pass to luminaut. Note that saved files, such as the log file and JSON reports, will be saved within the container. You may want to mount another volume to save the report files.
@@ -89,6 +105,8 @@ $ docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -v ${PWD}\configs:/app/
 
 Luminaut uses a configuration file to define the tools and services to use. The default configuration will run with all tools enabled, though during runtime any tool not found will be skipped. The default reporting uses console output with JSON reporting disabled.
 
+The configuration files are merged with the default configuration, meaning that you can omit any default values from your configuration file.
+
 The configuration file is a TOML file with the following structure and defaults:
 
 ```toml
@@ -102,7 +120,10 @@ config.enabled = true  # Enables the scanning of AWS config. This can take a lon
 
 [tools.nmap]
 enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path.
+
+[tools.shodan]
+enabled = false  # Enable the shodan tool, requires the shodan API key to be set in the configuration.
+api_key = ""  # Shodan API key. If this is populated, treat the configuration file as a secret.
 ```
 
 The source of truth for the luminaut configuration is located in `luminaut.models.LuminautConfig`.
-
