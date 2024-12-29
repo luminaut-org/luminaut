@@ -16,9 +16,9 @@ default_progress_columns = [
 
 
 class Luminaut:
-    def __init__(self, config: models.LuminautConfig):
-        self.config = config
-        self.scanner = Scanner(config=config)
+    def __init__(self, config: models.LuminautConfig | None = None):
+        self.config = config if config else models.LuminautConfig()
+        self.scanner = Scanner(config=self.config)
         self.task_progress = None
 
     def run(self):
