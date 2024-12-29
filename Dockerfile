@@ -14,7 +14,7 @@ RUN uv build
 FROM fedora:41 AS final
 
 COPY --from=base /app/dist /app/dist
-RUN dnf install -y nmap python3.12 python3-pip && \
+RUN dnf install -y nmap python3.12 python3-pip whatweb && \
     ln -sf /usr/bin/python3.12 /usr/bin/python && \
     pip install --no-cache-dir /app/dist/*.whl && \
     dnf clean all && \
