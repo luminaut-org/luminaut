@@ -531,6 +531,12 @@ class Vulnerability:
         )
 
 
+@dataclass
+class Whatweb:
+    summary_text: str
+    json_data: dict[str, Any]
+
+
 FindingServices = list[NmapPortServices | ShodanService]
 FindingResources = list[AwsEni | AwsConfigItem | SecurityGroup | Hostname]
 

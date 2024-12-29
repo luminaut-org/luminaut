@@ -5,13 +5,15 @@ from unittest.mock import patch
 
 import orjson as json
 
-from luminaut.models import LuminautConfig, LuminautConfigTool
+from luminaut import models
 from luminaut.tools.whatweb import Whatweb
 
 
 class TestWhatweb(unittest.TestCase):
     def setUp(self):
-        self.config = LuminautConfig(whatweb=LuminautConfigTool(enabled=True))
+        self.config = models.LuminautConfig(
+            whatweb=models.LuminautConfigTool(enabled=True)
+        )
         self.whatweb = Whatweb(config=self.config)
 
     def test_tool_found(self):
@@ -68,6 +70,20 @@ class TestWhatweb(unittest.TestCase):
 
         self.assertFalse(brief_file.exists())
         self.assertFalse(json_file.exists())
+
+    def test_build_data_class(self):
+        json_data = {"key": "value"}
+        brief_data = "foo"
+
+        with self.whatweb.json_file.open("wb") as f:
+            f.write(json.dumps(json_data))
+
+        with self.whatweb.brief_file.open("w") as f:
+            f.write(brief_data)
+
+        self.assertIsInstance(self.whatweb.build_data_class(), models.Whatweb)
+        self.assertEqual(self.whatweb.build_data_class().summary_text, brief_data)
+        self.assertEqual(self.whatweb.build_data_class().json_data, json_data)
 
 
 if __name__ == "__main__":

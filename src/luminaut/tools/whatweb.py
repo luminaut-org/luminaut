@@ -5,7 +5,7 @@ from typing import Any
 
 import orjson as json
 
-from luminaut import LuminautConfig
+from luminaut import LuminautConfig, models
 
 
 class Whatweb:
@@ -23,6 +23,12 @@ class Whatweb:
         if self.config and self.config.whatweb.enabled:
             return shutil.which("whatweb") is not None
         return False
+
+    def build_data_class(self) -> models.Whatweb:
+        return models.Whatweb(
+            summary_text=self.read_brief(self.brief_file),
+            json_data=self.read_json(self.json_file),
+        )
 
     def build_command(self, target: str) -> list[str | Path]:
         return [
