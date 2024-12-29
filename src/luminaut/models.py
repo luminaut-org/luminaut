@@ -536,6 +536,10 @@ class Whatweb:
     summary_text: str
     json_data: dict[str, Any]
 
+    def build_rich_text(self) -> str:
+        # The escape is required to prevent rich from interpreting the braces as markup.
+        return self.summary_text.replace("[", "\\[")
+
 
 FindingServices = list[NmapPortServices | ShodanService | Whatweb]
 FindingResources = list[AwsEni | AwsConfigItem | SecurityGroup | Hostname]
