@@ -53,9 +53,9 @@ class TestWhatweb(unittest.TestCase):
             "whatweb",
             target,
             "--log-brief",
-            self.whatweb.brief_file,
+            str(self.whatweb.brief_file),
             "--log-json",
-            self.whatweb.json_file,
+            str(self.whatweb.json_file),
         ]
 
         command = self.whatweb.build_command(target)

@@ -46,9 +46,9 @@ class Whatweb:
             "whatweb",
             target,
             "--log-brief",
-            self.brief_file,
+            str(self.brief_file),
             "--log-json",
-            self.json_file,
+            str(self.json_file),
         ]
 
     @staticmethod
