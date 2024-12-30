@@ -246,6 +246,10 @@ class AwsNetworkInterface:
     description: str | None = None
     interface_type: str | None = None
     subnet_id: str | None = None
+    tags: dict[str, str] = field(default_factory=dict)
+
+    def get_aws_tags(self) -> dict[str, str]:
+        return self.tags
 
     def build_rich_text(self) -> str:
         rich_text = f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"

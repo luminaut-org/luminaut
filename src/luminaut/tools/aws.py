@@ -152,6 +152,9 @@ class Aws:
             models.SecurityGroup(x["GroupId"], x["GroupName"])
             for x in eni.get("Groups", [])
         ]
+        tags = {}
+        for tag in eni.get("TagSet", []):
+            tags[tag["Key"]] = tag["Value"]
 
         return models.AwsNetworkInterface(
             network_interface_id=eni["NetworkInterfaceId"],
@@ -167,6 +170,7 @@ class Aws:
             security_groups=security_groups,
             status=eni["Status"],
             vpc_id=eni["VpcId"],
+            tags=tags,
         )
 
     def get_config_history_for_resource(
