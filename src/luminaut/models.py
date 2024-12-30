@@ -104,8 +104,12 @@ class LuminautConfigToolAws(LuminautConfigTool):
         aws_config = super().from_dict(config)
 
         aws_config.aws_profile = config.get("aws_profile")
-        aws_config.aws_regions = config.get("aws_regions")
-        aws_config.config = LuminautConfigTool.from_dict(config.get("config", {}))
+
+        # Don't override defaults
+        if aws_regions := config.get("aws_regions"):
+            aws_config.aws_regions = aws_regions
+        if config_dict := config.get("config"):
+            aws_config.config = LuminautConfigTool.from_dict(config_dict)
 
         aws_config.allowed_resources = [
             LuminautConfigAwsAllowedResource.from_dict(x)
