@@ -305,7 +305,7 @@ class AwsEc2InstanceState:
 
 
 @dataclass
-class AwsEc2Configuration:
+class AwsEc2Instance:
     instance_id: str
     image_id: str
     launch_time: datetime
@@ -368,7 +368,7 @@ class AwsConfigItem:
     arn: str
     config_capture_time: datetime
     config_status: str
-    configuration: AwsEc2Configuration | str
+    configuration: AwsEc2Instance | str
     tags: dict[str, str]
     resource_creation_time: datetime | None = None
 
@@ -379,14 +379,14 @@ class AwsConfigItem:
     def build_configuration(
         resource_type: ResourceType,
         configuration: str,
-    ) -> AwsEc2Configuration | str:
+    ) -> AwsEc2Instance | str:
         try:
             configuration = json.loads(configuration)
         except json.JSONDecodeError:
             return configuration
 
         if resource_type == ResourceType.EC2_Instance:
-            return AwsEc2Configuration.from_aws_config(configuration)
+            return AwsEc2Instance.from_aws_config(configuration)
         return configuration
 
     @classmethod
