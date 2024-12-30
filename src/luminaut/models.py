@@ -229,7 +229,7 @@ class SecurityGroup:
 
 
 @dataclass
-class AwsEni:
+class AwsNetworkInterface:
     network_interface_id: str
     public_ip: str
     private_ip: str
@@ -310,7 +310,7 @@ class AwsEc2Configuration:
     private_dns_name: str
     private_ip_address: IPAddress
     public_dns_name: str
-    network_interfaces: list[AwsEni | dict[str, Any]]
+    network_interfaces: list[AwsNetworkInterface | dict[str, Any]]
     security_groups: list[SecurityGroup | dict[str, Any]]
     state: AwsEc2InstanceState | None
     state_reason: AwsEc2InstanceStateReason | None
@@ -567,7 +567,7 @@ class Whatweb:
 
 
 FindingServices = list[NmapPortServices | ShodanService | Whatweb]
-FindingResources = list[AwsEni | AwsConfigItem | SecurityGroup | Hostname]
+FindingResources = list[AwsNetworkInterface | AwsConfigItem | SecurityGroup | Hostname]
 
 
 @dataclass
@@ -615,11 +615,11 @@ class ScanResult:
             title += f" | {self.region}"
         return Panel(rich_text, title=title, title_align="left")
 
-    def get_eni_resources(self) -> list[AwsEni]:
+    def get_eni_resources(self) -> list[AwsNetworkInterface]:
         eni_resources = []
         for finding in self.findings:
             for resource in finding.resources:
-                if isinstance(resource, AwsEni):
+                if isinstance(resource, AwsNetworkInterface):
                     eni_resources.append(resource)
         return eni_resources
 

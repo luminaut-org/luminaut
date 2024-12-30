@@ -30,7 +30,7 @@ class AwsTool(unittest.TestCase):
             group_name="unittest",
             rules=[],
         )
-        self.sample_eni = models.AwsEni(
+        self.sample_eni = models.AwsNetworkInterface(
             network_interface_id="eni-1234567890abcdef0",
             public_ip="10.0.0.1",
             private_ip="10.0.0.1",

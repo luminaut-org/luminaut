@@ -74,7 +74,9 @@ class Aws:
 
         return sg_finding
 
-    def explore_config_history(self, eni: models.AwsEni) -> models.ScanFindings:
+    def explore_config_history(
+        self, eni: models.AwsNetworkInterface
+    ) -> models.ScanFindings:
         resource_history = self.get_config_history_for_resource(
             models.ResourceType.EC2_NetworkInterface, eni.network_interface_id
         )
@@ -123,7 +125,7 @@ class Aws:
             scans.append(scan)
         return scans
 
-    def _fetch_enis_with_public_ips(self) -> list[models.AwsEni]:
+    def _fetch_enis_with_public_ips(self) -> list[models.AwsNetworkInterface]:
         paginator = self.ec2_client.get_paginator("describe_network_interfaces")
         results = paginator.paginate(
             Filters=[
@@ -142,7 +144,7 @@ class Aws:
         return scan_results
 
     @staticmethod
-    def _build_eni_scan_finding(eni: dict[str, Any]) -> models.AwsEni:
+    def _build_eni_scan_finding(eni: dict[str, Any]) -> models.AwsNetworkInterface:
         association = eni.get("Association", {})
         public_ip = association.get("PublicIp")
         attachment = eni.get("Attachment", {})
@@ -151,7 +153,7 @@ class Aws:
             for x in eni.get("Groups", [])
         ]
 
-        return models.AwsEni(
+        return models.AwsNetworkInterface(
             network_interface_id=eni["NetworkInterfaceId"],
             public_ip=public_ip,
             private_ip=eni["PrivateIpAddress"],
