@@ -58,9 +58,7 @@ class AwsTool(unittest.TestCase):
     def test_explore_region(self):
         aws = Aws()
         aws._fetch_enis_with_public_ips = lambda: [self.sample_eni]
-        aws.populate_permissive_ingress_security_group_rules = lambda x: [
-            self.sample_sg
-        ]
+        aws.populate_permissive_ingress_security_group_rules = lambda x: self.sample_sg
         aws.get_config_history_for_resource = lambda x, y: [self.sample_config_eni]
 
         exploration = aws.explore_region("us-east-1")
@@ -69,6 +67,10 @@ class AwsTool(unittest.TestCase):
         self.assertEqual(1, len(exploration))
         self.assertIsInstance(exploration[0], models.ScanResult)
         self.assertEqual(3, len(exploration[0].findings))
+
+        self.assertIn(self.sample_eni, exploration[0].findings[0].resources)
+        self.assertIn(self.sample_sg, exploration[0].findings[1].resources)
+        self.assertIn(self.sample_config_eni, exploration[0].findings[2].resources)
 
     @mock_aws()
     def test_setup_client_region(self):

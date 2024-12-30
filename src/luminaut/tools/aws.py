@@ -49,9 +49,14 @@ class Aws:
 
         return sg_finding
 
-    def explore_eni_history(self, eni: models.AwsEni) -> list[models.AwsConfigItem]:
-        return self.get_config_history_for_resource(
+    def explore_eni_history(self, eni: models.AwsEni) -> models.ScanFindings:
+        eni_resource_history = self.get_config_history_for_resource(
             models.ResourceType.EC2_NetworkInterface, eni.network_interface_id
+        )
+        return models.ScanFindings(
+            tool="AWS Config",
+            emoji_name="gear",
+            resources=eni_resource_history,
         )
 
     def setup_client_region(self, region: str) -> None:
