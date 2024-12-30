@@ -23,6 +23,7 @@ class Aws:
             )
             findings.append(eni_finding)
             findings.append(self.explore_security_groups(eni.security_groups))
+            findings.append(self.explore_eni_history(eni))
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
@@ -47,6 +48,11 @@ class Aws:
             sg_finding.resources.append(security_group)
 
         return sg_finding
+
+    def explore_eni_history(self, eni: models.AwsEni) -> list[models.AwsConfigItem]:
+        return self.get_config_history_for_resource(
+            models.ResourceType.EC2_NetworkInterface, eni.network_interface_id
+        )
 
     def setup_client_region(self, region: str) -> None:
         self.ec2_client = boto3.client("ec2", region_name=region)

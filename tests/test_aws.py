@@ -42,6 +42,18 @@ class AwsTool(unittest.TestCase):
             vpc_id="vpc-1234567890abcdef0",
             security_groups=[self.sample_sg],
         )
+        self.sample_config_eni = models.AwsConfigItem(
+            resource_type=models.ResourceType.EC2_NetworkInterface,
+            resource_id="eni-1234567890abcdef0",
+            account="123456789012",
+            region="us-west-2",
+            arn="arn",
+            config_capture_time=datetime.today(),
+            config_status="OK",
+            configuration="",
+            tags={},
+            resource_creation_time=None,
+        )
 
     def test_explore_region(self):
         aws = Aws()
@@ -49,13 +61,14 @@ class AwsTool(unittest.TestCase):
         aws.populate_permissive_ingress_security_group_rules = lambda x: [
             self.sample_sg
         ]
+        aws.get_config_history_for_resource = lambda x, y: [self.sample_config_eni]
 
         exploration = aws.explore_region("us-east-1")
 
         self.assertIsInstance(exploration, list)
         self.assertEqual(1, len(exploration))
         self.assertIsInstance(exploration[0], models.ScanResult)
-        self.assertEqual(2, len(exploration[0].findings))
+        self.assertEqual(3, len(exploration[0].findings))
 
     @mock_aws()
     def test_setup_client_region(self):
