@@ -198,9 +198,9 @@ class AwsEni:
     attachment_time: datetime
     attachment_status: str
     availability_zone: str
-    security_groups: list[SecurityGroup]
     status: str
     vpc_id: str
+    security_groups: list[SecurityGroup] = field(default_factory=list)
     ec2_instance_id: str | None = None
     public_dns_name: str | None = None
     private_dns_name: str | None = None

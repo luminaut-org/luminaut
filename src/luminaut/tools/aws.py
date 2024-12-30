@@ -30,7 +30,12 @@ class Aws:
                 association = eni.get("Association", {})
                 public_ip = association.get("PublicIp")
 
-                finding = self._build_eni_scan_finding(eni)
+                eni_model = self._build_eni_scan_finding(eni)
+                finding = models.ScanFindings(
+                    tool="AWS Elastic Network Interfaces",
+                    emoji_name="cloud",
+                    resources=[eni_model],
+                )
                 scan_results.append(
                     models.ScanResult(
                         ip=public_ip,
@@ -42,7 +47,7 @@ class Aws:
         return scan_results
 
     @staticmethod
-    def _build_eni_scan_finding(eni: dict[str, Any]) -> models.ScanFindings:
+    def _build_eni_scan_finding(eni: dict[str, Any]) -> models.AwsEni:
         association = eni.get("Association", {})
         public_ip = association.get("PublicIp")
         attachment = eni.get("Attachment", {})
@@ -51,26 +56,20 @@ class Aws:
             for x in eni.get("Groups", [])
         ]
 
-        return models.ScanFindings(
-            tool="AWS Elastic Network Interfaces",
-            emoji_name="cloud",
-            resources=[
-                models.AwsEni(
-                    network_interface_id=eni["NetworkInterfaceId"],
-                    public_ip=public_ip,
-                    private_ip=eni["PrivateIpAddress"],
-                    ec2_instance_id=attachment.get("InstanceId"),
-                    public_dns_name=association.get("PublicDnsName"),
-                    private_dns_name=eni.get("PrivateDnsName"),
-                    attachment_id=attachment.get("AttachmentId"),
-                    attachment_time=attachment.get("AttachTime"),
-                    attachment_status=attachment.get("Status"),
-                    availability_zone=eni["AvailabilityZone"],
-                    security_groups=security_groups,
-                    status=eni["Status"],
-                    vpc_id=eni["VpcId"],
-                )
-            ],
+        return models.AwsEni(
+            network_interface_id=eni["NetworkInterfaceId"],
+            public_ip=public_ip,
+            private_ip=eni["PrivateIpAddress"],
+            ec2_instance_id=attachment.get("InstanceId"),
+            public_dns_name=association.get("PublicDnsName"),
+            private_dns_name=eni.get("PrivateDnsName"),
+            attachment_id=attachment.get("AttachmentId"),
+            attachment_time=attachment.get("AttachTime"),
+            attachment_status=attachment.get("Status"),
+            availability_zone=eni["AvailabilityZone"],
+            security_groups=security_groups,
+            status=eni["Status"],
+            vpc_id=eni["VpcId"],
         )
 
     def get_config_history_for_resource(

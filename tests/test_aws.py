@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime
 
 import boto3
 from moto import mock_aws
@@ -26,7 +27,17 @@ class AwsTool(unittest.TestCase):
     @mock_aws()
     def test_fetch_enis_with_public_ips(self):
         aws = Aws()
-        aws._build_eni_scan_finding = lambda x: models.ScanFindings(tool="AWS Unittest")
+        aws._build_eni_scan_finding = lambda x: models.AwsEni(
+            network_interface_id="eni-1234567890abcdef0",
+            public_ip="10.0.0.1",
+            private_ip="10.0.0.1",
+            attachment_id="eni-attach-1234567890abcdef0",
+            attachment_time=datetime.today(),
+            attachment_status="attached",
+            availability_zone="us-west-2a",
+            status="available",
+            vpc_id="vpc-1234567890abcdef0",
+        )
         aws.ec2_client.get_paginator = lambda x: MockDescribeEniPaginator()
 
         scan_results = aws.fetch_enis_with_public_ips()
