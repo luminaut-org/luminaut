@@ -98,6 +98,21 @@ class AwsTool(unittest.TestCase):
         self.assertIn(self.sample_config_eni, exploration[0].findings[2].resources)
         self.assertIn(self.sample_config_ec2, exploration[0].findings[2].resources)
 
+    def test_explore_region_no_config(self):
+        config = models.LuminautConfig()
+        config.aws.config.enabled = False
+        aws = self.aws_client_mock_setup(config)
+
+        exploration = aws.explore_region("us-east-1")
+
+        self.assertIsInstance(exploration, list)
+        self.assertEqual(1, len(exploration))
+        self.assertIsInstance(exploration[0], models.ScanResult)
+        self.assertEqual(2, len(exploration[0].findings))
+
+        self.assertIn(self.sample_eni, exploration[0].findings[0].resources)
+        self.assertIn(self.sample_sg, exploration[0].findings[1].resources)
+
     @mock_aws()
     def test_setup_client_region(self):
         aws = Aws()

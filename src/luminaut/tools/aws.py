@@ -24,8 +24,11 @@ class Aws:
                 resources=[eni],
             )
             findings.append(eni_finding)
+
             findings.append(self.explore_security_groups(eni.security_groups))
-            findings.append(self.explore_config_history(eni))
+
+            if self.config.aws.config.enabled:
+                findings.append(self.explore_config_history(eni))
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
