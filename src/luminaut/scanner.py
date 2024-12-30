@@ -20,12 +20,16 @@ class Scanner:
         aws = Aws(self.config)
 
         scan_results = []
+        logger.info("Scanning AWS regions: %s", ", ".join(self.config.aws.aws_regions))
+
         for region in self.config.aws.aws_regions:
             scan_results.extend(aws.explore_region(region))
 
+        logger.info("Completed AWS scan of all specified regions.")
         return scan_results
 
     def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
+        logger.info("Running nmap against %s", ip_address)
         nmap = nmap3.Nmap()
         try:
             result = nmap.nmap_version_detection(
@@ -52,6 +56,7 @@ class Scanner:
                     state=port["state"],
                 )
             )
+        logger.info("Nmap found %s services on %s", len(port_services), ip_address)
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
         return models.ScanResult(ip=ip_address, findings=[nmap_findings])
@@ -77,6 +82,10 @@ class Scanner:
                 models.ShodanService.from_shodan_host(service)
             )
 
+        logger.info(
+            "Shodan found %s services on %s", len(shodan_findings.services), ip_address
+        )
+
         for domain in host["domains"]:
             shodan_findings.resources.append(
                 models.Hostname(
@@ -85,9 +94,15 @@ class Scanner:
                 )
             )
 
+        logger.info(
+            "Shodan found %s domains on %s", len(shodan_findings.resources), ip_address
+        )
+
         return shodan_findings
 
     def whatweb(self, targets: list[str]) -> models.ScanFindings | None:
+        logger.info("Running Whatweb against %s", ", ".join(targets))
+
         finding = models.ScanFindings(tool="Whatweb", emoji_name="spider_web")
         for target in targets:
             try:
@@ -100,5 +115,7 @@ class Scanner:
                 logger.warning(f"Whatweb scan for {target} timed out")
             except subprocess.CalledProcessError as e:
                 logger.warning(f"Whatweb scan for {target} failed: {e}")
+
+        logger.info("Whatweb found %s services across targets", len(finding.services))
 
         return finding

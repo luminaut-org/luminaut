@@ -2,9 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from rich.logging import RichHandler
-
-from luminaut import Luminaut, __version__, models, report
+from luminaut import Luminaut, __version__, models
 
 logger = logging.getLogger()
 logger.getChild("boto3").setLevel(logging.ERROR)
@@ -46,9 +44,7 @@ def configure_logging(log_file: Path, verbose: bool) -> None:
 
     logger.addHandler(log_file)
 
-    log_console = RichHandler(
-        console=report.console, show_time=False, show_level=False, show_path=False
-    )
+    log_console = logging.StreamHandler()
     log_level = logging.DEBUG if verbose else logging.INFO
     log_console.setLevel(log_level)
     log_console.setFormatter(log_format)

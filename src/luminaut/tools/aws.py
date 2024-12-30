@@ -1,8 +1,11 @@
+import logging
 from typing import Any
 
 import boto3
 
 from luminaut import models
+
+logger = logging.getLogger(__name__)
 
 
 class Aws:
@@ -17,9 +20,16 @@ class Aws:
             return []
 
         self.setup_client_region(region)
+        logger.info("Exploring region %s", region)
+
+        enis_with_public_ips = self._fetch_enis_with_public_ips()
+        num_enis_with_public_ips = len(enis_with_public_ips)
+        logger.info("Found %s ENIs with public IPs", num_enis_with_public_ips)
+        if num_enis_with_public_ips:
+            logger.info("Gathering additional details from AWS about these ENIs...")
 
         aws_exploration_results = []
-        for eni in self._fetch_enis_with_public_ips():
+        for eni in enis_with_public_ips:
             findings = []
             eni_finding = models.ScanFindings(
                 tool="AWS Elastic Network Interfaces",
@@ -31,6 +41,10 @@ class Aws:
             findings.append(self.explore_security_groups(eni.security_groups))
 
             if self.config.aws.config.enabled:
+                logger.info(
+                    "Fetching AWS Config history for resources associated with %s. This can take some time to run.",
+                    eni.network_interface_id,
+                )
                 findings.append(self.explore_config_history(eni))
 
             eni_exploration = models.ScanResult(
@@ -40,6 +54,8 @@ class Aws:
                 findings=findings,
             )
             aws_exploration_results.append(eni_exploration)
+
+        logger.info("Completed exploration of AWS region %s", region)
 
         return aws_exploration_results
 
