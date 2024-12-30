@@ -118,6 +118,11 @@ json = false  # JSON lines output, written to STDOUT.
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
 config.enabled = true  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history.
 
+[[tool.aws.allowed_resources]]
+# Skip resources that match any of the specified tags. The key and value are case-sensitive.
+# Only supports skipping ENIs at the moment.
+tags = { "luminaut" = "ignore", "reviewed" = "true" }
+
 [tool.nmap]
 enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path.
 
