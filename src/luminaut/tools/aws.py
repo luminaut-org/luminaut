@@ -1,3 +1,5 @@
+from typing import Any
+
 import boto3
 
 from luminaut import models
@@ -22,47 +24,50 @@ class Aws:
 
         for enis in results:
             for eni in enis["NetworkInterfaces"]:
-                attachment = eni.get("Attachment", {})
                 association = eni.get("Association", {})
-                security_groups = [
-                    models.SecurityGroup(x["GroupId"], x["GroupName"])
-                    for x in eni.get("Groups", [])
-                ]
                 public_ip = association.get("PublicIp")
 
                 scan_results.append(
                     models.ScanResult(
                         ip=public_ip,
                         eni_id=eni["NetworkInterfaceId"],
-                        findings=[
-                            models.ScanFindings(
-                                tool="AWS Elastic Network Interfaces",
-                                emoji_name="cloud",
-                                resources=[
-                                    models.AwsEni(
-                                        network_interface_id=eni["NetworkInterfaceId"],
-                                        public_ip=public_ip,
-                                        private_ip=eni["PrivateIpAddress"],
-                                        ec2_instance_id=attachment.get("InstanceId"),
-                                        public_dns_name=association.get(
-                                            "PublicDnsName"
-                                        ),
-                                        private_dns_name=eni.get("PrivateDnsName"),
-                                        attachment_id=attachment.get("AttachmentId"),
-                                        attachment_time=attachment.get("AttachTime"),
-                                        attachment_status=attachment.get("Status"),
-                                        availability_zone=eni["AvailabilityZone"],
-                                        security_groups=security_groups,
-                                        status=eni["Status"],
-                                        vpc_id=eni["VpcId"],
-                                    )
-                                ],
-                            )
-                        ],
+                        findings=[self._build_eni_scan_finding(eni)],
                     )
                 )
 
         return scan_results
+
+    @staticmethod
+    def _build_eni_scan_finding(eni: dict[str, Any]) -> models.ScanFindings:
+        association = eni.get("Association", {})
+        public_ip = association.get("PublicIp")
+        attachment = eni.get("Attachment", {})
+        security_groups = [
+            models.SecurityGroup(x["GroupId"], x["GroupName"])
+            for x in eni.get("Groups", [])
+        ]
+
+        return models.ScanFindings(
+            tool="AWS Elastic Network Interfaces",
+            emoji_name="cloud",
+            resources=[
+                models.AwsEni(
+                    network_interface_id=eni["NetworkInterfaceId"],
+                    public_ip=public_ip,
+                    private_ip=eni["PrivateIpAddress"],
+                    ec2_instance_id=attachment.get("InstanceId"),
+                    public_dns_name=association.get("PublicDnsName"),
+                    private_dns_name=eni.get("PrivateDnsName"),
+                    attachment_id=attachment.get("AttachmentId"),
+                    attachment_time=attachment.get("AttachTime"),
+                    attachment_status=attachment.get("Status"),
+                    availability_zone=eni["AvailabilityZone"],
+                    security_groups=security_groups,
+                    status=eni["Status"],
+                    vpc_id=eni["VpcId"],
+                )
+            ],
+        )
 
     def get_config_history_for_resource(
         self,
