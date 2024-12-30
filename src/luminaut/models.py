@@ -537,8 +537,14 @@ class Whatweb:
     json_data: dict[str, Any]
 
     def build_rich_text(self) -> str:
+        rich_text = ""
         # The escape is required to prevent rich from interpreting the braces as markup.
-        return self.summary_text.replace("[", "\\[")
+        for raw_line in self.summary_text.replace("[", "\\[").split("\n"):
+            line = raw_line.strip()
+            if line:
+                rich_text += f"- {line}\n"
+
+        return rich_text
 
 
 FindingServices = list[NmapPortServices | ShodanService | Whatweb]
