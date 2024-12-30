@@ -25,6 +25,17 @@ class MockDescribeEniPaginator:
 
 class AwsTool(unittest.TestCase):
     @mock_aws()
+    def test_setup_client_region(self):
+        aws = Aws()
+        self.assertEqual("us-east-1", aws.ec2_client.meta.region_name)
+        self.assertEqual("us-east-1", aws.config_client.meta.region_name)
+
+        aws.setup_client_region("us-east-2")
+
+        self.assertEqual("us-east-2", aws.ec2_client.meta.region_name)
+        self.assertEqual("us-east-2", aws.config_client.meta.region_name)
+
+    @mock_aws()
     def test_fetch_enis_with_public_ips(self):
         aws = Aws()
         aws._build_eni_scan_finding = lambda x: models.AwsEni(

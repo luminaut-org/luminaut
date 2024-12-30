@@ -10,6 +10,10 @@ class Aws:
         self.ec2_client = boto3.client("ec2")
         self.config_client = boto3.client("config")
 
+    def setup_client_region(self, region: str) -> None:
+        self.ec2_client = boto3.client("ec2", region_name=region)
+        self.config_client = boto3.client("config", region_name=region)
+
     def fetch_enis_with_public_ips(self) -> list[models.ScanResult]:
         scans = []
         for eni in self._fetch_enis_with_public_ips():
