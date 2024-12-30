@@ -34,20 +34,22 @@ def configure_logging(log_file: Path, verbose: bool) -> None:
     # Allow all messages to pass through the root handler.
     logger.setLevel(logging.DEBUG)
 
-    log_format = logging.Formatter(
-        "%(asctime)s %(levelname)-8s %(name)-24s %(message)s"
+    file_log_format = logging.Formatter(
+        "%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s"
     )
-
     log_file = logging.FileHandler(log_file)
     log_file.setLevel(logging.DEBUG)
-    log_file.setFormatter(log_format)
+    log_file.setFormatter(file_log_format)
 
     logger.addHandler(log_file)
 
+    console_log_format = logging.Formatter(
+        "%(asctime)s %(levelname)-8s %(name)-24s %(message)s"
+    )
     log_console = logging.StreamHandler()
     log_level = logging.DEBUG if verbose else logging.INFO
     log_console.setLevel(log_level)
-    log_console.setFormatter(log_format)
+    log_console.setFormatter(console_log_format)
 
     logger.addHandler(log_console)
 
