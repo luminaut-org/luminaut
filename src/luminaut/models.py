@@ -18,7 +18,8 @@ QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
 def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]:
     tags = {}
     for tag in tag_set:
-        tags[tag["Key"]] = tag["Value"]
+        if (key := tag.get("key")) and (value := tag.get("value")):
+            tags[key] = value
     return tags
 
 

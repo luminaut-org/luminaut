@@ -134,6 +134,18 @@ class AwsTool(unittest.TestCase):
         self.sample_config_eni.tags = {"foo": "bar"}
         self.assertTrue(aws.skip_resource(self.sample_config_eni))
 
+    def test_convert_tag_set_to_dict(self):
+        tag_set = [
+            {"key": "Name", "value": "test"},
+            {"key": "Owner", "value": "unittest"},
+        ]
+        tag_dict = {
+            "Name": "test",
+            "Owner": "unittest",
+        }
+        actual = models.convert_tag_set_to_dict(tag_set)
+        self.assertEqual(tag_dict, actual)
+
     @mock_aws()
     def test_setup_client_region(self):
         aws = Aws()
