@@ -12,7 +12,12 @@ class Aws:
 
     def fetch_enis_with_public_ips(self) -> list[models.ScanResult]:
         scans = []
-        for finding in self._fetch_enis_with_public_ips():
+        for eni in self._fetch_enis_with_public_ips():
+            finding = models.ScanFindings(
+                tool="AWS Elastic Network Interfaces",
+                emoji_name="cloud",
+                resources=[eni],
+            )
             scan = models.ScanResult(
                 ip=finding.resources[0].public_ip,
                 eni_id=finding.resources[0].network_interface_id,
@@ -21,7 +26,7 @@ class Aws:
             scans.append(scan)
         return scans
 
-    def _fetch_enis_with_public_ips(self) -> list[models.ScanFindings]:
+    def _fetch_enis_with_public_ips(self) -> list[models.AwsEni]:
         paginator = self.ec2_client.get_paginator("describe_network_interfaces")
         results = paginator.paginate(
             Filters=[
@@ -36,12 +41,7 @@ class Aws:
         for enis in results:
             for eni in enis["NetworkInterfaces"]:
                 eni_model = self._build_eni_scan_finding(eni)
-                finding = models.ScanFindings(
-                    tool="AWS Elastic Network Interfaces",
-                    emoji_name="cloud",
-                    resources=[eni_model],
-                )
-                scan_results.append(finding)
+                scan_results.append(eni_model)
         return scan_results
 
     @staticmethod
