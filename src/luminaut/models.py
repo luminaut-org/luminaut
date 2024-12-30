@@ -534,7 +534,7 @@ class Vulnerability:
 @dataclass
 class Whatweb:
     summary_text: str
-    json_data: dict[str, Any]
+    json_data: list[dict[str, Any]]
 
     def build_rich_text(self) -> str:
         rich_text = ""
