@@ -1,6 +1,6 @@
 import json
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum, auto
@@ -13,6 +13,13 @@ from rich.panel import Panel
 
 IPAddress = IPv4Address | IPv6Address
 QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
+
+
+def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]:
+    tags = {}
+    for tag in tag_set:
+        tags[tag["Key"]] = tag["Value"]
+    return tags
 
 
 class Direction(StrEnum):
