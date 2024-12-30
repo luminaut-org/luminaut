@@ -30,11 +30,12 @@ class Aws:
                 association = eni.get("Association", {})
                 public_ip = association.get("PublicIp")
 
+                finding = self._build_eni_scan_finding(eni)
                 scan_results.append(
                     models.ScanResult(
                         ip=public_ip,
                         eni_id=eni["NetworkInterfaceId"],
-                        findings=[self._build_eni_scan_finding(eni)],
+                        findings=[finding],
                     )
                 )
 
