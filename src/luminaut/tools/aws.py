@@ -6,7 +6,9 @@ from luminaut import models
 
 
 class Aws:
-    def __init__(self):
+    def __init__(self, config: models.LuminautConfig | None = None):
+        config = config if config else models.LuminautConfig()
+        self.config = config
         self.ec2_client = boto3.client("ec2")
         self.config_client = boto3.client("config")
 

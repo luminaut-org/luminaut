@@ -68,7 +68,7 @@ class AwsTool(unittest.TestCase):
             resource_creation_time=None,
         )
 
-    def test_explore_region(self):
+    def aws_client_mock_setup(self, config=None) -> Aws:
         def mock_get_config_history_for_resource(
             resource_type: models.ResourceType, *args, **kwargs
         ) -> list[models.AwsConfigItem]:
@@ -77,10 +77,14 @@ class AwsTool(unittest.TestCase):
             elif resource_type == models.ResourceType.EC2_Instance:
                 return [self.sample_config_ec2]
 
-        aws = Aws()
+        aws = Aws(config)
         aws._fetch_enis_with_public_ips = lambda: [self.sample_eni]
         aws.populate_permissive_ingress_security_group_rules = lambda x: self.sample_sg
         aws.get_config_history_for_resource = mock_get_config_history_for_resource
+        return aws
+
+    def test_explore_region(self):
+        aws = self.aws_client_mock_setup()
 
         exploration = aws.explore_region("us-east-1")
 
