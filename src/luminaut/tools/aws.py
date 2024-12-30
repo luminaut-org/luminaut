@@ -8,7 +8,7 @@ from luminaut import models
 class Aws:
     def __init__(self):
         self.ec2_client = boto3.client("ec2")
-        self.aws_client = boto3.client("config")
+        self.config_client = boto3.client("config")
 
     def fetch_enis_with_public_ips(self) -> list[models.ScanResult]:
         scans = []
@@ -75,7 +75,9 @@ class Aws:
         resource_type: models.ResourceType,
         resource_id: str,
     ) -> list[models.AwsConfigItem]:
-        pagination_client = self.aws_client.get_paginator("get_resource_config_history")
+        pagination_client = self.config_client.get_paginator(
+            "get_resource_config_history"
+        )
         pages = pagination_client.paginate(
             resourceType=str(resource_type),
             resourceId=resource_id,
