@@ -35,7 +35,7 @@ Luminaut is a framework that assembles tools and APIs commonly used to understan
 
 Run `docker build --tag luminaut:latest` to build the container.
 
-You can then run the container with `docker run luminaut --help`
+You can then run the container with `docker run -it luminaut --help`
 
 ### For development
 
@@ -114,16 +114,19 @@ The configuration file is a TOML file with the following structure and defaults:
 console = true  # Rich STDOUT console output
 json = false  # JSON lines output, written to STDOUT.
 
-[tools.aws]
+[tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
 config.enabled = true  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history.
 
-[tools.nmap]
+[tool.nmap]
 enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path.
 
-[tools.shodan]
+[tool.shodan]
 enabled = false  # Enable the shodan tool, requires the shodan API key to be set in the configuration.
 api_key = ""  # Shodan API key. If this is populated, treat the configuration file as a secret.
+
+[tool.whatweb]
+enabled = true  # Enable the whatweb tool, requires the whatweb utility installed and on the system path.
 ```
 
 The source of truth for the luminaut configuration is located in `luminaut.models.LuminautConfig`.
