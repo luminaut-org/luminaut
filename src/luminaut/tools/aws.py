@@ -13,6 +13,9 @@ class Aws:
         self.config_client = boto3.client("config")
 
     def explore_region(self, region: str) -> list[models.ScanResult]:
+        if not self.config.aws.enabled:
+            return []
+
         self.setup_client_region(region)
 
         aws_exploration_results = []
