@@ -40,6 +40,19 @@ class LuminautConfigToolShodan(LuminautConfigTool):
 
 
 @dataclass
+class LuminautConfigAwsAllowedResource:
+    type: "ResourceType | None" = None
+    id: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        return cls(
+            type=ResourceType(data.get("type")),
+            id=data.get("id"),
+        )
+
+
+@dataclass
 class LuminautConfigToolAws(LuminautConfigTool):
     aws_profile: str | None = None
     aws_regions: list[str] | None = field(default_factory=lambda: ["us-east-1"])

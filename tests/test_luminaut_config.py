@@ -1,7 +1,7 @@
 import unittest
 from io import BytesIO
 
-from luminaut import LuminautConfig
+from luminaut import LuminautConfig, models
 
 sample_toml_config = b"""
 [report]
@@ -38,6 +38,20 @@ class TestLuminautConfig(unittest.TestCase):
 
         self.assertTrue(loaded_config.nmap.enabled)
         self.assertEqual(loaded_config.nmap.timeout, 300)
+
+    def test_load_allowed_resources(self):
+        allowed_item = models.LuminautConfigAwsAllowedResource.from_dict(
+            {"type": "AWS::EC2::Instance", "id": "i-1"}
+        )
+        self.assertEqual(allowed_item.type, models.ResourceType.EC2_Instance)
+        self.assertIsInstance(allowed_item.type, models.ResourceType)
+        self.assertEqual(allowed_item.id, "i-1")
+
+        allowed_item = models.LuminautConfigAwsAllowedResource.from_dict(
+            {"type": "AWS::EC2::NetworkInterface", "id": "eni-1"}
+        )
+        self.assertEqual(allowed_item.type, models.ResourceType.EC2_NetworkInterface)
+        self.assertEqual(allowed_item.id, "eni-1")
 
 
 if __name__ == "__main__":
