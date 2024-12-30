@@ -27,6 +27,7 @@ class Aws:
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
+                region=region,
                 eni_id=eni.network_interface_id,
                 findings=findings,
             )

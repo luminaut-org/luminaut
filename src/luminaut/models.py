@@ -586,6 +586,7 @@ class ScanFindings:
 class ScanResult:
     ip: str
     findings: list[ScanFindings]
+    region: str | None = None
     eni_id: str | None = None
 
     def build_rich_panel(self) -> Panel:
