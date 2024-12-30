@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 from typing import Any
 
 import boto3
@@ -14,6 +15,13 @@ class Aws:
         self.config = config
         self.ec2_client = boto3.client("ec2")
         self.config_client = boto3.client("config")
+
+    @staticmethod
+    def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]:
+        tags = {}
+        for tag in tag_set:
+            tags[tag["Key"]] = tag["Value"]
+        return tags
 
     def explore_region(self, region: str) -> list[models.ScanResult]:
         if not self.config.aws.enabled:
@@ -36,6 +44,9 @@ class Aws:
                 emoji_name="cloud",
                 resources=[eni],
             )
+            if self.skip_resource(eni):
+                continue
+
             findings.append(eni_finding)
 
             findings.append(self.explore_security_groups(eni.security_groups))
@@ -152,9 +163,7 @@ class Aws:
             models.SecurityGroup(x["GroupId"], x["GroupName"])
             for x in eni.get("Groups", [])
         ]
-        tags = {}
-        for tag in eni.get("TagSet", []):
-            tags[tag["Key"]] = tag["Value"]
+        tags = Aws.convert_tag_set_to_dict(eni.get("TagSet", []))
 
         return models.AwsNetworkInterface(
             network_interface_id=eni["NetworkInterfaceId"],
