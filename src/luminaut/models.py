@@ -15,6 +15,30 @@ IPAddress = IPv4Address | IPv6Address
 QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
 
 
+class Direction(StrEnum):
+    INGRESS = auto()
+    EGRESS = auto()
+
+
+class Protocol(StrEnum):
+    TCP = auto()
+    UDP = auto()
+    ICMP = auto()
+    ICMPv6 = auto()
+    ALL = "-1"
+
+
+class ResourceType(StrEnum):
+    EC2_Instance = "AWS::EC2::Instance"
+    EC2_NetworkInterface = "AWS::EC2::NetworkInterface"
+
+
+class SecurityGroupRuleTargetType(StrEnum):
+    CIDR = auto()
+    SECURITY_GROUP = auto()
+    PREFIX_LIST = auto()
+
+
 @dataclass
 class LuminautConfigTool:
     enabled: bool = True
@@ -41,14 +65,19 @@ class LuminautConfigToolShodan(LuminautConfigTool):
 
 @dataclass
 class LuminautConfigAwsAllowedResource:
-    type: "ResourceType | None" = None
+    type: ResourceType | None = None
     id: str | None = None
+    tags: dict[str, str] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
+        if resource_type := data.get("type"):
+            resource_type = ResourceType(resource_type)
+
         return cls(
-            type=ResourceType(data.get("type")),
+            type=resource_type,
             id=data.get("id"),
+            tags=data.get("tags"),
         )
 
 
@@ -118,17 +147,6 @@ class LuminautConfig:
                 tool_config.get("shodan", {})
             )
         return luminaut_config
-
-
-class Direction(StrEnum):
-    INGRESS = auto()
-    EGRESS = auto()
-
-
-class SecurityGroupRuleTargetType(StrEnum):
-    CIDR = auto()
-    SECURITY_GROUP = auto()
-    PREFIX_LIST = auto()
 
 
 @dataclass
@@ -231,11 +249,6 @@ class AwsEni:
             )
             rich_text += f"Security Groups: {security_group_list}\n"
         return rich_text
-
-
-class ResourceType(StrEnum):
-    EC2_Instance = "AWS::EC2::Instance"
-    EC2_NetworkInterface = "AWS::EC2::NetworkInterface"
 
 
 @dataclass
@@ -393,14 +406,6 @@ class AwsConfigItem:
             ),
             tags=aws_config["tags"],
         )
-
-
-class Protocol(StrEnum):
-    TCP = auto()
-    UDP = auto()
-    ICMP = auto()
-    ICMPv6 = auto()
-    ALL = "-1"
 
 
 @dataclass

@@ -53,6 +53,11 @@ class TestLuminautConfig(unittest.TestCase):
         self.assertEqual(allowed_item.type, models.ResourceType.EC2_NetworkInterface)
         self.assertEqual(allowed_item.id, "eni-1")
 
+        allowed_item = models.LuminautConfigAwsAllowedResource.from_dict(
+            {"tags": {"foo": "bar"}}
+        )
+        self.assertEqual(allowed_item.tags, {"foo": "bar"})
+
 
 if __name__ == "__main__":
     unittest.main()
