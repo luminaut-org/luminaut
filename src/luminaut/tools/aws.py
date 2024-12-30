@@ -11,6 +11,9 @@ class Aws:
         self.aws_client = boto3.client("config")
 
     def fetch_enis_with_public_ips(self) -> list[models.ScanResult]:
+        return self._fetch_enis_with_public_ips()
+
+    def _fetch_enis_with_public_ips(self) -> list[models.ScanResult]:
         paginator = self.ec2_client.get_paginator("describe_network_interfaces")
         results = paginator.paginate(
             Filters=[
