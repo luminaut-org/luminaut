@@ -252,7 +252,7 @@ class AwsEni:
 
 
 @dataclass
-class NetworkInterface:
+class AwsNetworkInterface:
     network_interface_id: str
     association_public_ip: IPAddress
     association_public_dns_name: str
@@ -271,7 +271,7 @@ class NetworkInterface:
 
 
 @dataclass
-class Ec2InstanceStateReason:
+class AwsEc2InstanceStateReason:
     # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_StateReason.html
     code: int | None = None
     message: str | None = None
@@ -290,7 +290,7 @@ class Ec2InstanceStateReason:
 
 
 @dataclass
-class Ec2InstanceState:
+class AwsEc2InstanceState:
     # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceState.html
     code: int | None = None
     name: str | None = None
@@ -309,7 +309,7 @@ class Ec2InstanceState:
 
 
 @dataclass
-class Ec2Configuration:
+class AwsEc2Configuration:
     instance_id: str
     image_id: str
     launch_time: datetime
@@ -318,10 +318,10 @@ class Ec2Configuration:
     private_dns_name: str
     private_ip_address: IPAddress
     public_dns_name: str
-    network_interfaces: list[NetworkInterface | dict[str, Any]]
+    network_interfaces: list[AwsNetworkInterface | dict[str, Any]]
     security_groups: list[SecurityGroup | dict[str, Any]]
-    state: Ec2InstanceState | None
-    state_reason: Ec2InstanceStateReason | None
+    state: AwsEc2InstanceState | None
+    state_reason: AwsEc2InstanceStateReason | None
     usage_operation: str
     usage_operation_update_time: datetime
     subnet_id: str
@@ -347,8 +347,8 @@ class Ec2Configuration:
             public_ip_address=public_ip_address,
             network_interfaces=configuration["networkInterfaces"],
             security_groups=configuration["securityGroups"],
-            state=Ec2InstanceState.from_aws_config(configuration["state"]),
-            state_reason=Ec2InstanceStateReason.from_aws_config(
+            state=AwsEc2InstanceState.from_aws_config(configuration["state"]),
+            state_reason=AwsEc2InstanceStateReason.from_aws_config(
                 configuration["stateReason"]
             ),
             usage_operation=configuration["usageOperation"],
@@ -369,7 +369,7 @@ class AwsConfigItem:
     arn: str
     config_capture_time: datetime
     config_status: str
-    configuration: Ec2Configuration | str
+    configuration: AwsEc2Configuration | str
     tags: dict[str, str]
     resource_creation_time: datetime | None = None
 
@@ -377,14 +377,14 @@ class AwsConfigItem:
     def build_configuration(
         resource_type: ResourceType,
         configuration: str,
-    ) -> Ec2Configuration | str:
+    ) -> AwsEc2Configuration | str:
         try:
             configuration = json.loads(configuration)
         except json.JSONDecodeError:
             return configuration
 
         if resource_type == ResourceType.EC2_Instance:
-            return Ec2Configuration.from_aws_config(configuration)
+            return AwsEc2Configuration.from_aws_config(configuration)
         return configuration
 
     @classmethod
