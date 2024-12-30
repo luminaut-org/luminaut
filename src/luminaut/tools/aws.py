@@ -37,6 +37,7 @@ class Aws:
                 resources=[eni],
             )
             if self.skip_resource(eni):
+                logger.info("Skipping resource %s", eni.network_interface_id)
                 continue
 
             findings.append(eni_finding)
