@@ -609,22 +609,15 @@ class ScanResult:
         return sg_rules
 
     def generate_ip_port_targets(self) -> list[str]:
-        ports = []
+        ports = set()
+        default_ports = {80, 443, 3000, 5000, 8000, 8080, 8443, 8888}
         if security_group_rules := self.get_security_group_rules():
             for sg_rule in security_group_rules:
-                if sg_rule.from_port < 1 or sg_rule.to_port < 1:
+                if sg_rule.protocol in (Protocol.ICMP, Protocol.ICMPv6):
                     continue
-                ports += [x for x in range(sg_rule.from_port, sg_rule.to_port + 1)]
-        if not ports:
-            ports = [
-                80,
-                443,
-                3000,
-                5000,
-                8000,
-                8080,
-                8443,
-                8888,
-            ]  # Common defaults to scan
+                elif sg_rule.protocol == Protocol.ALL:
+                    ports.update(default_ports)
+                ports.update({x for x in range(sg_rule.from_port, sg_rule.to_port + 1)})
+
         targets = [f"{self.ip}:{port}" for port in ports]
         return targets

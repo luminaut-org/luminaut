@@ -91,7 +91,7 @@ class Luminaut:
             task_description = f"Running Whatweb for {scan_result.ip}"
             with TaskProgress(self.task_progress, task_description):
                 targets = scan_result.generate_ip_port_targets()
-                if whatweb_findings := self.scanner.whatweb(targets):
+                if targets and (whatweb_findings := self.scanner.whatweb(targets)):
                     return [whatweb_findings]
 
         return []
