@@ -25,6 +25,11 @@ class MockDescribeEniPaginator:
 
 class AwsTool(unittest.TestCase):
     def setUp(self):
+        self.sample_sg = models.SecurityGroup(
+            group_id="sg-1234567890abcdef0",
+            group_name="unittest",
+            rules=[],
+        )
         self.sample_eni = models.AwsEni(
             network_interface_id="eni-1234567890abcdef0",
             public_ip="10.0.0.1",
@@ -35,17 +40,22 @@ class AwsTool(unittest.TestCase):
             availability_zone="us-west-2a",
             status="available",
             vpc_id="vpc-1234567890abcdef0",
+            security_groups=[self.sample_sg],
         )
 
     def test_explore_region(self):
         aws = Aws()
         aws._fetch_enis_with_public_ips = lambda: [self.sample_eni]
+        aws.populate_permissive_ingress_security_group_rules = lambda x: [
+            self.sample_sg
+        ]
 
         exploration = aws.explore_region("us-east-1")
 
         self.assertIsInstance(exploration, list)
         self.assertEqual(1, len(exploration))
         self.assertIsInstance(exploration[0], models.ScanResult)
+        self.assertEqual(2, len(exploration[0].findings))
 
     @mock_aws()
     def test_setup_client_region(self):

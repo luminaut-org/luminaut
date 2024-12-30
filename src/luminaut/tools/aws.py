@@ -23,6 +23,17 @@ class Aws:
             )
             findings.append(eni_finding)
 
+            for security_group in eni.security_groups:
+                security_group = self.populate_permissive_ingress_security_group_rules(
+                    security_group
+                )
+                sg_finding = models.ScanFindings(
+                    tool="AWS Security Groups",
+                    emoji_name="lock",
+                    resources=[security_group],
+                )
+                findings.append(sg_finding)
+
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
                 eni_id=eni.network_interface_id,
