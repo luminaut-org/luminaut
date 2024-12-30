@@ -341,11 +341,13 @@ class AwsEc2Instance:
             if configuration.get("publicIpAddress")
             else None
         )
+        tags = convert_tag_set_to_dict(configuration["tags"])
+
         return cls(
             instance_id=configuration["instanceId"],
             image_id=configuration["imageId"],
             launch_time=datetime.fromisoformat(configuration["launchTime"]),
-            tags=configuration["tags"],
+            tags=tags,
             platform_details=configuration["platformDetails"],
             private_dns_name=configuration["privateDnsName"],
             private_ip_address=ip_address(configuration["privateIpAddress"]),
