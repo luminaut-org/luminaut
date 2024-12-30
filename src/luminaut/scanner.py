@@ -56,19 +56,6 @@ class Scanner:
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
         return models.ScanResult(ip=ip_address, findings=[nmap_findings])
 
-    @staticmethod
-    def aws_get_config_history_for_resource(
-        resource_type: models.ResourceType,
-        resource_id: str,
-    ) -> list[models.AwsConfigItem]:
-        return Aws().get_config_history_for_resource(resource_type, resource_id)
-
-    @staticmethod
-    def aws_populate_permissive_ingress_security_group_rules(
-        security_group: models.SecurityGroup,
-    ) -> models.SecurityGroup:
-        return Aws().populate_permissive_ingress_security_group_rules(security_group)
-
     def shodan(self, ip_address: models.IPAddress) -> models.ScanFindings:
         shodan_findings = models.ScanFindings(
             tool="Shodan.io", emoji_name="globe_with_meridians"

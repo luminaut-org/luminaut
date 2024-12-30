@@ -57,11 +57,9 @@ class Luminaut:
         updated_scan_results = []
 
         for scan_result in scan_results:
-            scan_result.findings.append(self.gather_security_group_rules(scan_result))
             scan_result.findings += self.run_nmap(scan_result)
             scan_result.findings += self.query_shodan(scan_result)
             scan_result.findings += self.run_whatweb(scan_result)
-            scan_result.findings.append(self.gather_aws_config_history(scan_result))
 
             updated_scan_results.append(scan_result)
 
@@ -90,69 +88,3 @@ class Luminaut:
                     return [whatweb_findings]
 
         return []
-
-    def gather_aws_config_history(
-        self, scan_result: models.ScanResult
-    ) -> models.ScanFindings:
-        findings = models.ScanFindings(tool="AWS Config", resources=[])
-        if self.config.aws.enabled is False or self.config.aws.config.enabled is False:
-            return findings
-
-        task_description = f"Checking AWS Config for {scan_result.eni_id}"
-
-        with TaskProgress(self.task_progress, task_description):
-            aws_config_results = self.scanner.aws_get_config_history_for_resource(
-                models.ResourceType.EC2_NetworkInterface,
-                scan_result.eni_id,
-            )
-            findings.resources.extend(aws_config_results)
-
-        for eni_resource in scan_result.get_eni_resources():
-            # Scan for AWS config changes related to EC2 instances associated with an ENI
-            if not eni_resource.ec2_instance_id:
-                continue
-
-            task_description = f"Checking AWS Config for {eni_resource.ec2_instance_id}"
-
-            with TaskProgress(self.task_progress, task_description):
-                aws_config_results = self.scanner.aws_get_config_history_for_resource(
-                    models.ResourceType.EC2_Instance,
-                    eni_resource.ec2_instance_id,
-                )
-                findings.resources.extend(aws_config_results)
-
-        return findings
-
-    def gather_security_group_rules(
-        self, scan_result: models.ScanResult
-    ) -> models.ScanFindings | None:
-        if not self.config.aws.enabled:
-            return None
-
-        security_group_findings = []
-        for eni_resource in scan_result.get_eni_resources():
-            if not eni_resource.security_groups:
-                continue
-
-            task_description = (
-                f"Checking security group rules for {eni_resource.network_interface_id}"
-            )
-
-            with TaskProgress(
-                self.task_progress,
-                task_description,
-                total=len(eni_resource.security_groups),
-            ):
-                for security_group in eni_resource.security_groups:
-                    security_group = self.scanner.aws_populate_permissive_ingress_security_group_rules(
-                        security_group
-                    )
-
-                    if security_group.rules:
-                        security_group_findings.append(security_group)
-
-        return models.ScanFindings(
-            tool="AWS Security Groups",
-            emoji_name="lock",
-            resources=security_group_findings,
-        )
