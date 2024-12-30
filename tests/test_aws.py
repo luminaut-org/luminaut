@@ -41,6 +41,7 @@ class AwsTool(unittest.TestCase):
             status="available",
             vpc_id="vpc-1234567890abcdef0",
             security_groups=[self.sample_sg],
+            ec2_instance_id="i-1234567890abcdef0",
         )
         self.sample_config_eni = models.AwsConfigItem(
             resource_type=models.ResourceType.EC2_NetworkInterface,
@@ -54,12 +55,32 @@ class AwsTool(unittest.TestCase):
             tags={},
             resource_creation_time=None,
         )
+        self.sample_config_ec2 = models.AwsConfigItem(
+            resource_type=models.ResourceType.EC2_Instance,
+            resource_id="i-1234567890abcdef0",
+            account="123456789012",
+            region="us-west-2",
+            arn="arn",
+            config_capture_time=datetime.today(),
+            config_status="OK",
+            configuration="",
+            tags={},
+            resource_creation_time=None,
+        )
 
     def test_explore_region(self):
+        def mock_get_config_history_for_resource(
+            resource_type: models.ResourceType, *args, **kwargs
+        ) -> list[models.AwsConfigItem]:
+            if resource_type == models.ResourceType.EC2_NetworkInterface:
+                return [self.sample_config_eni]
+            elif resource_type == models.ResourceType.EC2_Instance:
+                return [self.sample_config_ec2]
+
         aws = Aws()
         aws._fetch_enis_with_public_ips = lambda: [self.sample_eni]
         aws.populate_permissive_ingress_security_group_rules = lambda x: self.sample_sg
-        aws.get_config_history_for_resource = lambda x, y: [self.sample_config_eni]
+        aws.get_config_history_for_resource = mock_get_config_history_for_resource
 
         exploration = aws.explore_region("us-east-1")
 
@@ -71,6 +92,7 @@ class AwsTool(unittest.TestCase):
         self.assertIn(self.sample_eni, exploration[0].findings[0].resources)
         self.assertIn(self.sample_sg, exploration[0].findings[1].resources)
         self.assertIn(self.sample_config_eni, exploration[0].findings[2].resources)
+        self.assertIn(self.sample_config_ec2, exploration[0].findings[2].resources)
 
     @mock_aws()
     def test_setup_client_region(self):
