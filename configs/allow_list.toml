@@ -1,2 +1,5 @@
+[tool.aws]
+aws_regions = ["us-east-1", "us-east-2"]
+
 [[tool.aws.allowed_resources]]
 tags = { "luminaut" = "ignore", "reviewed" = "true" }
