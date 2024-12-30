@@ -10,6 +10,25 @@ class Aws:
         self.ec2_client = boto3.client("ec2")
         self.config_client = boto3.client("config")
 
+    def explore_region(self, region: str) -> list[models.ScanResult]:
+        self.setup_client_region(region)
+
+        aws_exploration_results = []
+        for eni in self._fetch_enis_with_public_ips():
+            eni_finding = models.ScanFindings(
+                tool="AWS Elastic Network Interfaces",
+                emoji_name="cloud",
+                resources=[eni],
+            )
+            eni_exploration = models.ScanResult(
+                ip=eni.public_ip,
+                eni_id=eni.network_interface_id,
+                findings=[eni_finding],
+            )
+            aws_exploration_results.append(eni_exploration)
+
+        return aws_exploration_results
+
     def setup_client_region(self, region: str) -> None:
         self.ec2_client = boto3.client("ec2", region_name=region)
         self.config_client = boto3.client("config", region_name=region)

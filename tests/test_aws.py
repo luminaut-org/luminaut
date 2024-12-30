@@ -24,6 +24,29 @@ class MockDescribeEniPaginator:
 
 
 class AwsTool(unittest.TestCase):
+    def setUp(self):
+        self.sample_eni = models.AwsEni(
+            network_interface_id="eni-1234567890abcdef0",
+            public_ip="10.0.0.1",
+            private_ip="10.0.0.1",
+            attachment_id="eni-attach-1234567890abcdef0",
+            attachment_time=datetime.today(),
+            attachment_status="attached",
+            availability_zone="us-west-2a",
+            status="available",
+            vpc_id="vpc-1234567890abcdef0",
+        )
+
+    def test_explore_region(self):
+        aws = Aws()
+        aws._fetch_enis_with_public_ips = lambda: [self.sample_eni]
+
+        exploration = aws.explore_region("us-east-1")
+
+        self.assertIsInstance(exploration, list)
+        self.assertEqual(1, len(exploration))
+        self.assertIsInstance(exploration[0], models.ScanResult)
+
     @mock_aws()
     def test_setup_client_region(self):
         aws = Aws()
@@ -38,17 +61,7 @@ class AwsTool(unittest.TestCase):
     @mock_aws()
     def test_fetch_enis_with_public_ips(self):
         aws = Aws()
-        aws._build_eni_scan_finding = lambda x: models.AwsEni(
-            network_interface_id="eni-1234567890abcdef0",
-            public_ip="10.0.0.1",
-            private_ip="10.0.0.1",
-            attachment_id="eni-attach-1234567890abcdef0",
-            attachment_time=datetime.today(),
-            attachment_status="attached",
-            availability_zone="us-west-2a",
-            status="available",
-            vpc_id="vpc-1234567890abcdef0",
-        )
+        aws._build_eni_scan_finding = lambda x: self.sample_eni
         aws.ec2_client.get_paginator = lambda x: MockDescribeEniPaginator()
 
         scan_results = aws.fetch_enis_with_public_ips()
