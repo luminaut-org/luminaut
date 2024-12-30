@@ -19,8 +19,8 @@ class Aws:
                 resources=[eni],
             )
             scan = models.ScanResult(
-                ip=finding.resources[0].public_ip,
-                eni_id=finding.resources[0].network_interface_id,
+                ip=eni.public_ip,
+                eni_id=eni.network_interface_id,
                 findings=[finding],
             )
             scans.append(scan)
