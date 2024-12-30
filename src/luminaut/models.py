@@ -243,6 +243,9 @@ class AwsEni:
     ec2_instance_id: str | None = None
     public_dns_name: str | None = None
     private_dns_name: str | None = None
+    description: str | None = None
+    interface_type: str | None = None
+    subnet_id: str | None = None
 
     def build_rich_text(self) -> str:
         rich_text = f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
@@ -257,25 +260,6 @@ class AwsEni:
             )
             rich_text += f"Security Groups: {security_group_list}\n"
         return rich_text
-
-
-@dataclass
-class AwsNetworkInterface:
-    network_interface_id: str
-    association_public_ip: IPAddress
-    association_public_dns_name: str
-    association_ip_owner_id: str
-    attachment_time: datetime
-    attachment_id: str
-    attachment_status: str
-    description: str
-    security_groups: list[SecurityGroup | dict[str, Any]]
-    interface_type: str
-    private_dns_name: str
-    private_ip_address: IPAddress
-    status: str
-    subnet_id: str
-    vpc_id: str
 
 
 @dataclass
@@ -326,7 +310,7 @@ class AwsEc2Configuration:
     private_dns_name: str
     private_ip_address: IPAddress
     public_dns_name: str
-    network_interfaces: list[AwsNetworkInterface | dict[str, Any]]
+    network_interfaces: list[AwsEni | dict[str, Any]]
     security_groups: list[SecurityGroup | dict[str, Any]]
     state: AwsEc2InstanceState | None
     state_reason: AwsEc2InstanceStateReason | None
