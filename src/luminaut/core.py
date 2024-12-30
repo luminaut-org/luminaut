@@ -47,14 +47,9 @@ class Luminaut:
                 console.print(panel)
 
     def discover_public_ips(self) -> list[models.ScanResult]:
-        scan_results = []
-
-        if self.config.aws.enabled:
-            task_description = "Enumerating AWS ENIs with public IPs"
-            with TaskProgress(self.task_progress, task_description):
-                scan_results = self.scanner.aws_fetch_public_enis()
-
-        return scan_results
+        task_description = "Enumerating AWS ENIs with public IPs"
+        with TaskProgress(self.task_progress, task_description):
+            return self.scanner.aws()
 
     def gather_public_ip_context(
         self, scan_results: list[models.ScanResult]

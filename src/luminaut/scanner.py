@@ -16,6 +16,15 @@ class Scanner:
     def __init__(self, *, config: models.LuminautConfig):
         self.config = config
 
+    def aws(self) -> list[models.ScanResult]:
+        aws = Aws(self.config)
+
+        scan_results = []
+        for region in self.config.aws.aws_regions:
+            scan_results.extend(aws.explore_region(region))
+
+        return scan_results
+
     def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
         nmap = nmap3.Nmap()
         try:
@@ -46,10 +55,6 @@ class Scanner:
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
         return models.ScanResult(ip=ip_address, findings=[nmap_findings])
-
-    @staticmethod
-    def aws_fetch_public_enis() -> list[models.ScanResult]:
-        return Aws().fetch_enis_with_public_ips()
 
     @staticmethod
     def aws_get_config_history_for_resource(
