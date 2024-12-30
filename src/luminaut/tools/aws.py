@@ -15,15 +15,18 @@ class Aws:
 
         aws_exploration_results = []
         for eni in self._fetch_enis_with_public_ips():
+            findings = []
             eni_finding = models.ScanFindings(
                 tool="AWS Elastic Network Interfaces",
                 emoji_name="cloud",
                 resources=[eni],
             )
+            findings.append(eni_finding)
+
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
                 eni_id=eni.network_interface_id,
-                findings=[eni_finding],
+                findings=findings,
             )
             aws_exploration_results.append(eni_exploration)
 
