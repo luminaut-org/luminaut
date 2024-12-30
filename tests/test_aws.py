@@ -123,6 +123,17 @@ class AwsTool(unittest.TestCase):
         self.assertIsInstance(exploration, list)
         self.assertEqual(0, len(exploration))
 
+    def test_skip_resource(self):
+        config = models.LuminautConfig()
+        config.aws.allowed_resources = [
+            models.LuminautConfigAwsAllowedResource(tags={"foo": "bar"})
+        ]
+        aws = Aws(config)
+
+        self.assertFalse(aws.skip_resource(self.sample_config_eni))
+        self.sample_config_eni.tags = {"foo": "bar"}
+        self.assertTrue(aws.skip_resource(self.sample_config_eni))
+
     @mock_aws()
     def test_setup_client_region(self):
         aws = Aws()

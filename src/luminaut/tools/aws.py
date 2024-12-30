@@ -90,6 +90,19 @@ class Aws:
             resources=resource_history,
         )
 
+    def skip_resource(self, resource: Any) -> bool:
+        if hasattr(resource, "get_aws_tags"):
+            resource_tags = resource.get_aws_tags()
+            for allowed_resource in self.config.aws.allowed_resources:
+                for (
+                    allowed_tag_name,
+                    allowed_tag_value,
+                ) in allowed_resource.tags.items():
+                    if resource_tag_value := resource_tags.get(allowed_tag_name):
+                        if resource_tag_value == allowed_tag_value:
+                            return True
+        return False
+
     def setup_client_region(self, region: str) -> None:
         self.ec2_client = boto3.client("ec2", region_name=region)
         self.config_client = boto3.client("config", region_name=region)

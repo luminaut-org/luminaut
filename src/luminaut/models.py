@@ -88,6 +88,9 @@ class LuminautConfigToolAws(LuminautConfigTool):
     config: LuminautConfigTool = field(
         default_factory=lambda: LuminautConfigTool(enabled=True)
     )
+    allowed_resources: list[LuminautConfigAwsAllowedResource] = field(
+        default_factory=list
+    )
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
@@ -96,6 +99,11 @@ class LuminautConfigToolAws(LuminautConfigTool):
         aws_config.aws_profile = config.get("aws_profile")
         aws_config.aws_regions = config.get("aws_regions")
         aws_config.config = LuminautConfigTool.from_dict(config.get("config", {}))
+
+        aws_config.allowed_resources = [
+            LuminautConfigAwsAllowedResource.from_dict(x)
+            for x in config.get("allowed_resources", [])
+        ]
 
         return aws_config
 
@@ -328,6 +336,9 @@ class AwsEc2Configuration:
     vpc_id: str
     public_ip_address: IPAddress | None = None
 
+    def get_aws_tags(self) -> dict[str, str]:
+        return self.tags
+
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
         public_ip_address = (
@@ -372,6 +383,9 @@ class AwsConfigItem:
     configuration: AwsEc2Configuration | str
     tags: dict[str, str]
     resource_creation_time: datetime | None = None
+
+    def get_aws_tags(self) -> dict[str, str]:
+        return self.tags
 
     @staticmethod
     def build_configuration(
