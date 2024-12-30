@@ -107,7 +107,8 @@ class Scanner:
         for target in targets:
             try:
                 result = Whatweb(self.config).run(target)
-                finding.services.append(result)
+                if result:
+                    finding.services.append(result)
             except RuntimeError as e:
                 logger.warning(f"Skipping Whatweb, not found: {e}")
                 return None

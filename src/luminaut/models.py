@@ -536,6 +536,9 @@ class Whatweb:
     summary_text: str
     json_data: list[dict[str, Any]]
 
+    def __bool__(self):
+        return bool(self.summary_text) or bool(self.json_data)
+
     def build_rich_text(self) -> str:
         rich_text = ""
         # The escape is required to prevent rich from interpreting the braces as markup.
