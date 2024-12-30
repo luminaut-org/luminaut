@@ -591,7 +591,10 @@ class ScanResult:
 
     def build_rich_panel(self) -> Panel:
         rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
-        return Panel(rich_text, title=self.ip, title_align="left")
+        title = self.ip
+        if self.region:
+            title += f" | {self.region}"
+        return Panel(rich_text, title=title, title_align="left")
 
     def get_eni_resources(self) -> list[AwsEni]:
         eni_resources = []
