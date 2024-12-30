@@ -22,17 +22,7 @@ class Aws:
                 resources=[eni],
             )
             findings.append(eni_finding)
-
-            for security_group in eni.security_groups:
-                security_group = self.populate_permissive_ingress_security_group_rules(
-                    security_group
-                )
-                sg_finding = models.ScanFindings(
-                    tool="AWS Security Groups",
-                    emoji_name="lock",
-                    resources=[security_group],
-                )
-                findings.append(sg_finding)
+            findings.append(self.explore_security_groups(eni.security_groups))
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
@@ -42,6 +32,21 @@ class Aws:
             aws_exploration_results.append(eni_exploration)
 
         return aws_exploration_results
+
+    def explore_security_groups(
+        self, security_groups: list[models.SecurityGroup]
+    ) -> models.ScanFindings:
+        sg_finding = models.ScanFindings(
+            tool="AWS Security Groups",
+            emoji_name="lock",
+        )
+        for security_group in security_groups:
+            security_group = self.populate_permissive_ingress_security_group_rules(
+                security_group
+            )
+            sg_finding.resources.append(security_group)
+
+        return sg_finding
 
     def setup_client_region(self, region: str) -> None:
         self.ec2_client = boto3.client("ec2", region_name=region)
