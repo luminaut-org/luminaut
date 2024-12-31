@@ -106,7 +106,7 @@ class Aws:
                 return True
         return False
 
-    def _should_skip_by_id(self, resource):
+    def _should_skip_by_id(self, resource) -> bool:
         should_skip = False
         for allowed_resource in self.config.aws.allowed_resources:
             if (
@@ -116,7 +116,7 @@ class Aws:
                 should_skip = True
         return should_skip
 
-    def _should_skip_by_tags(self, resource):
+    def _should_skip_by_tags(self, resource) -> bool:
         resource_tags = resource.get_aws_tags()
         for allowed_resource in self.config.aws.allowed_resources:
             for (
