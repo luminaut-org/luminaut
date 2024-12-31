@@ -23,17 +23,26 @@ def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]
     return tags
 
 
-def generate_config_diff(
-    first: dict[str, Any], second: dict[str, Any]
-) -> dict[str, Any]:
-    diff = {"added": {}, "removed": {}, "changed": {}}
+@dataclass
+class ConfigDiff:
+    added: dict[str, Any] = field(default_factory=dict)
+    removed: dict[str, Any] = field(default_factory=dict)
+    changed: dict[str, Any] = field(default_factory=dict)
+
+    def __bool__(self) -> bool:
+        return any([self.added, self.removed, self.changed])
+
+
+def generate_config_diff(first: dict[str, Any], second: dict[str, Any]) -> ConfigDiff:
+    diff = ConfigDiff()
+
     first_keys = set(first.keys())
     second_keys = set(second.keys())
     common_keys = first_keys & second_keys
 
-    diff["added"] = {key: second[key] for key in second_keys - common_keys}
-    diff["removed"] = {key: first[key] for key in first_keys - common_keys}
-    diff["changed"] = {
+    diff.added = {key: second[key] for key in second_keys - common_keys}
+    diff.removed = {key: first[key] for key in first_keys - common_keys}
+    diff.changed = {
         key: {"old": first[key], "new": second[key]}
         for key in common_keys
         if first[key] != second[key]

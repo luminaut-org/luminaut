@@ -231,14 +231,14 @@ class AwsTool(unittest.TestCase):
         diff = models.generate_config_diff(old_config, new_config)
 
         self.assertEqual(
-            diff["added"],
+            diff.added,
             {"aaa": {"a": "A"}, "bbb": "ccc"},
         )
         self.assertEqual(
-            diff["removed"],
+            diff.removed,
             {"bar": "baz", "baz": "foo"},
         )
         self.assertEqual(
-            diff["changed"],
+            diff.changed,
             {"foo": {"old": "bar", "new": ["baz"]}},
         )
