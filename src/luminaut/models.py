@@ -242,7 +242,7 @@ class SecurityGroup:
 
 @dataclass
 class AwsNetworkInterface:
-    network_interface_id: str
+    resource_id: str
     public_ip: str
     private_ip: str
     attachment_id: str
@@ -259,12 +259,13 @@ class AwsNetworkInterface:
     interface_type: str | None = None
     subnet_id: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
+    resource_type: ResourceType = ResourceType.EC2_NetworkInterface
 
     def get_aws_tags(self) -> dict[str, str]:
         return self.tags
 
     def build_rich_text(self) -> str:
-        rich_text = f"[orange1]{self.network_interface_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
+        rich_text = f"[orange1]{self.resource_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
             rich_text += f"EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}\n"
         if self.security_groups:

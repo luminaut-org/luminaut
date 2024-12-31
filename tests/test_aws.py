@@ -31,7 +31,7 @@ class AwsTool(unittest.TestCase):
             rules=[],
         )
         self.sample_eni = models.AwsNetworkInterface(
-            network_interface_id="eni-1234567890abcdef0",
+            resource_id="eni-1234567890abcdef0",
             public_ip="10.0.0.1",
             private_ip="10.0.0.1",
             attachment_id="eni-attach-1234567890abcdef0",
@@ -123,7 +123,7 @@ class AwsTool(unittest.TestCase):
         self.assertIsInstance(exploration, list)
         self.assertEqual(0, len(exploration))
 
-    def test_skip_resource(self):
+    def test_skip_resource_by_tags(self):
         config = models.LuminautConfig()
         config.aws.allowed_resources = [
             models.LuminautConfigAwsAllowedResource(tags={"foo": "bar"})
@@ -132,6 +132,18 @@ class AwsTool(unittest.TestCase):
 
         self.assertFalse(aws.skip_resource(self.sample_config_eni))
         self.sample_config_eni.tags = {"foo": "bar"}
+        self.assertTrue(aws.skip_resource(self.sample_config_eni))
+
+    def test_skip_resource_by_id(self):
+        config = models.LuminautConfig()
+        config.aws.allowed_resources = [
+            models.LuminautConfigAwsAllowedResource(
+                type=self.sample_eni.resource_type, id=self.sample_eni.resource_id
+            )
+        ]
+        aws = Aws(config)
+
+        self.assertFalse(aws.skip_resource(self.sample_config_ec2))
         self.assertTrue(aws.skip_resource(self.sample_config_eni))
 
     def test_convert_tag_set_to_dict(self):

@@ -37,7 +37,7 @@ class Aws:
                 resources=[eni],
             )
             if self.skip_resource(eni):
-                logger.info("Skipping resource %s", eni.network_interface_id)
+                logger.info("Skipping resource %s", eni.resource_id)
                 continue
 
             findings.append(eni_finding)
@@ -47,14 +47,14 @@ class Aws:
             if self.config.aws.config.enabled:
                 logger.info(
                     "Fetching AWS Config history for resources associated with %s. This can take some time to run.",
-                    eni.network_interface_id,
+                    eni.resource_id,
                 )
                 findings.append(self.explore_config_history(eni))
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
                 region=region,
-                eni_id=eni.network_interface_id,
+                eni_id=eni.resource_id,
                 findings=findings,
             )
             aws_exploration_results.append(eni_exploration)
@@ -82,7 +82,7 @@ class Aws:
         self, eni: models.AwsNetworkInterface
     ) -> models.ScanFindings:
         resource_history = self.get_config_history_for_resource(
-            models.ResourceType.EC2_NetworkInterface, eni.network_interface_id
+            models.ResourceType.EC2_NetworkInterface, eni.resource_id
         )
         if eni.ec2_instance_id:
             ec2_instance_history = self.get_config_history_for_resource(
@@ -107,6 +107,13 @@ class Aws:
                     if resource_tag_value := resource_tags.get(allowed_tag_name):
                         if resource_tag_value == allowed_tag_value:
                             return True
+        if hasattr(resource, "resource_id") and hasattr(resource, "resource_type"):
+            for allowed_resource in self.config.aws.allowed_resources:
+                if (
+                    resource.resource_type == allowed_resource.type
+                    and resource.resource_id == allowed_resource.id
+                ):
+                    return True
         return False
 
     def setup_client_region(self, region: str) -> None:
@@ -123,7 +130,7 @@ class Aws:
             )
             scan = models.ScanResult(
                 ip=eni.public_ip,
-                eni_id=eni.network_interface_id,
+                eni_id=eni.resource_id,
                 findings=[finding],
             )
             scans.append(scan)
@@ -159,7 +166,7 @@ class Aws:
         tags = models.convert_tag_set_to_dict(eni.get("TagSet", []))
 
         return models.AwsNetworkInterface(
-            network_interface_id=eni["NetworkInterfaceId"],
+            resource_id=eni["NetworkInterfaceId"],
             public_ip=public_ip,
             private_ip=eni["PrivateIpAddress"],
             ec2_instance_id=attachment.get("InstanceId"),
