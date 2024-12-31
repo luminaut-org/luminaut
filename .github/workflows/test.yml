@@ -31,7 +31,7 @@ jobs:
       run: uv sync
 
     - name: Run tests
-      run: uv run pytest --cov --cov-report=term --cov-branch
+      run: uv run pytest
 
   pre-commit:
     runs-on: ubuntu-latest
