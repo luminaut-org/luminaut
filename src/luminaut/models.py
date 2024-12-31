@@ -75,7 +75,7 @@ class LuminautConfigToolShodan(LuminautConfigTool):
 class LuminautConfigAwsAllowedResource:
     type: ResourceType | None = None
     id: str | None = None
-    tags: dict[str, str] | None = None
+    tags: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
@@ -85,7 +85,7 @@ class LuminautConfigAwsAllowedResource:
         return cls(
             type=resource_type,
             id=data.get("id"),
-            tags=data.get("tags"),
+            tags=data.get("tags", {}),
         )
 
 

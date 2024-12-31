@@ -39,7 +39,7 @@ class TestLuminautConfig(unittest.TestCase):
         self.assertTrue(loaded_config.nmap.enabled)
         self.assertEqual(loaded_config.nmap.timeout, 300)
 
-    def test_load_allowed_resources(self):
+    def test_load_allowed_resources_by_tag(self):
         allowed_item = models.LuminautConfigAwsAllowedResource.from_dict(
             {"type": "AWS::EC2::Instance", "id": "i-1"}
         )
@@ -57,6 +57,9 @@ class TestLuminautConfig(unittest.TestCase):
             {"tags": {"foo": "bar"}}
         )
         self.assertEqual(allowed_item.tags, {"foo": "bar"})
+
+        allowed_item = models.LuminautConfigAwsAllowedResource.from_dict({})
+        self.assertEqual(allowed_item.tags, {})
 
 
 if __name__ == "__main__":
