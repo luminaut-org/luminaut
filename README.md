@@ -35,7 +35,7 @@ Luminaut is a framework that assembles tools and APIs commonly used to understan
 
 The docker image is available on GitHub, you can pull it locally by running: `docker pull ghcr.io/luminaut-org/luminaut`. If you would like to run it locally with just the name `luminaut`, you can run `docker tag ghcr.io/luminaut-org/luminaut luminaut:latest`.
 
-For development, run `docker build --tag luminaut:latest` to build the container.
+For development, clone the repository and run `docker build --tag luminaut:latest` to build the container.
 
 You can then run the container with `docker run -it luminaut --help`
 
