@@ -52,7 +52,11 @@ docker tag ghcr.io/luminaut-org/luminaut luminaut:latest
 
 For development, clone the repository and run `docker build --tag luminaut:latest` to build the container.
 
-You can then run the container with `docker run -it luminaut --help`
+You can then run the container with:
+ 
+```bash
+docker run -it luminaut --help
+```
 
 ### For development
 
