@@ -1,7 +1,7 @@
 import json
 import tomllib
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
@@ -33,8 +33,15 @@ class ConfigDiff:
         return any([self.added, self.removed, self.changed])
 
 
-def generate_config_diff(first: dict[str, Any], second: dict[str, Any]) -> ConfigDiff:
+def generate_config_diff(
+    first: type[dataclass] | dict[str, Any], second: type[dataclass] | dict[str, Any]
+) -> ConfigDiff:
     diff = ConfigDiff()
+
+    if not isinstance(first, dict):
+        first = asdict(first)
+    if not isinstance(second, dict):
+        second = asdict(second)
 
     first_keys = set(first.keys())
     second_keys = set(second.keys())
@@ -410,6 +417,7 @@ class AwsConfigItem:
     configuration: AwsEc2Instance | str
     tags: dict[str, str]
     resource_creation_time: datetime | None = None
+    diff_to_prior: ConfigDiff | None = None
 
     def get_aws_tags(self) -> dict[str, str]:
         return self.tags
