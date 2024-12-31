@@ -336,6 +336,7 @@ class AwsEc2Instance:
     subnet_id: str
     vpc_id: str
     public_ip_address: IPAddress | None = None
+    resource_type: ResourceType = ResourceType.EC2_Instance
 
     def get_aws_tags(self) -> dict[str, str]:
         return self.tags
