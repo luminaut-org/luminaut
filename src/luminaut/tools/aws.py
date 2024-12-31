@@ -205,12 +205,28 @@ class Aws:
         pages = pagination_client.paginate(
             resourceType=str(resource_type),
             resourceId=resource_id,
+            chronologicalOrder="Forward",
         )
 
         resources = []
         for page in pages:
             for config_item in page.get("configurationItems", []):
-                resources.append(models.AwsConfigItem.from_aws_config(config_item))
+                config_entry = models.AwsConfigItem.from_aws_config(config_item)
+
+                if len(resources) > 0:
+                    prior_configuration = resources[-1].configuration
+                    new_configuration = config_entry.configuration
+                    # Cannot compare strings at this time.
+                    if not (
+                        isinstance(prior_configuration, str)
+                        or isinstance(new_configuration, str)
+                    ):
+                        diff_to_prior = models.generate_config_diff(
+                            prior_configuration, new_configuration
+                        )
+                        config_entry.diff_to_prior = diff_to_prior
+
+                resources.append(config_entry)
 
         return resources
 
