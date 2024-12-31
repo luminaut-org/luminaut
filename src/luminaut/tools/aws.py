@@ -102,13 +102,19 @@ class Aws:
                 return True
 
         if hasattr(resource, "resource_id") and hasattr(resource, "resource_type"):
-            for allowed_resource in self.config.aws.allowed_resources:
-                if (
-                    resource.resource_type == allowed_resource.type
-                    and resource.resource_id == allowed_resource.id
-                ):
-                    return True
+            if self._should_skip_by_id(resource):
+                return True
         return False
+
+    def _should_skip_by_id(self, resource):
+        should_skip = False
+        for allowed_resource in self.config.aws.allowed_resources:
+            if (
+                resource.resource_type == allowed_resource.type
+                and resource.resource_id == allowed_resource.id
+            ):
+                should_skip = True
+        return should_skip
 
     def _should_skip_by_tags(self, resource):
         resource_tags = resource.get_aws_tags()
