@@ -224,3 +224,21 @@ class AwsTool(unittest.TestCase):
             rules[0].target,
         )
         self.assertEqual(models.Protocol.TCP, rules[0].protocol)
+
+    def test_generate_config_diff(self):
+        old_config = {"foo": "bar", "bar": "baz", "baz": "foo"}
+        new_config = {"foo": ["baz"], "aaa": {"a": "A"}, "bbb": "ccc"}
+        diff = models.generate_config_diff(old_config, new_config)
+
+        self.assertEqual(
+            diff["added"],
+            {"aaa": {"a": "A"}, "bbb": "ccc"},
+        )
+        self.assertEqual(
+            diff["removed"],
+            {"bar": "baz", "baz": "foo"},
+        )
+        self.assertEqual(
+            diff["changed"],
+            {"foo": {"old": "bar", "new": ["baz"]}},
+        )
