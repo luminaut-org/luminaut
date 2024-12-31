@@ -140,8 +140,15 @@ enabled = true  # Enable the AWS tool, requires the configuration of AWS credent
 config.enabled = true  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history.
 
 [[tool.aws.allowed_resources]]
+# This configuration allows you to skip resources based on their type, ID, or tags.
+# If an `id` is provided, the associated `type` is also required. Tags may be provided independently of the id and resource type.
+# These settings only support skipping ENIs at the moment and applies across all scanned regions.
+
+type = "AWS::EC2::NetworkInterface"  # The resource type, as specified by AWS
+id = "eni-1234567890abcdef0"  # The resource ID
+
 # Skip resources that match any of the specified tags. The key and value are case-sensitive.
-# Only supports skipping ENIs at the moment.
+# This is applied before, and separately from, the checks of a type and id.
 tags = { "luminaut" = "ignore", "reviewed" = "true" }
 
 [tool.nmap]
