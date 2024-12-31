@@ -325,7 +325,7 @@ class AwsEc2Instance:
     tags: dict[str, str]
     platform_details: str
     private_dns_name: str
-    private_ip_address: IPAddress
+    private_ip_address: str
     public_dns_name: str
     network_interfaces: list[AwsNetworkInterface | dict[str, Any]]
     security_groups: list[SecurityGroup | dict[str, Any]]
@@ -335,7 +335,7 @@ class AwsEc2Instance:
     usage_operation_update_time: datetime
     subnet_id: str
     vpc_id: str
-    public_ip_address: IPAddress | None = None
+    public_ip_address: str | None = None
     resource_type: ResourceType = ResourceType.EC2_Instance
 
     def get_aws_tags(self) -> dict[str, str]:
@@ -343,11 +343,6 @@ class AwsEc2Instance:
 
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
-        public_ip_address = (
-            ip_address(configuration["publicIpAddress"])
-            if configuration.get("publicIpAddress")
-            else None
-        )
         tags = convert_tag_set_to_dict(configuration["tags"])
 
         return cls(
@@ -357,9 +352,9 @@ class AwsEc2Instance:
             tags=tags,
             platform_details=configuration["platformDetails"],
             private_dns_name=configuration["privateDnsName"],
-            private_ip_address=ip_address(configuration["privateIpAddress"]),
+            private_ip_address=configuration["privateIpAddress"],
             public_dns_name=configuration["publicDnsName"],
-            public_ip_address=public_ip_address,
+            public_ip_address=configuration.get("publicIpAddress"),
             network_interfaces=configuration["networkInterfaces"],
             security_groups=configuration["securityGroups"],
             state=AwsEc2InstanceState.from_aws_config(configuration["state"]),

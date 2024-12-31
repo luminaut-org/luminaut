@@ -28,7 +28,7 @@ class Scanner:
         logger.info("Completed AWS scan of all specified regions.")
         return scan_results
 
-    def nmap(self, ip_address: models.IPAddress) -> models.ScanResult:
+    def nmap(self, ip_address: str) -> models.ScanResult:
         logger.info("Running nmap against %s", ip_address)
         nmap = nmap3.Nmap()
         try:
@@ -61,7 +61,7 @@ class Scanner:
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
         return models.ScanResult(ip=ip_address, findings=[nmap_findings])
 
-    def shodan(self, ip_address: models.IPAddress) -> models.ScanFindings:
+    def shodan(self, ip_address: str) -> models.ScanFindings:
         shodan_findings = models.ScanFindings(
             tool="Shodan.io", emoji_name="globe_with_meridians"
         )
