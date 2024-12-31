@@ -134,6 +134,9 @@ The configuration file is a TOML file with the following structure and defaults:
 [report]
 console = true  # Rich STDOUT console output
 json = false  # JSON lines output, written to STDOUT.
+json_file = "luminaut.json"  # JSON lines output, written to a file. If omitted will write to stdout
+html = false  # HTML output, written to a file. Disabled by default.
+html_file = "luminaut.html"  # Path is required if html is true
 
 [tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.

@@ -160,18 +160,23 @@ class LuminautConfigReport:
     console: bool = True
     json: bool = False
     json_file: Path | None = None
+    html: bool = False
+    html_file: Path | None = None
 
     @classmethod
     def from_toml(cls, config: dict[str, Any]) -> Self:
-        if json_file_path := config.get("json_file"):
-            json_file_path = Path(json_file_path)
-        else:
-            json_file_path = None
+        def path_or_none(value: str | None) -> Path | None:
+            return Path(value) if value else None
+
+        json_file_path = path_or_none(config.get("json_file"))
+        html_file_path = path_or_none(config.get("html_file"))
 
         return cls(
             console=config.get("console", True),
             json=config.get("json", False),
             json_file=json_file_path,
+            html=config.get("html", False),
+            html_file=html_file_path,
         )
 
 

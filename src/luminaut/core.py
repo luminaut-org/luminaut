@@ -2,7 +2,7 @@ import logging
 import sys
 
 from luminaut import models
-from luminaut.report import console, write_jsonl_report
+from luminaut.report import console, write_html_report, write_jsonl_report
 from luminaut.scanner import Scanner
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,9 @@ class Luminaut:
             for scan_result in scan_results:
                 panel = scan_result.build_rich_panel()
                 console.print(panel)
+
+        if self.config.report.html and self.config.report.html_file:
+            write_html_report(self.config.report.html_file)
 
     def discover_public_ips(self) -> list[models.ScanResult]:
         return self.scanner.aws()
