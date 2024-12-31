@@ -319,7 +319,7 @@ class AwsEc2InstanceState:
 
 @dataclass
 class AwsEc2Instance:
-    instance_id: str
+    resource_id: str
     image_id: str
     launch_time: datetime
     tags: dict[str, str]
@@ -350,7 +350,7 @@ class AwsEc2Instance:
         tags = convert_tag_set_to_dict(configuration["tags"])
 
         return cls(
-            instance_id=configuration["instanceId"],
+            resource_id=configuration["instanceId"],
             image_id=configuration["imageId"],
             launch_time=datetime.fromisoformat(configuration["launchTime"]),
             tags=tags,
