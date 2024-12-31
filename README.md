@@ -41,13 +41,13 @@ Luminaut is a framework that assembles tools and APIs commonly used to understan
 The docker image is available on GitHub, you can pull it locally by running: 
 
 ```bash
-$ docker pull ghcr.io/luminaut-org/luminaut
+docker pull ghcr.io/luminaut-org/luminaut
 ```
 
 If you would like to run it locally with just the name `luminaut`, you can then run:
 
 ```bash
-$ docker tag ghcr.io/luminaut-org/luminaut luminaut:latest
+docker tag ghcr.io/luminaut-org/luminaut luminaut:latest
 ```
 
 For development, clone the repository and run `docker build --tag luminaut:latest` to build the container.
@@ -93,13 +93,13 @@ options:
 By default, Luminaut will run all available tools. It requires your AWS profile to be configured with the necessary permissions, otherwise the first step of public IP detection on ENIs will fail.
 
 ```bash
-$ luminaut
+luminaut
 ```
 
 The AWS Config scanner takes at least 50 seconds to run per resource type. If you would like to disable this, you can do so as shown in the provided `configs/disable_aws_config.toml` configuration file. You can provide this configuration with `-c configs/disable_aws_config.toml`.
 
 ```bash
-$ luminaut -c configs/disable_aws_config.toml
+luminaut -c configs/disable_aws_config.toml
 ```
 
 Similarly, if you'd like to enable Shodan, you will need to specify a configuration file that includes the Shodan API key. See the [Configuration](#configuration) section for more information on the configuration file specification.
@@ -110,12 +110,12 @@ You may run luminaut with docker by mounting the configuration file and running 
 
 Bash, zsh, and similar terminals:
 ```bash
-$ docker run -it -v ~/.aws:/home/app/.aws -v $(pwd)/configs:/app/configs luminaut --help
+docker run -it -v ~/.aws:/home/app/.aws -v $(pwd)/configs:/app/configs luminaut --help
 ```
 
 Powershell:
 ```powershell
-$ docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -v ${PWD}\configs:/app/configs luminaut --help
+docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -v ${PWD}\configs:/app/configs luminaut --help
 ```
 
 ## Configuration
