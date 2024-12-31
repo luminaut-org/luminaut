@@ -38,7 +38,17 @@ Luminaut is a framework that assembles tools and APIs commonly used to understan
 
 ### Using docker
 
-The docker image is available on GitHub, you can pull it locally by running: `docker pull ghcr.io/luminaut-org/luminaut`. If you would like to run it locally with just the name `luminaut`, you can run `docker tag ghcr.io/luminaut-org/luminaut luminaut:latest`.
+The docker image is available on GitHub, you can pull it locally by running: 
+
+```bash
+$ docker pull ghcr.io/luminaut-org/luminaut
+```
+
+If you would like to run it locally with just the name `luminaut`, you can then run:
+
+```bash
+$ docker tag ghcr.io/luminaut-org/luminaut luminaut:latest
+```
 
 For development, clone the repository and run `docker build --tag luminaut:latest` to build the container.
 
@@ -65,7 +75,7 @@ and run available tools to start detecting resources.
 
 Luminaut help is available with the argument `--help`.
 
-```
+```bash
 $ luminaut --help                       
 usage: luminaut [-h] [--config CONFIG] [--log LOG] [--verbose]
 
