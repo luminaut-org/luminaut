@@ -98,15 +98,9 @@ class Aws:
 
     def skip_resource(self, resource: Any) -> bool:
         if hasattr(resource, "get_aws_tags"):
-            resource_tags = resource.get_aws_tags()
-            for allowed_resource in self.config.aws.allowed_resources:
-                for (
-                    allowed_tag_name,
-                    allowed_tag_value,
-                ) in allowed_resource.tags.items():
-                    if resource_tag_value := resource_tags.get(allowed_tag_name):
-                        if resource_tag_value == allowed_tag_value:
-                            return True
+            if self._should_skip_by_tags(resource):
+                return True
+
         if hasattr(resource, "resource_id") and hasattr(resource, "resource_type"):
             for allowed_resource in self.config.aws.allowed_resources:
                 if (
@@ -114,6 +108,18 @@ class Aws:
                     and resource.resource_id == allowed_resource.id
                 ):
                     return True
+        return False
+
+    def _should_skip_by_tags(self, resource):
+        resource_tags = resource.get_aws_tags()
+        for allowed_resource in self.config.aws.allowed_resources:
+            for (
+                allowed_tag_name,
+                allowed_tag_value,
+            ) in allowed_resource.tags.items():
+                if resource_tag_value := resource_tags.get(allowed_tag_name):
+                    if resource_tag_value == allowed_tag_value:
+                        return True
         return False
 
     def setup_client_region(self, region: str) -> None:
