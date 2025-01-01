@@ -623,7 +623,7 @@ class Whatweb:
 
 
 class TimelineEventType(StrEnum):
-    AWS_EC2_INSTANCE_STATE_CHANGE = "AWS::EC2::Instance::State Change"
+    COMPUTE_INSTANCE_STATE_CHANGE = "Instance state changed"
 
 
 @dataclass
@@ -634,6 +634,9 @@ class TimelineEvent:
     resource_type: ResourceType
     message: str = ""
     details: dict[str, Any] = field(default_factory=dict)
+
+    def build_rich_text(self) -> str:
+        return f"[green]{self.timestamp}[/green] {self.event_type}: [magenta]{self.message}[/magenta] ({self.resource_type} {self.resource_id})\n"
 
 
 FindingServices = list[NmapPortServices | ShodanService | Whatweb]
@@ -654,14 +657,22 @@ class ScanFindings:
 
         for attribute in ["services", "resources", "events"]:
             other = 0
+            attribute_title = f"[bold]{attribute.title()}[/bold]:\n"
+            attribute_text = ""
             for item in getattr(self, attribute):
                 if hasattr(item, "build_rich_text"):
-                    rich_text += item.build_rich_text()
+                    attribute_text += item.build_rich_text()
                 else:
                     other += 1
 
+            if attribute_text:
+                rich_text += attribute_title + attribute_text
+
             if other:
-                rich_text += f"  {other} additional {attribute} discovered."
+                other_text = f"  {other} {'additional ' if len(rich_text) else ''}{attribute} discovered.\n"
+                if not len(rich_text):
+                    rich_text += attribute_title
+                rich_text += other_text
 
         if rich_text:
             return rich_title + rich_text

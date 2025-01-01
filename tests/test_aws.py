@@ -256,10 +256,10 @@ class AwsTool(unittest.TestCase):
 
         expected_event = models.TimelineEvent(
             timestamp=config_capture_time,
-            event_type=models.TimelineEventType.AWS_EC2_INSTANCE_STATE_CHANGE,
+            event_type=models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
             resource_type=resource_type,
             resource_id=resource_id,
-            message="AWS EC2 Instance state changed from running to stopping.",
+            message="State changed from running to stopping.",
             details=asdict(diff_to_prior),
         )
 

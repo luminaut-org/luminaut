@@ -296,7 +296,7 @@ class ExtractEventsFromConfigDiffs:
         for action, changes in diff_as_dict.items():
             for key, value in changes.items():
                 if key == "state":
-                    message = f"AWS EC2 Instance state {action}"
+                    message = f"State {action}"
                     if action == "changed":
                         message += (
                             f" from {value['old']['name']} to {value['new']['name']}"
@@ -312,7 +312,7 @@ class ExtractEventsFromConfigDiffs:
                     events.append(
                         models.TimelineEvent(
                             timestamp=config_capture_time,
-                            event_type=models.TimelineEventType.AWS_EC2_INSTANCE_STATE_CHANGE,
+                            event_type=models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
                             resource_type=resource_type,
                             resource_id=resource_id,
                             message=message,
