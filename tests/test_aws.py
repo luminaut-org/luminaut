@@ -294,3 +294,30 @@ class AwsTool(unittest.TestCase):
         )
 
         self.assertEqual(expected_message, message)
+
+    def test_generate_message_for_ec2_string_field_changes(self):
+        string_field_changes = {
+            "launch_time": {
+                "old": "2024-12-10T12:27:34+00:00",
+                "new": "2024-12-15T02:11:45+00:00",
+            },
+            "public_dns_name": {
+                "old": "example1.internal",
+                "new": "example2.internal",
+            },
+            "public_ip_address": {"old": "10.0.0.142", "new": "10.0.0.130"},
+        }
+
+        expected_messages = [
+            "launch_time changed from 2024-12-10T12:27:34+00:00 to 2024-12-15T02:11:45+00:00.",
+            "public_dns_name changed from example1.internal to example2.internal.",
+            "public_ip_address changed from 10.0.0.142 to 10.0.0.130.",
+        ]
+
+        for field_name, field_changes in string_field_changes.items():
+            message = (
+                ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
+                    field_name, field_changes
+                )
+            )
+            self.assertIn(message, expected_messages)

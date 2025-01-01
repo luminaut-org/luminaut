@@ -360,3 +360,9 @@ class ExtractEventsFromConfigDiffs:
             message += f"Removed {', '.join(removed_sg)}."
 
         return message
+
+    @staticmethod
+    def _format_ec2_string_field_change_message(
+        field_name: str, changes: dict[str, str]
+    ) -> str:
+        return f"{field_name} changed from {changes['old']} to {changes['new']}."
