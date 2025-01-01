@@ -268,8 +268,9 @@ class Aws:
 
 
 class ExtractEventsFromConfigDiffs:
-    @staticmethod
+    @classmethod
     def generate_events_from_aws_config(
+        cls,
         resource_type: models.ResourceType,
         resource_id: str,
         config_item: models.AwsConfigItem,
@@ -280,7 +281,7 @@ class ExtractEventsFromConfigDiffs:
 
         diff_as_dict = asdict(config_item.diff_to_prior)
         if resource_type == models.ResourceType.EC2_Instance:
-            ExtractEventsFromConfigDiffs.process_ec2_instance(
+            cls.process_ec2_instance(
                 config_item.config_capture_time,
                 diff_as_dict,
                 events,
@@ -289,42 +290,45 @@ class ExtractEventsFromConfigDiffs:
             )
         return events
 
-    @staticmethod
+    @classmethod
     def process_ec2_instance(
-        config_capture_time, diff_as_dict, events, resource_id, resource_type
+        cls, config_capture_time, diff_as_dict, events, resource_id, resource_type
     ):
         changes = diff_as_dict["changed"]
         for key, value in changes.items():
             event_type = None
             message = None
 
-            if key == "state":
-                event_type = models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE
-                message = ExtractEventsFromConfigDiffs._format_ec2_state_change_message(
-                    "changed", value
-                )
-            elif key == "security_groups":
-                event_type = models.TimelineEventType.SECURITY_GROUP_ASSOCIATION_CHANGE
-                message = ExtractEventsFromConfigDiffs._format_ec2_sg_change_message(
-                    value
-                )
-            elif key == "launch_time":
-                event_type = (
-                    models.TimelineEventType.COMPUTE_INSTANCE_LAUNCH_TIME_UPDATED
-                )
-                message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
-                    "Launch time", value
-                )
-            elif key == "public_dns_name":
-                event_type = models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
-                message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
-                    "Public DNS name", value
-                )
-            elif key == "public_ip_address":
-                event_type = models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
-                message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
-                    "Public IP address", value
-                )
+            match key:
+                case "state":
+                    event_type = models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE
+                    message = cls._format_ec2_state_change_message("changed", value)
+                case "security_groups":
+                    event_type = (
+                        models.TimelineEventType.SECURITY_GROUP_ASSOCIATION_CHANGE
+                    )
+                    message = cls._format_ec2_sg_change_message(value)
+                case "launch_time":
+                    event_type = (
+                        models.TimelineEventType.COMPUTE_INSTANCE_LAUNCH_TIME_UPDATED
+                    )
+                    message = cls._format_ec2_string_field_change_message(
+                        "Launch time", value
+                    )
+                case "public_dns_name":
+                    event_type = (
+                        models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
+                    )
+                    message = cls._format_ec2_string_field_change_message(
+                        "Public DNS name", value
+                    )
+                case "public_ip_address":
+                    event_type = (
+                        models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
+                    )
+                    message = cls._format_ec2_string_field_change_message(
+                        "Public IP address", value
+                    )
 
             if event_type and message:
                 events.append(
