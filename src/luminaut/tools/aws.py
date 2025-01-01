@@ -213,22 +213,28 @@ class Aws:
             for config_item in page.get("configurationItems", []):
                 config_entry = models.AwsConfigItem.from_aws_config(config_item)
 
-                if len(resources) > 0:
-                    prior_configuration = resources[-1].configuration
-                    new_configuration = config_entry.configuration
-                    # Cannot compare strings at this time.
-                    if not (
-                        isinstance(prior_configuration, str)
-                        or isinstance(new_configuration, str)
-                    ):
-                        diff_to_prior = models.generate_config_diff(
-                            prior_configuration, new_configuration
-                        )
-                        config_entry.diff_to_prior = diff_to_prior
+                self._diff_against_prior(resources, config_entry)
 
                 resources.append(config_entry)
 
         return resources
+
+    @staticmethod
+    def _diff_against_prior(
+        resources: list[models.AwsConfigItem], config_entry: models.AwsConfigItem
+    ) -> None:
+        if len(resources) > 0:
+            prior_configuration = resources[-1].configuration
+            new_configuration = config_entry.configuration
+            # Cannot compare strings at this time.
+            if not (
+                isinstance(prior_configuration, str)
+                or isinstance(new_configuration, str)
+            ):
+                diff_to_prior = models.generate_config_diff(
+                    prior_configuration, new_configuration
+                )
+                config_entry.diff_to_prior = diff_to_prior
 
     def populate_permissive_ingress_security_group_rules(
         self, security_group: models.SecurityGroup
