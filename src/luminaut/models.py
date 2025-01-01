@@ -645,14 +645,14 @@ class ScanFindings:
     tool: str
     services: FindingServices = field(default_factory=list)
     resources: FindingResources = field(default_factory=list)
-    timeline: list[TimelineEvent] = field(default_factory=list)
+    events: list[TimelineEvent] = field(default_factory=list)
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:
         rich_title = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
         rich_text = ""
 
-        for attribute in ["services", "resources"]:
+        for attribute in ["services", "resources", "events"]:
             other = 0
             for item in getattr(self, attribute):
                 if hasattr(item, "build_rich_text"):

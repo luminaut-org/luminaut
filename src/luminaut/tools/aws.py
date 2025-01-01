@@ -96,7 +96,7 @@ class Aws:
             tool="AWS Config",
             emoji_name="gear",
             resources=resource_history,
-            timeline=timeline,
+            events=timeline,
         )
 
     def skip_resource(self, resource: Any) -> bool:
