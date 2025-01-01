@@ -6,7 +6,7 @@ import boto3
 from moto import mock_aws
 
 from luminaut import models
-from luminaut.tools.aws import Aws
+from luminaut.tools.aws import Aws, ExtractEventsFromConfigDiffs
 
 
 class MockDescribeEniPaginator:
@@ -261,7 +261,7 @@ class AwsTool(unittest.TestCase):
             details=asdict(diff_to_prior),
         )
 
-        actual_events = Aws.generate_events_for_diff(
+        actual_events = ExtractEventsFromConfigDiffs.generate_events_for_diff(
             resource_type, resource_id, config_capture_time, diff_to_prior
         )
 
