@@ -321,6 +321,45 @@ class ExtractEventsFromConfigDiffs:
                             details=diff_as_dict,
                         )
                     )
+                elif key == "launch_time" and action == "changed":
+                    events.append(
+                        models.TimelineEvent(
+                            timestamp=config_capture_time,
+                            event_type=models.TimelineEventType.COMPUTE_INSTANCE_LAUNCH_TIME_UPDATED,
+                            resource_type=resource_type,
+                            resource_id=resource_id,
+                            message=ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
+                                "Launch time", value
+                            ),
+                            details=diff_as_dict,
+                        )
+                    )
+                elif key == "public_dns_name" and action == "changed":
+                    events.append(
+                        models.TimelineEvent(
+                            timestamp=config_capture_time,
+                            event_type=models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE,
+                            resource_type=resource_type,
+                            resource_id=resource_id,
+                            message=ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
+                                "Public DNS name", value
+                            ),
+                            details=diff_as_dict,
+                        )
+                    )
+                elif key == "public_ip_address" and action == "changed":
+                    events.append(
+                        models.TimelineEvent(
+                            timestamp=config_capture_time,
+                            event_type=models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE,
+                            resource_type=resource_type,
+                            resource_id=resource_id,
+                            message=ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
+                                "Public IP address", value
+                            ),
+                            details=diff_as_dict,
+                        )
+                    )
 
     @staticmethod
     def _format_ec2_state_change_message(action: str, value: Any) -> str:
