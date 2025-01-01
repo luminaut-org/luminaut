@@ -653,8 +653,19 @@ class ScanFindings:
 
     def build_rich_text(self) -> str:
         rich_title = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
-        rich_text = ""
 
+        rich_text = self.build_rich_text_for_attributes()
+
+        if rich_text:
+            return rich_title + rich_text
+
+        return (
+            rich_title
+            + "No findings to report to the console. See JSON report for full details.\n"
+        )
+
+    def build_rich_text_for_attributes(self) -> str:
+        rich_text = ""
         for attribute in ["services", "resources", "events"]:
             other = 0
             attribute_title = f"[bold]{attribute.title()}[/bold]:\n"
@@ -673,14 +684,7 @@ class ScanFindings:
                 if not len(rich_text):
                     rich_text += attribute_title
                 rich_text += other_text
-
-        if rich_text:
-            return rich_title + rich_text
-
-        return (
-            rich_title
-            + "No findings to report to the console. See JSON report for full details.\n"
-        )
+        return rich_text
 
 
 @dataclass
