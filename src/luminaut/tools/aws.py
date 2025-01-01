@@ -82,21 +82,21 @@ class Aws:
     def explore_config_history(
         self, eni: models.AwsNetworkInterface
     ) -> models.ScanFindings:
-        resource_history, timeline = self.get_config_history_for_resource(
+        resource_history, events = self.get_config_history_for_resource(
             models.ResourceType.EC2_NetworkInterface, eni.resource_id
         )
         if eni.ec2_instance_id:
-            ec2_instance_history, ec2_timeline = self.get_config_history_for_resource(
+            ec2_instance_history, ec2_events = self.get_config_history_for_resource(
                 models.ResourceType.EC2_Instance, eni.ec2_instance_id
             )
             resource_history += ec2_instance_history
-            timeline += ec2_timeline
+            events += ec2_events
 
         return models.ScanFindings(
             tool="AWS Config",
             emoji_name="gear",
             resources=resource_history,
-            events=timeline,
+            events=events,
         )
 
     def skip_resource(self, resource: Any) -> bool:
