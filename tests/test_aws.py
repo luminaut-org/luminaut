@@ -244,7 +244,7 @@ class AwsTool(unittest.TestCase):
             {"foo": {"old": "bar", "new": ["baz"]}},
         )
 
-    def test_generate_event_for_diff(self):
+    def test_generate_event_for_ec2_state_change(self):
         resource_type = models.ResourceType.EC2_Instance
         resource_id = "i-1"
         config_capture_time = datetime.now()
