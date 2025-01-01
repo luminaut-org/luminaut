@@ -297,20 +297,20 @@ class ExtractEventsFromConfigDiffs:
             for key, value in changes.items():
                 if key == "state":
                     events.append(
-                        ExtractEventsFromConfigDiffs._process_ec2_state_change(
-                            action,
-                            config_capture_time,
-                            diff_as_dict,
-                            resource_id,
-                            resource_type,
-                            value,
+                        models.TimelineEvent(
+                            timestamp=config_capture_time,
+                            event_type=models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+                            resource_type=resource_type,
+                            resource_id=resource_id,
+                            message=ExtractEventsFromConfigDiffs._format_ec2_state_change_message(
+                                action, value
+                            ),
+                            details=diff_as_dict,
                         )
                     )
 
     @staticmethod
-    def _process_ec2_state_change(
-        action, config_capture_time, diff_as_dict, resource_id, resource_type, value
-    ):
+    def _format_ec2_state_change_message(action: str, value: Any) -> str:
         message = f"State {action}"
         if action == "changed":
             message += f" from {value['old']['name']} to {value['new']['name']}"
@@ -320,13 +320,4 @@ class ExtractEventsFromConfigDiffs:
                 action,
             )
             message += f" state {value['name']}"
-        message += "."
-        event = models.TimelineEvent(
-            timestamp=config_capture_time,
-            event_type=models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            message=message,
-            details=diff_as_dict,
-        )
-        return event
+        return message + "."
