@@ -219,6 +219,13 @@ class Aws:
                 config_entry = models.AwsConfigItem.from_aws_config(config_item)
 
                 self._diff_against_prior(resources, config_entry)
+                if config_entry.diff_to_prior:
+                    events += self.generate_events_for_diff(
+                        resource_type,
+                        resource_id,
+                        config_entry.config_capture_time,
+                        config_entry.diff_to_prior,
+                    )
 
                 resources.append(config_entry)
 
