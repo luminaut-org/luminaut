@@ -269,3 +269,28 @@ class AwsTool(unittest.TestCase):
 
         self.assertEqual(1, len(actual_events))
         self.assertEqual(expected_event, actual_events[0])
+
+    def test_generate_event_for_ec2_security_group_change(self):
+        diff_to_prior = models.ConfigDiff(
+            changed={
+                "security_groups": {
+                    "old": [
+                        {"groupName": "default", "groupId": "sg-01"},
+                        {"groupName": "internal", "groupId": "sg-02"},
+                        {"groupName": "eleven", "groupId": "sg-11"},
+                    ],
+                    "new": [
+                        {"groupName": "default", "groupId": "sg-01"},
+                        {"groupName": "public", "groupId": "sg-03"},
+                        {"groupName": "ten", "groupId": "sg-10"},
+                    ],
+                },
+            }
+        )
+        expected_message = "Added public (sg-03), ten (sg-10). Removed internal (sg-02), eleven (sg-11)."
+
+        message = ExtractEventsFromConfigDiffs._format_ec2_sg_change_message(
+            "changed", diff_to_prior.changed["security_groups"]
+        )
+
+        self.assertEqual(expected_message, message)

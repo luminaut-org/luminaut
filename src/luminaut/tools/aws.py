@@ -321,3 +321,31 @@ class ExtractEventsFromConfigDiffs:
             )
             message += f" state {value['name']}"
         return message + "."
+
+    @staticmethod
+    def _format_ec2_sg_change_message(
+        action: str, value: dict[str, list[dict[str, Any]]]
+    ) -> str:
+        old_sg_ids = {x["groupId"]: x["groupName"] for x in value["old"]}
+        new_sg_ids = {x["groupId"]: x["groupName"] for x in value["new"]}
+
+        added_to_new = set(new_sg_ids) - set(old_sg_ids)
+        removed_from_new = set(old_sg_ids) - set(new_sg_ids)
+
+        message = ""
+        if added_to_new:
+            added_sg = [
+                f"{sg_name} ({sg_id})"
+                for sg_id, sg_name in new_sg_ids.items()
+                if sg_id in added_to_new
+            ]
+            message += f"Added {', '.join(added_sg)}. "
+        if removed_from_new:
+            removed_sg = [
+                f"{sg_name} ({sg_id})"
+                for sg_id, sg_name in old_sg_ids.items()
+                if sg_id in removed_from_new
+            ]
+            message += f"Removed {', '.join(removed_sg)}"
+
+        return message + "."
