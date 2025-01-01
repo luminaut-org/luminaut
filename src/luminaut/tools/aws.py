@@ -296,26 +296,37 @@ class ExtractEventsFromConfigDiffs:
         for action, changes in diff_as_dict.items():
             for key, value in changes.items():
                 if key == "state":
-                    message = f"State {action}"
-                    if action == "changed":
-                        message += (
-                            f" from {value['old']['name']} to {value['new']['name']}"
-                        )
-                    elif action in ["added", "removed"]:
-                        logger.warning(
-                            "Unexpected action %s for EC2 instance state. Please report.",
-                            action,
-                        )
-                        message += f" state {value['name']}"
-                    message += "."
-
                     events.append(
-                        models.TimelineEvent(
-                            timestamp=config_capture_time,
-                            event_type=models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
-                            resource_type=resource_type,
-                            resource_id=resource_id,
-                            message=message,
-                            details=diff_as_dict,
+                        ExtractEventsFromConfigDiffs._process_ec2_state_change(
+                            action,
+                            config_capture_time,
+                            diff_as_dict,
+                            resource_id,
+                            resource_type,
+                            value,
                         )
                     )
+
+    @staticmethod
+    def _process_ec2_state_change(
+        action, config_capture_time, diff_as_dict, resource_id, resource_type, value
+    ):
+        message = f"State {action}"
+        if action == "changed":
+            message += f" from {value['old']['name']} to {value['new']['name']}"
+        elif action in ["added", "removed"]:
+            logger.warning(
+                "Unexpected action %s for EC2 instance state. Please report.",
+                action,
+            )
+            message += f" state {value['name']}"
+        message += "."
+        event = models.TimelineEvent(
+            timestamp=config_capture_time,
+            event_type=models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            message=message,
+            details=diff_as_dict,
+        )
+        return event
