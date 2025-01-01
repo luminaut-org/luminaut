@@ -308,6 +308,19 @@ class ExtractEventsFromConfigDiffs:
                             details=diff_as_dict,
                         )
                     )
+                elif key == "security_groups" and action == "changed":
+                    events.append(
+                        models.TimelineEvent(
+                            timestamp=config_capture_time,
+                            event_type=models.TimelineEventType.SECURITY_GROUP_ASSOCIATION_CHANGE,
+                            resource_type=resource_type,
+                            resource_id=resource_id,
+                            message=ExtractEventsFromConfigDiffs._format_ec2_sg_change_message(
+                                value
+                            ),
+                            details=diff_as_dict,
+                        )
+                    )
 
     @staticmethod
     def _format_ec2_state_change_message(action: str, value: Any) -> str:
@@ -323,9 +336,7 @@ class ExtractEventsFromConfigDiffs:
         return message + "."
 
     @staticmethod
-    def _format_ec2_sg_change_message(
-        action: str, value: dict[str, list[dict[str, Any]]]
-    ) -> str:
+    def _format_ec2_sg_change_message(value: dict[str, list[dict[str, Any]]]) -> str:
         old_sg_ids = {x["groupId"]: x["groupName"] for x in value["old"]}
         new_sg_ids = {x["groupId"]: x["groupName"] for x in value["new"]}
 
@@ -346,6 +357,6 @@ class ExtractEventsFromConfigDiffs:
                 for sg_id, sg_name in old_sg_ids.items()
                 if sg_id in removed_from_new
             ]
-            message += f"Removed {', '.join(removed_sg)}"
+            message += f"Removed {', '.join(removed_sg)}."
 
-        return message + "."
+        return message

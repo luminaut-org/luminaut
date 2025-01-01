@@ -290,7 +290,7 @@ class AwsTool(unittest.TestCase):
         expected_message = "Added public (sg-03), ten (sg-10). Removed internal (sg-02), eleven (sg-11)."
 
         message = ExtractEventsFromConfigDiffs._format_ec2_sg_change_message(
-            "changed", diff_to_prior.changed["security_groups"]
+            diff_to_prior.changed["security_groups"]
         )
 
         self.assertEqual(expected_message, message)

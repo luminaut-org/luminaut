@@ -624,6 +624,7 @@ class Whatweb:
 
 class TimelineEventType(StrEnum):
     COMPUTE_INSTANCE_STATE_CHANGE = "Instance state changed"
+    SECURITY_GROUP_ASSOCIATION_CHANGE = "Security group changed"
 
 
 @dataclass
