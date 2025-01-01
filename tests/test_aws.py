@@ -251,6 +251,8 @@ class AwsTool(unittest.TestCase):
         diff_to_prior = models.ConfigDiff(
             changed={"state": {"old": {"name": "running"}, "new": {"name": "stopping"}}}
         )
+        self.sample_config_ec2.config_capture_time = config_capture_time
+        self.sample_config_ec2.diff_to_prior = diff_to_prior
 
         expected_event = models.TimelineEvent(
             timestamp=config_capture_time,
@@ -261,8 +263,8 @@ class AwsTool(unittest.TestCase):
             details=asdict(diff_to_prior),
         )
 
-        actual_events = ExtractEventsFromConfigDiffs.generate_events_for_diff(
-            resource_type, resource_id, config_capture_time, diff_to_prior
+        actual_events = ExtractEventsFromConfigDiffs.generate_events_from_aws_config(
+            resource_type, resource_id, self.sample_config_ec2
         )
 
         self.assertEqual(1, len(actual_events))

@@ -1,6 +1,5 @@
 import logging
 from dataclasses import asdict
-from datetime import datetime
 from typing import Any
 
 import boto3
@@ -220,11 +219,10 @@ class Aws:
 
                 self._diff_against_prior(resources, config_entry)
                 if config_entry.diff_to_prior:
-                    events += ExtractEventsFromConfigDiffs.generate_events_for_diff(
-                        resource_type,
-                        resource_id,
-                        config_entry.config_capture_time,
-                        config_entry.diff_to_prior,
+                    events += (
+                        ExtractEventsFromConfigDiffs.generate_events_from_aws_config(
+                            resource_type, resource_id, config_entry
+                        )
                     )
 
                 resources.append(config_entry)
@@ -271,20 +269,23 @@ class Aws:
 
 class ExtractEventsFromConfigDiffs:
     @staticmethod
-    def generate_events_for_diff(
+    def generate_events_from_aws_config(
         resource_type: models.ResourceType,
         resource_id: str,
-        config_capture_time: datetime,
-        diff: models.ConfigDiff,
+        config_item: models.AwsConfigItem,
     ) -> list[models.TimelineEvent]:
         events = []
-        if not diff:
+        if not config_item.diff_to_prior:
             return events
 
-        diff_as_dict = asdict(diff)
+        diff_as_dict = asdict(config_item.diff_to_prior)
         if resource_type == models.ResourceType.EC2_Instance:
             ExtractEventsFromConfigDiffs.process_ec2_instance(
-                config_capture_time, diff_as_dict, events, resource_id, resource_type
+                config_item.config_capture_time,
+                diff_as_dict,
+                events,
+                resource_id,
+                resource_type,
             )
         return events
 
