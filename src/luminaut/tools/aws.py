@@ -293,60 +293,50 @@ class ExtractEventsFromConfigDiffs:
     def process_ec2_instance(
         config_capture_time, diff_as_dict, events, resource_id, resource_type
     ):
-        for action, changes in diff_as_dict.items():
-            for key, value in changes.items():
-                event_type = None
-                message = None
+        changes = diff_as_dict["changed"]
+        for key, value in changes.items():
+            event_type = None
+            message = None
 
-                if key == "state":
-                    event_type = models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE
-                    message = (
-                        ExtractEventsFromConfigDiffs._format_ec2_state_change_message(
-                            action, value
-                        )
-                    )
-                elif key == "security_groups" and action == "changed":
-                    event_type = (
-                        models.TimelineEventType.SECURITY_GROUP_ASSOCIATION_CHANGE
-                    )
-                    message = (
-                        ExtractEventsFromConfigDiffs._format_ec2_sg_change_message(
-                            value
-                        )
-                    )
-                elif key == "launch_time" and action == "changed":
-                    event_type = (
-                        models.TimelineEventType.COMPUTE_INSTANCE_LAUNCH_TIME_UPDATED
-                    )
-                    message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
-                        "Launch time", value
-                    )
-                elif key == "public_dns_name" and action == "changed":
-                    event_type = (
-                        models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
-                    )
-                    message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
-                        "Public DNS name", value
-                    )
-                elif key == "public_ip_address" and action == "changed":
-                    event_type = (
-                        models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
-                    )
-                    message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
-                        "Public IP address", value
-                    )
+            if key == "state":
+                event_type = models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE
+                message = ExtractEventsFromConfigDiffs._format_ec2_state_change_message(
+                    "changed", value
+                )
+            elif key == "security_groups":
+                event_type = models.TimelineEventType.SECURITY_GROUP_ASSOCIATION_CHANGE
+                message = ExtractEventsFromConfigDiffs._format_ec2_sg_change_message(
+                    value
+                )
+            elif key == "launch_time":
+                event_type = (
+                    models.TimelineEventType.COMPUTE_INSTANCE_LAUNCH_TIME_UPDATED
+                )
+                message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
+                    "Launch time", value
+                )
+            elif key == "public_dns_name":
+                event_type = models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
+                message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
+                    "Public DNS name", value
+                )
+            elif key == "public_ip_address":
+                event_type = models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE
+                message = ExtractEventsFromConfigDiffs._format_ec2_string_field_change_message(
+                    "Public IP address", value
+                )
 
-                if event_type and message:
-                    events.append(
-                        models.TimelineEvent(
-                            timestamp=config_capture_time,
-                            event_type=event_type,
-                            resource_type=resource_type,
-                            resource_id=resource_id,
-                            message=message,
-                            details=diff_as_dict,
-                        )
+            if event_type and message:
+                events.append(
+                    models.TimelineEvent(
+                        timestamp=config_capture_time,
+                        event_type=event_type,
+                        resource_type=resource_type,
+                        resource_id=resource_id,
+                        message=message,
+                        details=diff_as_dict,
                     )
+                )
 
     @staticmethod
     def _format_ec2_state_change_message(action: str, value: Any) -> str:
