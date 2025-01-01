@@ -1,4 +1,6 @@
 import logging
+from dataclasses import asdict
+from datetime import datetime
 from typing import Any
 
 import boto3
@@ -235,6 +237,45 @@ class Aws:
                     prior_configuration, new_configuration
                 ):
                     config_entry.diff_to_prior = diff_to_prior
+
+    @staticmethod
+    def generate_events_for_diff(
+        resource_type: models.ResourceType,
+        resource_id: str,
+        config_capture_time: datetime,
+        diff: models.ConfigDiff,
+    ) -> list[models.TimelineEvent]:
+        events = []
+        if not diff:
+            return events
+
+        diff_as_dict = asdict(diff)
+        if resource_type == models.ResourceType.EC2_Instance:
+            for action, changes in diff_as_dict.items():
+                for key, value in changes.items():
+                    if key == "state":
+                        message = f"AWS EC2 Instance state {action}"
+                        if action == "changed":
+                            message += f" from {value['old']['name']} to {value['new']['name']}"
+                        elif action in ["added", "removed"]:
+                            logger.warning(
+                                "Unexpected action %s for EC2 instance state. Please report.",
+                                action,
+                            )
+                            message += f" state {value['name']}"
+                        message += "."
+
+                        events.append(
+                            models.TimelineEvent(
+                                timestamp=config_capture_time,
+                                event_type=models.TimelineEventType.AWS_EC2_INSTANCE_STATE_CHANGE,
+                                resource_type=resource_type,
+                                resource_id=resource_id,
+                                message=message,
+                                details=diff_as_dict,
+                            )
+                        )
+        return events
 
     def populate_permissive_ingress_security_group_rules(
         self, security_group: models.SecurityGroup

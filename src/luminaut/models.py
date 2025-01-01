@@ -622,6 +622,20 @@ class Whatweb:
         return rich_text
 
 
+class TimelineEventType(StrEnum):
+    AWS_EC2_INSTANCE_STATE_CHANGE = "AWS::EC2::Instance::State Change"
+
+
+@dataclass
+class TimelineEvent:
+    timestamp: datetime
+    event_type: TimelineEventType
+    resource_id: str
+    resource_type: ResourceType
+    message: str = ""
+    details: dict[str, Any] = field(default_factory=dict)
+
+
 FindingServices = list[NmapPortServices | ShodanService | Whatweb]
 FindingResources = list[AwsNetworkInterface | AwsConfigItem | SecurityGroup | Hostname]
 

@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import asdict
 from datetime import datetime
 
 import boto3
@@ -242,3 +243,27 @@ class AwsTool(unittest.TestCase):
             diff.changed,
             {"foo": {"old": "bar", "new": ["baz"]}},
         )
+
+    def test_generate_event_for_diff(self):
+        resource_type = models.ResourceType.EC2_Instance
+        resource_id = "i-1"
+        config_capture_time = datetime.now()
+        diff_to_prior = models.ConfigDiff(
+            changed={"state": {"old": {"name": "running"}, "new": {"name": "stopping"}}}
+        )
+
+        expected_event = models.TimelineEvent(
+            timestamp=config_capture_time,
+            event_type=models.TimelineEventType.AWS_EC2_INSTANCE_STATE_CHANGE,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            message="AWS EC2 Instance state changed from running to stopping.",
+            details=asdict(diff_to_prior),
+        )
+
+        actual_events = Aws.generate_events_for_diff(
+            resource_type, resource_id, config_capture_time, diff_to_prior
+        )
+
+        self.assertEqual(1, len(actual_events))
+        self.assertEqual(expected_event, actual_events[0])
