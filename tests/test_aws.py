@@ -72,11 +72,11 @@ class AwsTool(unittest.TestCase):
     def aws_client_mock_setup(self, config=None) -> Aws:
         def mock_get_config_history_for_resource(
             resource_type: models.ResourceType, *args, **kwargs
-        ) -> list[models.AwsConfigItem]:
+        ) -> (list[models.AwsConfigItem], list[models.TimelineEvent]):
             if resource_type == models.ResourceType.EC2_NetworkInterface:
-                return [self.sample_config_eni]
+                return [self.sample_config_eni], []
             elif resource_type == models.ResourceType.EC2_Instance:
-                return [self.sample_config_ec2]
+                return [self.sample_config_ec2], []
 
         aws = Aws(config)
         aws._fetch_enis_with_public_ips = lambda: [self.sample_eni]

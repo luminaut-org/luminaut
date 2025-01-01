@@ -645,6 +645,7 @@ class ScanFindings:
     tool: str
     services: FindingServices = field(default_factory=list)
     resources: FindingResources = field(default_factory=list)
+    timeline: list[TimelineEvent] = field(default_factory=list)
     emoji_name: str | None = "mag"
 
     def build_rich_text(self) -> str:

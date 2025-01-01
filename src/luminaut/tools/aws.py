@@ -83,19 +83,21 @@ class Aws:
     def explore_config_history(
         self, eni: models.AwsNetworkInterface
     ) -> models.ScanFindings:
-        resource_history = self.get_config_history_for_resource(
+        resource_history, timeline = self.get_config_history_for_resource(
             models.ResourceType.EC2_NetworkInterface, eni.resource_id
         )
         if eni.ec2_instance_id:
-            ec2_instance_history = self.get_config_history_for_resource(
+            ec2_instance_history, ec2_timeline = self.get_config_history_for_resource(
                 models.ResourceType.EC2_Instance, eni.ec2_instance_id
             )
             resource_history += ec2_instance_history
+            timeline += ec2_timeline
 
         return models.ScanFindings(
             tool="AWS Config",
             emoji_name="gear",
             resources=resource_history,
+            timeline=timeline,
         )
 
     def skip_resource(self, resource: Any) -> bool:
@@ -200,7 +202,7 @@ class Aws:
         self,
         resource_type: models.ResourceType,
         resource_id: str,
-    ) -> list[models.AwsConfigItem]:
+    ) -> (list[models.AwsConfigItem], list[models.TimelineEvent]):
         pagination_client = self.config_client.get_paginator(
             "get_resource_config_history"
         )
@@ -211,6 +213,7 @@ class Aws:
         )
 
         resources = []
+        events = []
         for page in pages:
             for config_item in page.get("configurationItems", []):
                 config_entry = models.AwsConfigItem.from_aws_config(config_item)
@@ -219,7 +222,7 @@ class Aws:
 
                 resources.append(config_entry)
 
-        return resources
+        return resources, events
 
     @staticmethod
     def _diff_against_prior(
