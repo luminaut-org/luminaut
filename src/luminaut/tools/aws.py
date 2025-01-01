@@ -231,10 +231,10 @@ class Aws:
                 isinstance(prior_configuration, str)
                 or isinstance(new_configuration, str)
             ):
-                diff_to_prior = models.generate_config_diff(
+                if diff_to_prior := models.generate_config_diff(
                     prior_configuration, new_configuration
-                )
-                config_entry.diff_to_prior = diff_to_prior
+                ):
+                    config_entry.diff_to_prior = diff_to_prior
 
     def populate_permissive_ingress_security_group_rules(
         self, security_group: models.SecurityGroup
