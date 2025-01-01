@@ -667,23 +667,23 @@ class ScanFindings:
     def build_rich_text_for_attributes(self) -> str:
         rich_text = ""
         for attribute in ["services", "resources", "events"]:
-            other = 0
             attribute_title = f"[bold]{attribute.title()}[/bold]:\n"
-            attribute_text = ""
-            for item in getattr(self, attribute):
+            attribute_text = []
+            items = getattr(self, attribute)
+            for item in items:
                 if hasattr(item, "build_rich_text"):
-                    attribute_text += item.build_rich_text()
-                else:
-                    other += 1
+                    attribute_text.append(item.build_rich_text())
 
             if attribute_text:
-                rich_text += attribute_title + attribute_text
+                rich_text += attribute_title + "".join(attribute_text)
 
-            if other:
-                other_text = f"  {other} {'additional ' if len(rich_text) else ''}{attribute} discovered.\n"
+            other_items = len(items) - len(attribute_text)
+            if other_items:
+                other_text = f"  {other_items} {'additional ' if len(attribute_text) else ''}{attribute} discovered.\n"
                 if not len(rich_text):
                     rich_text += attribute_title
                 rich_text += other_text
+
         return rich_text
 
 
