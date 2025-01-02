@@ -74,6 +74,7 @@ class Protocol(StrEnum):
 class ResourceType(StrEnum):
     EC2_Instance = "AWS::EC2::Instance"
     EC2_NetworkInterface = "AWS::EC2::NetworkInterface"
+    EC2_SecurityGroup = "AWS::EC2::SecurityGroup"
 
 
 class SecurityGroupRuleTargetType(StrEnum):
@@ -632,6 +633,7 @@ class TimelineEventType(StrEnum):
     COMPUTE_INSTANCE_LAUNCH_TIME_UPDATED = "Instance launch time updated"
     COMPUTE_INSTANCE_NETWORKING_CHANGE = "Instance networking change"
     SECURITY_GROUP_ASSOCIATION_CHANGE = "Security group changed"
+    SECURITY_GROUP_RULE_CHANGE = "Security group rule changed"
 
 
 @dataclass

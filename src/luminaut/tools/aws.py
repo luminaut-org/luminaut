@@ -40,7 +40,8 @@ class Aws:
 
             findings.append(eni_finding)
 
-            findings.append(self.explore_security_groups(eni.security_groups))
+            security_group_finding = self.explore_security_groups(eni.security_groups)
+            findings.append(security_group_finding)
 
             if self.config.aws.config.enabled:
                 logger.info(
@@ -58,6 +59,12 @@ class Aws:
                     cloudtrail_events += cloudtrail.lookup_events(
                         eni.ec2_instance_id, models.ResourceType.EC2_Instance
                     )
+                if security_group_finding.resources:
+                    for security_group in security_group_finding.resources:
+                        cloudtrail_events += cloudtrail.lookup_events(
+                            security_group.group_id,
+                            models.ResourceType.EC2_SecurityGroup,
+                        )
                 if cloudtrail_events:
                     findings.append(
                         models.ScanFindings(
@@ -428,6 +435,16 @@ class CloudTrail:
             "message": "Network interface modified",
         },
     }
+    supported_ec2_sg_events = {
+        "AuthorizeSecurityGroupIngress": {
+            "event_type": models.TimelineEventType.SECURITY_GROUP_RULE_CHANGE,
+            "message": "Ingress rule added",
+        },
+        "RevokeSecurityGroupIngress": {
+            "event_type": models.TimelineEventType.SECURITY_GROUP_RULE_CHANGE,
+            "message": "Ingress rule removed",
+        },
+    }
 
     def __init__(self, region: str):
         self.cloudtrail_client = boto3.client("cloudtrail", region_name=region)
@@ -452,6 +469,8 @@ class CloudTrail:
             context = self.supported_ec2_instance_events
         elif resource_type == models.ResourceType.EC2_NetworkInterface:
             context = self.supported_ec2_eni_events
+        elif resource_type == models.ResourceType.EC2_SecurityGroup:
+            context = self.supported_ec2_sg_events
         else:
             logger.warning(
                 "CloudTrail lookup for %s not supported", resource_type.value
