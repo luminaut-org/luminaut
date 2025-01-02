@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Generator
 from dataclasses import asdict
 from typing import Any
 
@@ -387,3 +388,44 @@ class ExtractEventsFromConfigDiffs:
         field_name: str, changes: dict[str, str]
     ) -> str:
         return f"{field_name} changed from {changes['old']} to {changes['new']}."
+
+
+class CloudTrail:
+    supported_ec2_instance_events = {
+        "RunInstances": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
+            "message": "Instance created",
+        },
+    }
+
+    def __init__(self, region: str):
+        self.cloudtrail_client = boto3.client("cloudtrail", region_name=region)
+
+    def _lookup(self, resource_id: str) -> Generator[dict[str, Any], None, None]:
+        paginator = self.cloudtrail_client.get_paginator("lookup_events")
+        for page in paginator.paginate(
+            LookupAttributes=[
+                {"AttributeKey": "ResourceName", "AttributeValue": resource_id}
+            ]
+        ):
+            yield from page["Events"]
+
+    def lookup_events_ec2_instance(
+        self, instance_id: str
+    ) -> list[models.TimelineEvent]:
+        events = []
+        for event in self._lookup(instance_id):
+            if event.get("EventName") in self.supported_ec2_instance_events:
+                event_context = self.supported_ec2_instance_events[event["EventName"]]
+                events.append(
+                    models.TimelineEvent(
+                        timestamp=event["EventTime"],
+                        source="AWS CloudTrail",
+                        event_type=event_context["event_type"],
+                        resource_type=models.ResourceType.EC2_Instance,
+                        resource_id=instance_id,
+                        message=event_context["message"],
+                        details=event,
+                    )
+                )
+        return events

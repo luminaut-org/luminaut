@@ -6,7 +6,7 @@ import boto3
 from moto import mock_aws
 
 from luminaut import models
-from luminaut.tools.aws import Aws, ExtractEventsFromConfigDiffs
+from luminaut.tools.aws import Aws, CloudTrail, ExtractEventsFromConfigDiffs
 
 
 class MockDescribeEniPaginator:
@@ -322,3 +322,27 @@ class AwsTool(unittest.TestCase):
                 )
             )
             self.assertIn(message, expected_messages)
+
+
+@mock_aws()
+class TestCloudTrail(unittest.TestCase):
+    def test_lookup_ec2_instance(self):
+        cloudtrail_event = {
+            "EventName": "RunInstances",
+            "EventTime": datetime.now(),
+            "foo": "bar",
+        }
+        cloudtrail = CloudTrail(region="us-east-1")
+        cloudtrail._lookup = lambda x: [cloudtrail_event]
+
+        events = cloudtrail.lookup_events_ec2_instance("i-1")
+
+        self.assertIsInstance(events, list)
+        self.assertEqual(1, len(events))
+
+        parsed_event = events[0]
+        self.assertEqual(
+            models.TimelineEventType.COMPUTE_INSTANCE_CREATED, parsed_event.event_type
+        )
+        self.assertEqual(models.ResourceType.EC2_Instance, parsed_event.resource_type)
+        self.assertEqual(cloudtrail_event, parsed_event.details)
