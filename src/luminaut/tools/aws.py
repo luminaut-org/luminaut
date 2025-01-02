@@ -55,8 +55,8 @@ class Aws:
 
             if self.config.aws.cloudtrail.enabled:
                 cloudtrail = CloudTrail(region)
-                cloudtrail_events = cloudtrail.lookup_events_ec2_network_interface(
-                    eni.resource_id
+                cloudtrail_events = cloudtrail.lookup_events(
+                    eni.resource_id, eni.resource_type
                 )
                 if cloudtrail_events:
                     findings.append(
@@ -426,58 +426,47 @@ class CloudTrail:
     def __init__(self, region: str):
         self.cloudtrail_client = boto3.client("cloudtrail", region_name=region)
 
-    def _lookup(self, resource_id: str) -> Generator[dict[str, Any], None, None]:
+    def _lookup(
+        self, resource_id: str, supported_events: dict[str, dict[str, Any]]
+    ) -> Generator[tuple[dict[str, Any], dict[str, Any]], None, None]:
         paginator = self.cloudtrail_client.get_paginator("lookup_events")
         for page in paginator.paginate(
             LookupAttributes=[
                 {"AttributeKey": "ResourceName", "AttributeValue": resource_id}
             ]
         ):
-            yield from page["Events"]
+            for event in page["Events"]:
+                if event.get("EventName") in supported_events:
+                    yield event, supported_events[event["EventName"]]
 
-    def lookup_events_ec2_instance(
-        self, instance_id: str
+    def lookup_events(
+        self, resource_id: str, resource_type: models.ResourceType
     ) -> list[models.TimelineEvent]:
-        events = []
-        for event in self._lookup(instance_id):
-            if event.get("EventName") in self.supported_ec2_instance_events:
-                event_context = self.supported_ec2_instance_events[event["EventName"]]
-                message = event_context["message"]
-                if username := event.get("Username"):
-                    message += f" by {username}"
+        if resource_type == models.ResourceType.EC2_Instance:
+            context = self.supported_ec2_instance_events
+        elif resource_type == models.ResourceType.EC2_NetworkInterface:
+            context = self.supported_ec2_eni_events
+        else:
+            logger.warning(
+                "CloudTrail lookup for %s not supported", resource_type.value
+            )
+            return []
 
-                events.append(
-                    models.TimelineEvent(
-                        timestamp=event["EventTime"],
-                        source=self.source_name,
-                        event_type=event_context["event_type"],
-                        resource_type=models.ResourceType.EC2_Instance,
-                        resource_id=instance_id,
-                        message=message + ".",
-                        details=event,
-                    )
-                )
-        return events
-
-    def lookup_events_ec2_network_interface(
-        self, network_interface_id: str
-    ) -> list[models.TimelineEvent]:
         events = []
-        for event in self._lookup(network_interface_id):
-            if event.get("EventName") in self.supported_ec2_eni_events:
-                event_context = self.supported_ec2_eni_events[event["EventName"]]
-                message = event_context["message"]
-                if username := event.get("Username"):
-                    message += f" by {username}"
-                events.append(
-                    models.TimelineEvent(
-                        timestamp=event["EventTime"],
-                        source=self.source_name,
-                        event_type=event_context["event_type"],
-                        resource_type=models.ResourceType.EC2_NetworkInterface,
-                        resource_id=network_interface_id,
-                        message=message + ".",
-                        details=event,
-                    )
+        for event, event_context in self._lookup(resource_id, context):
+            message = event_context["message"]
+            if username := event.get("Username"):
+                message += f" by {username}"
+
+            events.append(
+                models.TimelineEvent(
+                    timestamp=event["EventTime"],
+                    source=self.source_name,
+                    event_type=event_context["event_type"],
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    message=message + ".",
+                    details=event,
                 )
+            )
         return events

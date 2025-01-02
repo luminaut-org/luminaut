@@ -333,9 +333,14 @@ class TestCloudTrail(unittest.TestCase):
             "foo": "bar",
         }
         cloudtrail = CloudTrail(region="us-east-1")
-        cloudtrail._lookup = lambda x: [cloudtrail_event]
+        cloudtrail._lookup = lambda x, y: [
+            (
+                cloudtrail_event,
+                cloudtrail.supported_ec2_instance_events[cloudtrail_event["EventName"]],
+            )
+        ]
 
-        events = cloudtrail.lookup_events_ec2_instance("i-1")
+        events = cloudtrail.lookup_events("i-1", models.ResourceType.EC2_Instance)
 
         self.assertIsInstance(events, list)
         self.assertEqual(1, len(events))
