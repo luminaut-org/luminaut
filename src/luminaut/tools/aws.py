@@ -420,17 +420,22 @@ class CloudTrailEventMessageFormatter:
             event.get("requestParameters", {}).get("ipPermissions", {}).get("items", [])
         ):
             for ip_range in items.get("ipRanges", {}).get("items", []):
-                from_port = items.get("fromPort")
-                to_port = items.get("toPort")
-                port_range = (
-                    f"{from_port}-{to_port}" if from_port != to_port else from_port
+                rule_summary = CloudTrailEventMessageFormatter.build_rule_summary(
+                    ip_range, items
                 )
-
-                added_rules.append(
-                    f"{ip_range.get('cidrIp')}:{port_range} over {items.get('ipProtocol')}"
-                )
+                added_rules.append(rule_summary)
 
         return ". Allow: " + ", ".join(added_rules)
+
+    @staticmethod
+    def build_rule_summary(ip_range, items):
+        from_port = items.get("fromPort")
+        to_port = items.get("toPort")
+        port_range = f"{from_port}-{to_port}" if from_port != to_port else from_port
+        rule_summary = (
+            f"{ip_range.get('cidrIp')}:{port_range} over {items.get('ipProtocol')}"
+        )
+        return rule_summary
 
 
 class CloudTrail:
