@@ -401,6 +401,22 @@ class CloudTrail:
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
             "message": "Instance created",
         },
+        "RebootInstances": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+            "message": "Instance rebooted",
+        },
+        "StartInstances": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+            "message": "Instance started",
+        },
+        "StopInstances": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+            "message": "Instance stopped",
+        },
+        "TerminateInstances": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_TERMINATED,
+            "message": "Instance terminated",
+        },
     }
     supported_ec2_eni_events = {
         "RunInstances": {

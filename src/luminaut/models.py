@@ -628,6 +628,7 @@ class Whatweb:
 class TimelineEventType(StrEnum):
     COMPUTE_INSTANCE_STATE_CHANGE = "Instance state changed"
     COMPUTE_INSTANCE_CREATED = "Instance created"
+    COMPUTE_INSTANCE_TERMINATED = "Instance terminated"
     COMPUTE_INSTANCE_LAUNCH_TIME_UPDATED = "Instance launch time updated"
     COMPUTE_INSTANCE_NETWORKING_CHANGE = "Instance networking change"
     SECURITY_GROUP_ASSOCIATION_CHANGE = "Security group changed"
