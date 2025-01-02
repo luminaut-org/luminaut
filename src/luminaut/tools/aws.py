@@ -51,28 +51,10 @@ class Aws:
                 findings.append(self.explore_config_history(eni))
 
             if self.config.aws.cloudtrail.enabled:
-                cloudtrail = CloudTrail(region)
-                cloudtrail_events = cloudtrail.lookup_events(
-                    eni.resource_id, eni.resource_type
-                )
-                if eni.ec2_instance_id:
-                    cloudtrail_events += cloudtrail.lookup_events(
-                        eni.ec2_instance_id, models.ResourceType.EC2_Instance
-                    )
-                if security_group_finding.resources:
-                    for security_group in security_group_finding.resources:
-                        cloudtrail_events += cloudtrail.lookup_events(
-                            security_group.group_id,
-                            models.ResourceType.EC2_SecurityGroup,
-                        )
-                if cloudtrail_events:
-                    findings.append(
-                        models.ScanFindings(
-                            tool=cloudtrail.source_name,
-                            emoji_name="cloud",
-                            events=cloudtrail_events,
-                        )
-                    )
+                if cloudtrail_finding := self.add_cloudtrail(
+                    eni, security_group_finding, region
+                ):
+                    findings.append(cloudtrail_finding)
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
@@ -85,6 +67,33 @@ class Aws:
         logger.info("Completed exploration of AWS region %s", region)
 
         return aws_exploration_results
+
+    @staticmethod
+    def add_cloudtrail(
+        eni: models.AwsNetworkInterface,
+        security_group_finding: models.ScanFindings,
+        region: str,
+    ) -> models.ScanFindings | None:
+        cloudtrail = CloudTrail(region)
+        cloudtrail_events = cloudtrail.lookup_events(eni.resource_id, eni.resource_type)
+        if eni.ec2_instance_id:
+            cloudtrail_events += cloudtrail.lookup_events(
+                eni.ec2_instance_id, models.ResourceType.EC2_Instance
+            )
+        if security_group_finding.resources:
+            for security_group in security_group_finding.resources:
+                cloudtrail_events += cloudtrail.lookup_events(
+                    security_group.group_id,
+                    models.ResourceType.EC2_SecurityGroup,
+                )
+        if cloudtrail_events:
+            return models.ScanFindings(
+                tool=cloudtrail.source_name,
+                emoji_name="cloud",
+                events=cloudtrail_events,
+            )
+
+        return None
 
     def explore_security_groups(
         self, security_groups: list[models.SecurityGroup]
