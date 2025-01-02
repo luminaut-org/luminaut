@@ -3,22 +3,22 @@
 Casting light on shadow cloud deployments. Detect exposure of resources deployed in AWS.
 
 ```text
-          _..._
-        .'     '.
-       /    .-""-\
-     .-|   /:.   |
-     |  \  |:.   /.-'-.
-     | .-'-;:__.'    =/
-     .'=  *=|     _.='
-    /   _.  |    ;
-   ;-.-'|    \   |
-  /   | \    _\  _\
-  \__/'._;.  ==' ==\
-           \    \   |
-           /    /   /
-           /-._/-._/
-           \   `\  \
-            `-._/._/
+          _..._                                          
+        .'     '.                   .--.                 
+       /    .-""-\               .-(    ).               
+     .-|   /:.   |              (___.__)__)              
+     |  \  |:.   /.-'-.                                  
+     | .-'-;:__.'    =/                                  
+     .'=  *=|     _.='                           .--.    
+    /   _.  |    ;                            .-(    ).  
+   ;-.-'|    \   |                           (___.__)__) 
+  /   | \    _\  _\                                      
+  \__/'._;.  ==' ==\                                     
+           \    \   |                    .--.            
+           /    /   /                 .-(    ).          
+           /-._/-._/                 (___.__)__)         
+           \   `\  \                                     
+            `-._/._/                                     
 ```
 ![Under Development](https://img.shields.io/badge/Status-Under%20Development-orange)
 ![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fluminaut-org%2Fluminaut%2Frefs%2Fheads%2Fmain%2Fpyproject.toml)
