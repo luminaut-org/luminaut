@@ -20,6 +20,7 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
            \   `\  \
             `-._/._/
 ```
+![Under Development](https://img.shields.io/badge/Status-Under%20Development-orange)
 ![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fluminaut-org%2Fluminaut%2Frefs%2Fheads%2Fmain%2Fpyproject.toml)
 [![Test](https://github.com/luminaut-org/luminaut/actions/workflows/test.yml/badge.svg)](https://github.com/luminaut-org/luminaut/actions/workflows/test.yml)
 [![Build artifacts](https://github.com/luminaut-org/luminaut/actions/workflows/build.yml/badge.svg)](https://github.com/luminaut-org/luminaut/actions/workflows/build.yml)
@@ -29,9 +30,13 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 ## Introduction
 
 Luminaut is a framework that assembles tools and APIs commonly used to understand the scope of exposure for triage. This includes:
-- Fetching configurations from AWS
+- Querying AWS for the active and historic configurations and events associated with exposed resources. Specifically focused on:
+  - Enumerating ENIs with public IPs, along with associated EC2 instances and security groups.
+  - Cataloging permissive security group rules.
+  - Populating a timeline of related CloudTrail events.
+  - Detecting changes to resource configuration through AWS Config history.
 - Scanning the site with service detection tools like [nmap](https://nmap.org/) and [whatweb](https://github.com/urbanadventurer/WhatWeb).
-- Gathering knowledge from common services like [shodan](https://www.shodan.io/)
+- Gathering knowledge from network security scanning services like [shodan](https://www.shodan.io/).
 
 
 ## Installation
