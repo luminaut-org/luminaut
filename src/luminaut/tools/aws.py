@@ -53,6 +53,20 @@ class Aws:
                 )
                 findings.append(self.explore_config_history(eni))
 
+            if self.config.aws.cloudtrail.enabled:
+                cloudtrail = CloudTrail(region)
+                cloudtrail_events = cloudtrail.lookup_events_ec2_network_interface(
+                    eni.resource_id
+                )
+                if cloudtrail_events:
+                    findings.append(
+                        models.ScanFindings(
+                            tool=cloudtrail.source_name,
+                            emoji_name="cloud",
+                            events=cloudtrail_events,
+                        )
+                    )
+
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
                 region=region,
@@ -391,10 +405,21 @@ class ExtractEventsFromConfigDiffs:
 
 
 class CloudTrail:
+    source_name = "AWS CloudTrail"
     supported_ec2_instance_events = {
         "RunInstances": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
             "message": "Instance created",
+        },
+    }
+    supported_ec2_eni_events = {
+        "RunInstances": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
+            "message": "Instance created",
+        },
+        "ModifyNetworkInterfaceAttribute": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE,
+            "message": "Network interface modified",
         },
     }
 
@@ -417,14 +442,41 @@ class CloudTrail:
         for event in self._lookup(instance_id):
             if event.get("EventName") in self.supported_ec2_instance_events:
                 event_context = self.supported_ec2_instance_events[event["EventName"]]
+                message = event_context["message"]
+                if username := event.get("Username"):
+                    message += f" by {username}"
+
                 events.append(
                     models.TimelineEvent(
                         timestamp=event["EventTime"],
-                        source="AWS CloudTrail",
+                        source=self.source_name,
                         event_type=event_context["event_type"],
                         resource_type=models.ResourceType.EC2_Instance,
                         resource_id=instance_id,
-                        message=event_context["message"],
+                        message=message + ".",
+                        details=event,
+                    )
+                )
+        return events
+
+    def lookup_events_ec2_network_interface(
+        self, network_interface_id: str
+    ) -> list[models.TimelineEvent]:
+        events = []
+        for event in self._lookup(network_interface_id):
+            if event.get("EventName") in self.supported_ec2_eni_events:
+                event_context = self.supported_ec2_eni_events[event["EventName"]]
+                message = event_context["message"]
+                if username := event.get("Username"):
+                    message += f" by {username}"
+                events.append(
+                    models.TimelineEvent(
+                        timestamp=event["EventTime"],
+                        source=self.source_name,
+                        event_type=event_context["event_type"],
+                        resource_type=models.ResourceType.EC2_NetworkInterface,
+                        resource_id=network_interface_id,
+                        message=message + ".",
                         details=event,
                     )
                 )

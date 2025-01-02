@@ -131,6 +131,9 @@ class LuminautConfigToolAws(LuminautConfigTool):
     config: LuminautConfigTool = field(
         default_factory=lambda: LuminautConfigTool(enabled=True)
     )
+    cloudtrail: LuminautConfigTool = field(
+        default_factory=lambda: LuminautConfigTool(enabled=True)
+    )
     allowed_resources: list[LuminautConfigAwsAllowedResource] = field(
         default_factory=list
     )
