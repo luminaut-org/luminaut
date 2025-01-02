@@ -146,22 +146,6 @@ class Aws:
         self.ec2_client = boto3.client("ec2", region_name=region)
         self.config_client = boto3.client("config", region_name=region)
 
-    def fetch_enis_with_public_ips(self) -> list[models.ScanResult]:
-        scans = []
-        for eni in self._fetch_enis_with_public_ips():
-            finding = models.ScanFindings(
-                tool="AWS Elastic Network Interfaces",
-                emoji_name="cloud",
-                resources=[eni],
-            )
-            scan = models.ScanResult(
-                ip=eni.public_ip,
-                eni_id=eni.resource_id,
-                findings=[finding],
-            )
-            scans.append(scan)
-        return scans
-
     def _fetch_enis_with_public_ips(self) -> list[models.AwsNetworkInterface]:
         paginator = self.ec2_client.get_paginator("describe_network_interfaces")
         results = paginator.paginate(

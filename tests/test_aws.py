@@ -171,17 +171,6 @@ class AwsTool(unittest.TestCase):
         self.assertEqual("us-east-2", aws.config_client.meta.region_name)
 
     @mock_aws()
-    def test_fetch_enis_with_public_ips(self):
-        aws = Aws()
-        aws._build_eni_scan_finding = lambda x: self.sample_eni
-        aws.ec2_client.get_paginator = lambda x: MockDescribeEniPaginator()
-
-        scan_results = aws.fetch_enis_with_public_ips()
-        self.assertIsInstance(scan_results, list)
-        self.assertIsInstance(scan_results[0], models.ScanResult)
-        self.assertIsInstance(scan_results[0].findings[0], models.ScanFindings)
-
-    @mock_aws()
     def test_list_security_group_rules(self):
         ec2_client = boto3.client("ec2")
         group_name = "unittest"
