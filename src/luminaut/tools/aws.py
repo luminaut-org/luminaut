@@ -25,10 +25,6 @@ class Aws:
         logger.info("Exploring region %s", region)
 
         enis_with_public_ips = self._fetch_enis_with_public_ips()
-        num_enis_with_public_ips = len(enis_with_public_ips)
-        logger.info("Found %s ENIs with public IPs", num_enis_with_public_ips)
-        if num_enis_with_public_ips:
-            logger.info("Gathering additional details from AWS about these ENIs...")
 
         aws_exploration_results = []
         for eni in enis_with_public_ips:
@@ -182,6 +178,12 @@ class Aws:
             for eni in enis["NetworkInterfaces"]:
                 eni_model = self._build_eni_scan_finding(eni)
                 scan_results.append(eni_model)
+
+        num_enis_with_public_ips = len(scan_results)
+        logger.info("Found %s ENIs with public IPs", num_enis_with_public_ips)
+        if num_enis_with_public_ips:
+            logger.info("Gathering additional details from AWS about these ENIs...")
+
         return scan_results
 
     @staticmethod
