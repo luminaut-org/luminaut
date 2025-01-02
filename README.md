@@ -141,6 +141,7 @@ html_file = "luminaut.html"  # Path is required if html is true
 [tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
 config.enabled = true  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history.
+cloudtrail.enabled = true  # Enables the collection of CloudTrail events related to discovered resources.
 
 [[tool.aws.allowed_resources]]
 # This configuration allows you to skip resources based on their type, ID, or tags.
