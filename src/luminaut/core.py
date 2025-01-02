@@ -29,8 +29,9 @@ class Luminaut:
 
         if self.config.report.console:
             for scan_result in scan_results:
-                panel = scan_result.build_rich_panel()
-                console.print(panel)
+                title, text = scan_result.build_rich_panel()
+                console.rule(title, align="left")
+                console.print(text)
 
         if self.config.report.html and self.config.report.html_file:
             write_html_report(self.config.report.html_file)

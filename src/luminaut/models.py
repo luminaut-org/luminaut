@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, BinaryIO, Self
 
 from rich.emoji import Emoji
-from rich.panel import Panel
 
 IPAddress = IPv4Address | IPv6Address
 QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
@@ -706,12 +705,12 @@ class ScanResult:
     region: str | None = None
     eni_id: str | None = None
 
-    def build_rich_panel(self) -> Panel:
+    def build_rich_panel(self) -> tuple[str, str]:
         rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
         title = self.ip
         if self.region:
             title += f" | {self.region}"
-        return Panel(rich_text, title=title, title_align="left")
+        return title, rich_text
 
     def get_eni_resources(self) -> list[AwsNetworkInterface]:
         eni_resources = []
