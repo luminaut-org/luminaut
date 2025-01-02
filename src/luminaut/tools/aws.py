@@ -87,10 +87,11 @@ class Aws:
                     models.ResourceType.EC2_SecurityGroup,
                 )
         if cloudtrail_events:
+            sorted_events = sorted(cloudtrail_events, key=lambda x: x.timestamp)
             return models.ScanFindings(
                 tool=cloudtrail.source_name,
                 emoji_name="cloud",
-                events=cloudtrail_events,
+                events=sorted_events,
             )
 
         return None
