@@ -54,6 +54,10 @@ class Aws:
                 cloudtrail_events = cloudtrail.lookup_events(
                     eni.resource_id, eni.resource_type
                 )
+                if eni.ec2_instance_id:
+                    cloudtrail_events += cloudtrail.lookup_events(
+                        eni.ec2_instance_id, models.ResourceType.EC2_Instance
+                    )
                 if cloudtrail_events:
                     findings.append(
                         models.ScanFindings(
