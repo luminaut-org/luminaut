@@ -4,6 +4,7 @@ from dataclasses import asdict
 from typing import Any
 
 import boto3
+import orjson as json
 
 from luminaut import models
 
@@ -411,6 +412,27 @@ class ExtractEventsFromConfigDiffs:
         return f"{field_name} changed from {changes['old']} to {changes['new']}."
 
 
+class CloudTrailEventMessageFormatter:
+    @staticmethod
+    def format_sg_ingress_rule_added(event: dict[str, Any]) -> str:
+        added_rules = []
+        for items in (
+            event.get("requestParameters", {}).get("ipPermissions", {}).get("items", [])
+        ):
+            for ip_range in items.get("ipRanges", {}).get("items", []):
+                from_port = items.get("fromPort")
+                to_port = items.get("toPort")
+                port_range = (
+                    f"{from_port}-{to_port}" if from_port != to_port else from_port
+                )
+
+                added_rules.append(
+                    f"{ip_range.get('cidrIp')}:{port_range} over {items.get('ipProtocol')}"
+                )
+
+        return ". Allow: " + ", ".join(added_rules)
+
+
 class CloudTrail:
     source_name = "AWS CloudTrail"
     supported_ec2_instance_events = {
@@ -449,6 +471,7 @@ class CloudTrail:
         "AuthorizeSecurityGroupIngress": {
             "event_type": models.TimelineEventType.SECURITY_GROUP_RULE_CHANGE,
             "message": "Ingress rule added",
+            "formatter": CloudTrailEventMessageFormatter.format_sg_ingress_rule_added,
         },
         "RevokeSecurityGroupIngress": {
             "event_type": models.TimelineEventType.SECURITY_GROUP_RULE_CHANGE,
@@ -489,9 +512,22 @@ class CloudTrail:
 
         events = []
         for event, event_context in self._lookup(resource_id, context):
+            event_details = event.get("CloudTrailEvent")
+            try:
+                event_details = json.loads(event_details)
+                event["CloudTrailEvent"] = event_details
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Could not parse CloudTrail event details. The event detail is stored as a string."
+                )
+
             message = event_context["message"]
             if username := event.get("Username"):
                 message += f" by {username}"
+
+            if formatter := event_context.get("formatter"):
+                if formatted_message := formatter(event_details):
+                    message += formatted_message
 
             events.append(
                 models.TimelineEvent(
