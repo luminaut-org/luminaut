@@ -632,6 +632,7 @@ class TimelineEventType(StrEnum):
 @dataclass
 class TimelineEvent:
     timestamp: datetime
+    source: str
     event_type: TimelineEventType
     resource_id: str
     resource_type: ResourceType

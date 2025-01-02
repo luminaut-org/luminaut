@@ -334,6 +334,7 @@ class ExtractEventsFromConfigDiffs:
                 events.append(
                     models.TimelineEvent(
                         timestamp=config_capture_time,
+                        source="AWS Config",
                         event_type=event_type,
                         resource_type=resource_type,
                         resource_id=resource_id,

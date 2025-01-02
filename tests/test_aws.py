@@ -256,6 +256,7 @@ class AwsTool(unittest.TestCase):
 
         expected_event = models.TimelineEvent(
             timestamp=config_capture_time,
+            source="AWS Config",
             event_type=models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
             resource_type=resource_type,
             resource_id=resource_id,
