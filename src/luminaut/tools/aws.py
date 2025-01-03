@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Generator
 from dataclasses import asdict
+from datetime import UTC
 from typing import Any
 
 import boto3
@@ -356,7 +357,7 @@ class ExtractEventsFromConfigDiffs:
             if event_type and message:
                 events.append(
                     models.TimelineEvent(
-                        timestamp=config_capture_time,
+                        timestamp=config_capture_time.astimezone(UTC),
                         source="AWS Config",
                         event_type=event_type,
                         resource_type=resource_type,
@@ -580,7 +581,7 @@ class CloudTrail:
 
             events.append(
                 models.TimelineEvent(
-                    timestamp=event["EventTime"],
+                    timestamp=event["EventTime"].astimezone(UTC),
                     source=self.source_name,
                     event_type=event_context["event_type"],
                     resource_type=resource_type,

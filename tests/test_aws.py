@@ -1,6 +1,6 @@
 import unittest
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 
 import boto3
 from moto import mock_aws
@@ -238,7 +238,7 @@ class AwsTool(unittest.TestCase):
     def test_generate_event_for_ec2_state_change(self):
         resource_type = models.ResourceType.EC2_Instance
         resource_id = "i-1"
-        config_capture_time = datetime.now()
+        config_capture_time = datetime.now(UTC)
         diff_to_prior = models.ConfigDiff(
             changed={"state": {"old": {"name": "running"}, "new": {"name": "stopping"}}}
         )
