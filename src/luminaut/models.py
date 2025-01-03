@@ -2,7 +2,7 @@ import json
 import tomllib
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
@@ -646,7 +646,7 @@ class TimelineEvent:
     details: dict[str, Any] = field(default_factory=dict)
 
     def build_rich_text(self) -> str:
-        return f"[green]{self.timestamp}[/green] {self.event_type}: [magenta]{self.message}[/magenta] ({self.resource_type} {self.resource_id})\n"
+        return f"[green]{self.timestamp.astimezone(UTC)}[/green] {self.event_type}: [magenta]{self.message}[/magenta] ({self.resource_type} {self.resource_id})\n"
 
 
 FindingServices = list[NmapPortServices | ShodanService | Whatweb]
