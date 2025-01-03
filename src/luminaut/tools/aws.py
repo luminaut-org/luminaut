@@ -440,6 +440,45 @@ class CloudTrailEventMessageFormatter:
         rule_summary = f"{target}:{port_range} over {items.get('ipProtocol')}"
         return rule_summary
 
+    @staticmethod
+    def format_eni_attribute_modification(event: dict[str, Any]) -> str:
+        summary = ""
+        request_parameters = event.get("requestParameters", {})
+        summary += CloudTrailEventMessageFormatter.summarize_sg_from_request_params(
+            request_parameters
+        )
+        return ". Security groups: " + summary
+
+    @staticmethod
+    def summarize_sg_from_request_params(request_parameters):
+        security_groups = []
+        summary = ""
+        if groups_set := request_parameters.get("groupSet", {}):
+            for security_group in groups_set.get("items", []):
+                if security_group.get("groupId"):
+                    security_groups.append(security_group["groupId"])
+        if security_groups:
+            summary += ", ".join(security_groups)
+        return summary
+
+    @staticmethod
+    def format_ec2_run_instance(event: dict[str, Any]) -> str:
+        summary = ""
+        network_interface_items = (
+            event.get("requestParameters", {})
+            .get("networkInterfaceSet", {})
+            .get("items", [])
+        )
+        if network_interface_items:
+            for item in network_interface_items:
+                summary += (
+                    CloudTrailEventMessageFormatter.summarize_sg_from_request_params(
+                        item
+                    )
+                )
+            summary = ". Security groups: " + summary
+        return summary
+
 
 class CloudTrail:
     source_name = "AWS CloudTrail"
@@ -447,6 +486,7 @@ class CloudTrail:
         "RunInstances": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
             "message": "Instance created",
+            "formatter": CloudTrailEventMessageFormatter.format_ec2_run_instance,
         },
         "RebootInstances": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
@@ -473,6 +513,7 @@ class CloudTrail:
         "ModifyNetworkInterfaceAttribute": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_NETWORKING_CHANGE,
             "message": "Network interface modified",
+            "formatter": CloudTrailEventMessageFormatter.format_eni_attribute_modification,
         },
     }
     supported_ec2_sg_events = {
@@ -520,7 +561,7 @@ class CloudTrail:
 
         events = []
         for event, event_context in self._lookup(resource_id, context):
-            event_details = event.get("CloudTrailEvent")
+            event_details = event.get("CloudTrailEvent", "")
             try:
                 event_details = json.loads(event_details)
                 event["CloudTrailEvent"] = event_details
@@ -533,7 +574,7 @@ class CloudTrail:
             if username := event.get("Username"):
                 message += f" by {username}"
 
-            if formatter := event_context.get("formatter"):
+            if event_details and (formatter := event_context.get("formatter")):
                 if formatted_message := formatter(event_details):
                     message += formatted_message
 
