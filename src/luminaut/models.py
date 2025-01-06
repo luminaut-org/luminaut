@@ -614,15 +614,43 @@ class Whatweb:
     def __bool__(self):
         return bool(self.summary_text) or bool(self.json_data)
 
-    def build_rich_text(self) -> str:
+    def build_rich_text(self):
         rich_text = ""
-        # The escape is required to prevent rich from interpreting the braces as markup.
-        for raw_line in self.summary_text.replace("[", "\\[").split("\n"):
-            line = raw_line.strip()
-            if line:
-                rich_text += f"- {line}\n"
-
+        for item in self.json_data:
+            if target := item.get("target"):
+                rich_text += f"- [green]{target}[/green]"
+                if value_text := self.build_value_rich_text(item):
+                    rich_text += f"\n{value_text}\n"
         return rich_text
+
+    @staticmethod
+    def build_value_rich_text(item: dict[str, Any]) -> str:
+        plugins_to_skip = [
+            "Cookies",
+            "Country",
+            "HttpOnly",
+            "IP",
+            "Meta-Refresh-Redirect",
+            "Script",
+            "PasswordField",
+            "X-Frame-Options",
+        ]
+        item_text = ""
+        for key, value in item.get("plugins").items():
+            if key in plugins_to_skip:
+                continue
+            item_text += f"  [orange1]{key}[/orange1]"
+            value_text = ""
+            if value:
+                if strings := value.get("string", []):
+                    value_text += ", ".join(strings)
+                if versions := value.get("version", []):
+                    value_text += ", ".join(versions)
+            if value_text:
+                escaped_value_text = value_text.replace("[", "\\[")
+                item_text += f": {escaped_value_text}"
+            item_text += "\n"
+        return item_text
 
 
 class TimelineEventType(StrEnum):

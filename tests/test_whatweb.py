@@ -85,6 +85,39 @@ class TestWhatweb(unittest.TestCase):
         self.assertEqual(self.whatweb.build_data_class().summary_text, brief_data)
         self.assertEqual(self.whatweb.build_data_class().json_data, json_data)
 
+    def test_format_text(self):
+        whatweb_model = models.Whatweb(
+            summary_text="foo",
+            json_data=[
+                {
+                    "target": "target1",
+                    "plugins": {
+                        "Cookies": {"string": ["foo1"]},
+                        "Unittest1": {"string": ["bar1a", "baz1a"]},
+                        "Unittest2": {"version": ["bar1b", "baz1b"]},
+                    },
+                },
+                {
+                    "target": "target2",
+                    "plugins": {
+                        "Cookies": {"string": ["foo2"]},
+                        "Unittest": {"string": ["bar2", "baz2"]},
+                    },
+                },
+            ],
+        )
+        formatted_text = whatweb_model.build_rich_text()
+        self.assertIn("target1", formatted_text)
+        self.assertIn("target2", formatted_text)
+        self.assertNotIn("foo1", formatted_text)
+        self.assertNotIn("foo2", formatted_text)
+        self.assertIn("Unittest1", formatted_text)
+        self.assertIn("Unittest2", formatted_text)
+        self.assertIn("Unittest", formatted_text)
+        self.assertIn("bar1a, baz1a", formatted_text)
+        self.assertIn("bar1b, baz1b", formatted_text)
+        self.assertIn("bar2, baz2", formatted_text)
+
 
 if __name__ == "__main__":
     unittest.main()
