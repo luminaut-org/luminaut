@@ -47,19 +47,6 @@ You can then run the container with:
 docker run -it luminaut --help
 ```
 
-### For development
-
-For development, install the following tools:
-- [uv](https://docs.astral.sh/uv/) - package manager
-- [pre-commit](https://pre-commit.com/) - code quality tool
-- [nmap](https://nmap.org/) - port and service scanning utility
-- [whatweb](https://github.com/urbanadventurer/WhatWeb) - web service scanning utility
-
-Once installed, clone this repository and run: `uv sync` to install and configure your environment.
-
-If that completed successfully, you should be able to run tests with `uv run pytest` or show the help information with `uv run luminaut --help`.
-
-Before contributing code, run `pre-commit install` to install the pre-commit tools.
 
 ## Usage
 
@@ -156,3 +143,7 @@ enabled = true  # Enable the whatweb tool, requires the whatweb utility installe
 ```
 
 The source of truth for the luminaut configuration is located in `luminaut.models.LuminautConfig`.
+
+## Contributing
+
+If you would like to contribute to Luminaut, please follow the guidelines in the [CONTRIBUTING.md](.github/CONTRIBUTING.md) file.
