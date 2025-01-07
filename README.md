@@ -26,7 +26,7 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 ### AWS
 
 - Enumerate ENIs with public IPs.
-- Gather information about associated EC2 instances.
+- Gather information about associated EC2 instances and Elastic load balancers.
 - Identify permissive rules for attached security groups.
 - Scan CloudTrail history for related events to answer who, what, and when.
 - Query AWS Config for resource configuration changes over time.
