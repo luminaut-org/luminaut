@@ -74,6 +74,7 @@ class ResourceType(StrEnum):
     EC2_Instance = "AWS::EC2::Instance"
     EC2_NetworkInterface = "AWS::EC2::NetworkInterface"
     EC2_SecurityGroup = "AWS::EC2::SecurityGroup"
+    ELB_LoadBalancer = "AWS::ElasticLoadBalancingV2::LoadBalancer"
 
 
 class SecurityGroupRuleTargetType(StrEnum):
@@ -734,6 +735,7 @@ class TimelineEventType(StrEnum):
     COMPUTE_INSTANCE_NETWORKING_CHANGE = "Instance networking change"
     SECURITY_GROUP_ASSOCIATION_CHANGE = "Security group changed"
     SECURITY_GROUP_RULE_CHANGE = "Security group rule changed"
+    RESOURCE_CREATED = "Resource created"
 
 
 @dataclass

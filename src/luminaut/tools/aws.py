@@ -46,7 +46,8 @@ class Aws:
             security_group_finding = self.explore_security_groups(eni.security_groups)
             findings.append(security_group_finding)
 
-            if elb_attachment := self.detect_elb_attachment(eni):
+            elb_attachment = self.detect_elb_attachment(eni)
+            if elb_attachment:
                 findings.append(elb_attachment)
 
             if self.config.aws.config.enabled:
@@ -58,7 +59,7 @@ class Aws:
 
             if self.config.aws.cloudtrail.enabled:
                 if cloudtrail_finding := self.add_cloudtrail(
-                    eni, security_group_finding, region
+                    eni, security_group_finding, region, elb_findings=elb_attachment
                 ):
                     findings.append(cloudtrail_finding)
 
@@ -122,6 +123,7 @@ class Aws:
         eni: models.AwsNetworkInterface,
         security_group_finding: models.ScanFindings,
         region: str,
+        elb_findings: models.ScanFindings | None = None,
     ) -> models.ScanFindings | None:
         cloudtrail = CloudTrail(region)
         cloudtrail_events = cloudtrail.lookup_events(eni.resource_id, eni.resource_type)
@@ -134,6 +136,11 @@ class Aws:
                 cloudtrail_events += cloudtrail.lookup_events(
                     security_group.group_id,
                     models.ResourceType.EC2_SecurityGroup,
+                )
+        if elb_findings:
+            for load_balancer in elb_findings.resources:
+                cloudtrail_events += cloudtrail.lookup_events(
+                    load_balancer.arn, models.ResourceType.ELB_LoadBalancer
                 )
         if cloudtrail_events:
             sorted_events = sorted(cloudtrail_events, key=lambda x: x.timestamp)
@@ -578,6 +585,12 @@ class CloudTrail:
             "message": "Ingress rule removed",
         },
     }
+    supported_elb_events = {
+        "CreateLoadBalancer": {
+            "event_type": models.TimelineEventType.RESOURCE_CREATED,
+            "message": "Load balancer created",
+        },
+    }
 
     def __init__(self, region: str):
         self.cloudtrail_client = boto3.client("cloudtrail", region_name=region)
@@ -604,6 +617,8 @@ class CloudTrail:
             context = self.supported_ec2_eni_events
         elif resource_type == models.ResourceType.EC2_SecurityGroup:
             context = self.supported_ec2_sg_events
+        elif resource_type == models.ResourceType.ELB_LoadBalancer:
+            context = self.supported_elb_events
         else:
             logger.warning(
                 "CloudTrail lookup for %s not supported", resource_type.value
