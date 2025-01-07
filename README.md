@@ -118,6 +118,7 @@ timeline_file = "luminaut_timeline.csv"  # Path is required if timeline is true
 
 [tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
+aws_regions = ["us-east-1"]  # The AWS regions to scan. Defaults to us-east-1.
 config.enabled = true  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history.
 cloudtrail.enabled = true  # Enables the collection of CloudTrail events related to discovered resources.
 
