@@ -289,6 +289,26 @@ class SecurityGroup:
 
 
 @dataclass
+class AwsLoadBalancerListener:
+    resource_id: str
+    arn: str
+    port: int
+    protocol: str
+
+    def build_rich_text(self):
+        return f"[blue]{self.port}[/blue]/[magenta]{self.protocol}[/magenta]"
+
+    @classmethod
+    def from_describe_listener(cls, listener: dict[str, Any]) -> Self:
+        return cls(
+            resource_id=listener["ListenerArn"],
+            arn=listener["ListenerArn"],
+            port=listener["Port"],
+            protocol=listener["Protocol"],
+        )
+
+
+@dataclass
 class AwsLoadBalancer:
     resource_id: str
     name: str
@@ -301,9 +321,17 @@ class AwsLoadBalancer:
     created_time: datetime
     security_groups: list[SecurityGroup] = field(default_factory=list)
     subnets: list[str] = field(default_factory=list)
+    listeners: list[AwsLoadBalancerListener] = field(default_factory=list)
 
     def build_rich_text(self) -> str:
-        return f"[orange1]{self.resource_id}[/orange1] {self.scheme} ({self.state}) Created: {self.created_time}\n"
+        headline = f"[orange1]{self.resource_id}[/orange1] {self.scheme} ({self.state}) Created: {self.created_time}\n"
+        listener_details = []
+        for listener in self.listeners:
+            listener_details.append(listener.build_rich_text())
+
+        if listener_details:
+            return headline + "  Listeners: " + ", ".join(listener_details) + "\n"
+        return headline
 
     @classmethod
     def from_describe_elb(cls, elb: dict[str, Any]) -> Self:

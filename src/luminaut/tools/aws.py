@@ -74,6 +74,20 @@ class Aws:
 
         return aws_exploration_results
 
+    def describe_elb_listeners(
+        self, load_balancer_arn: str
+    ) -> list[models.AwsLoadBalancerListener]:
+        paginator = self.elb_client.get_paginator("describe_listeners")
+        results = paginator.paginate(LoadBalancerArn=load_balancer_arn)
+        listeners = []
+        for result in results:
+            for listener in result["Listeners"]:
+                listeners.append(
+                    models.AwsLoadBalancerListener.from_describe_listener(listener)
+                )
+
+        return listeners
+
     def detect_elb_attachment(
         self, eni: models.AwsNetworkInterface
     ) -> models.ScanFindings | None:
@@ -97,6 +111,8 @@ class Aws:
         for elb in results:
             for load_balancer in elb["LoadBalancers"]:
                 lb_model = models.AwsLoadBalancer.from_describe_elb(load_balancer)
+                listeners = self.describe_elb_listeners(lb_model.arn)
+                lb_model.listeners = listeners
                 elb_finding.resources.append(lb_model)
 
         return elb_finding
