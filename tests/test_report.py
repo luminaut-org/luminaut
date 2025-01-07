@@ -128,6 +128,6 @@ class JsonReport(unittest.TestCase):
         for column in timeline_columns:
             self.assertIn(column, headers)
 
-        self.assertIn(str(first_date), lines[0]["timestamp"])
-        self.assertIn(str(second_date), lines[1]["timestamp"])
-        self.assertIn(str(third_date), lines[2]["timestamp"])
+        self.assertIn(first_date.isoformat(), lines[0]["timestamp"])
+        self.assertIn(second_date.isoformat(), lines[1]["timestamp"])
+        self.assertIn(third_date.isoformat(), lines[2]["timestamp"])

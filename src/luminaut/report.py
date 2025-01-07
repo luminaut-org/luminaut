@@ -47,6 +47,7 @@ def write_csv_timeline(scan_results: list[ScanResult], output: TextIO):
                 event_as_dict = asdict(event)  # type: ignore
                 event_as_dict["ip"] = scan_result.ip
                 event_as_dict["tool"] = finding.tool
+                event_as_dict["timestamp"] = event.timestamp.isoformat()
                 events.append(event_as_dict)
 
     sorted_events = sorted(events, key=lambda x: x["timestamp"])
