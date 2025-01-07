@@ -113,6 +113,8 @@ json = false  # JSON lines output, written to STDOUT.
 json_file = "luminaut.json"  # JSON lines output, written to a file. If omitted will write to stdout
 html = false  # HTML output, written to a file. Disabled by default.
 html_file = "luminaut.html"  # Path is required if html is true
+timeline = false  # Timeline output, written to a CSV file. Disabled by default.
+timeline_file = "luminaut_timeline.csv"  # Path is required if timeline is true
 
 [tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.

@@ -165,6 +165,8 @@ class LuminautConfigReport:
     json_file: Path | None = None
     html: bool = False
     html_file: Path | None = None
+    timeline: bool = False
+    timeline_file: Path | None = None
 
     @classmethod
     def from_toml(cls, config: dict[str, Any]) -> Self:
@@ -173,6 +175,7 @@ class LuminautConfigReport:
 
         json_file_path = path_or_none(config.get("json_file"))
         html_file_path = path_or_none(config.get("html_file"))
+        timeline_file_path = path_or_none(config.get("timeline_file"))
 
         return cls(
             console=config.get("console", True),
@@ -180,6 +183,8 @@ class LuminautConfigReport:
             json_file=json_file_path,
             html=config.get("html", False),
             html_file=html_file_path,
+            timeline=config.get("timeline", False),
+            timeline_file=timeline_file_path,
         )
 
 
