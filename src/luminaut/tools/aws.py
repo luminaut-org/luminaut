@@ -595,6 +595,22 @@ class CloudTrail:
     def __init__(self, region: str):
         self.cloudtrail_client = boto3.client("cloudtrail", region_name=region)
 
+    def _fetch_context(self, resource_type):
+        context = {}
+        if resource_type == models.ResourceType.EC2_Instance:
+            context = self.supported_ec2_instance_events
+        elif resource_type == models.ResourceType.EC2_NetworkInterface:
+            context = self.supported_ec2_eni_events
+        elif resource_type == models.ResourceType.EC2_SecurityGroup:
+            context = self.supported_ec2_sg_events
+        elif resource_type == models.ResourceType.ELB_LoadBalancer:
+            context = self.supported_elb_events
+        else:
+            logger.warning(
+                "CloudTrail lookup for %s not supported", resource_type.value
+            )
+        return context
+
     def _lookup(
         self, resource_id: str, supported_events: dict[str, dict[str, Any]]
     ) -> Generator[tuple[dict[str, Any], dict[str, Any]], None, None]:
@@ -611,18 +627,8 @@ class CloudTrail:
     def lookup_events(
         self, resource_id: str, resource_type: models.ResourceType
     ) -> list[models.TimelineEvent]:
-        if resource_type == models.ResourceType.EC2_Instance:
-            context = self.supported_ec2_instance_events
-        elif resource_type == models.ResourceType.EC2_NetworkInterface:
-            context = self.supported_ec2_eni_events
-        elif resource_type == models.ResourceType.EC2_SecurityGroup:
-            context = self.supported_ec2_sg_events
-        elif resource_type == models.ResourceType.ELB_LoadBalancer:
-            context = self.supported_elb_events
-        else:
-            logger.warning(
-                "CloudTrail lookup for %s not supported", resource_type.value
-            )
+        context = self._fetch_context(resource_type)
+        if not context:
             return []
 
         events = []
