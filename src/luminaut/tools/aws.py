@@ -17,6 +17,7 @@ class Aws:
         config = config if config else models.LuminautConfig()
         self.config = config
         self.ec2_client = boto3.client("ec2")
+        self.elb_client = boto3.client("elbv2")
         self.config_client = boto3.client("config")
 
     def explore_region(self, region: str) -> list[models.ScanResult]:
@@ -45,6 +46,9 @@ class Aws:
             security_group_finding = self.explore_security_groups(eni.security_groups)
             findings.append(security_group_finding)
 
+            if elb_attachment := self.detect_elb_attachment(eni):
+                findings.append(elb_attachment)
+
             if self.config.aws.config.enabled:
                 logger.info(
                     "Fetching AWS Config history for resources associated with %s. This can take some time to run.",
@@ -69,6 +73,33 @@ class Aws:
         logger.info("Completed exploration of AWS region %s", region)
 
         return aws_exploration_results
+
+    def detect_elb_attachment(
+        self, eni: models.AwsNetworkInterface
+    ) -> models.ScanFindings | None:
+        """This detects if the ELB name found in the ENI description matches an existing load balancer."""
+        if not eni.description or not eni.description.startswith("ELB "):
+            return None
+
+        try:
+            elb_name = eni.description[3:].split("/")[1]
+        except IndexError:
+            logger.warning("Could not extract ELB name from ENI description")
+            return None
+
+        paginator = self.elb_client.get_paginator("describe_load_balancers")
+        results = paginator.paginate(Names=[elb_name])
+        elb_finding = models.ScanFindings(
+            tool="AWS Elastic Load Balancers",
+            emoji_name="cloud",
+        )
+
+        for elb in results:
+            for load_balancer in elb["LoadBalancers"]:
+                lb_model = models.AwsLoadBalancer.from_describe_elb(load_balancer)
+                elb_finding.resources.append(lb_model)
+
+        return elb_finding
 
     @staticmethod
     def add_cloudtrail(
@@ -167,6 +198,7 @@ class Aws:
 
     def setup_client_region(self, region: str) -> None:
         self.ec2_client = boto3.client("ec2", region_name=region)
+        self.elb_client = boto3.client("elbv2", region_name=region)
         self.config_client = boto3.client("config", region_name=region)
 
     def _fetch_enis_with_public_ips(self) -> list[models.AwsNetworkInterface]:
@@ -219,6 +251,8 @@ class Aws:
             status=eni["Status"],
             vpc_id=eni["VpcId"],
             tags=tags,
+            description=eni.get("Description"),
+            interface_type=eni.get("InterfaceType"),
         )
 
     def get_config_history_for_resource(

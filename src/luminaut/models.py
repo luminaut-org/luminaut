@@ -289,6 +289,46 @@ class SecurityGroup:
 
 
 @dataclass
+class AwsLoadBalancer:
+    resource_id: str
+    name: str
+    arn: str
+    dns_name: str
+    type: str
+    vpc_id: str
+    state: str
+    scheme: str
+    created_time: datetime
+    security_groups: list[SecurityGroup] = field(default_factory=list)
+    subnets: list[str] = field(default_factory=list)
+
+    def build_rich_text(self) -> str:
+        return f"[orange1]{self.resource_id}[/orange1] {self.scheme} ({self.state}) Created: {self.created_time}\n"
+
+    @classmethod
+    def from_describe_elb(cls, elb: dict[str, Any]) -> Self:
+        security_groups = [
+            SecurityGroup(group_id=sg_id, group_name="")
+            for sg_id in elb["SecurityGroups"]
+        ]
+        subnets = [az["SubnetId"] for az in elb["AvailabilityZones"]]
+
+        return cls(
+            resource_id=elb["LoadBalancerName"],
+            name=elb["LoadBalancerName"],
+            arn=elb["LoadBalancerArn"],
+            dns_name=elb["DNSName"],
+            type=elb["Type"],
+            vpc_id=elb["VpcId"],
+            state=elb["State"]["Code"],
+            scheme=elb["Scheme"],
+            created_time=elb["CreatedTime"],
+            security_groups=security_groups,
+            subnets=subnets,
+        )
+
+
+@dataclass
 class AwsNetworkInterface:
     resource_id: str
     public_ip: str
