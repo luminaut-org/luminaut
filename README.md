@@ -13,15 +13,39 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 
 ## Introduction
 
-Luminaut is a framework that assembles tools and APIs commonly used to understand the scope of exposure for triage. This includes:
-- Querying AWS for the active and historic configurations and events associated with exposed resources. Specifically focused on:
-  - Enumerating ENIs with public IPs, along with associated EC2 instances and security groups.
-  - Cataloging permissive security group rules.
-  - Populating a timeline of related CloudTrail events.
-  - Detecting changes to resource configuration through AWS Config history.
-- Scanning the site with service detection tools like [nmap](https://nmap.org/) and [whatweb](https://github.com/urbanadventurer/WhatWeb).
-- Gathering knowledge from network security scanning services like [shodan](https://www.shodan.io/).
+Luminaut is a framework that assembles tools and APIs commonly used to understand the scope of exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.
 
+Starting from the public IP addresses of Elastic Network Interfaces (ENIs), Luminaut gathers information about the associated EC2 instances, security groups, and related events. The framework also includes active scanning tools like nmap and whatweb to identify services running on exposed ports.
+
+By combining cloud configuration data with external sources, Luminaut provides context to guide the next steps of an investigation.
+
+While focused on AWS, Luminaut can be extended to support other cloud providers and services. The framework is designed to be modular, allowing for the addition of new tools and services as needed.
+
+## Features
+
+### AWS
+
+- Enumerate ENIs with public IPs.
+- Gather information about associated EC2 instances.
+- Identify permissive rules for attached security groups.
+- Scan CloudTrail history for related events to answer who, what, and when.
+- Query AWS Config for resource configuration changes over time.
+
+### Active scanning
+
+- [nmap](https://nmap.org/) to scan common ports and services against identified IP addresses.
+- [whatweb](https://github.com/urbanadventurer/WhatWeb) to identify services running on ports associated with exposed security group ports.
+
+### Passive sources
+
+- [shodan](https://www.shodan.io/) to gather information about exposed services and vulnerabilities.
+
+### Reporting
+
+- Console output with rich formatting, displaying key information.
+- HTML capture of console output to preserve prior executions.
+- CSV Timeline of events from CloudTrail and other sources.
+- JSON lines output with full event information for parsing and integration with other tools.
 
 ## Installation
 
