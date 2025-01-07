@@ -13,6 +13,7 @@ console = Console(stderr=True, force_terminal=sys.stderr.isatty(), record=True)
 timeline_columns = [
     "timestamp",
     "ip",
+    "source",
     "event_type",
     "message",
     "resource_id",
