@@ -33,7 +33,9 @@ class Luminaut:
                 write_jsonl_report(scan_results, sys.stdout)
 
         if self.config.report.timeline and self.config.report.timeline_file:
-            with self.config.report.timeline_file.open("w") as target:
+            with self.config.report.timeline_file.open(
+                "w", encoding="utf-8", newline=""
+            ) as target:
                 write_csv_timeline(scan_results, target)
             logger.info("Saved timeline to %s", self.config.report.timeline_file)
 
