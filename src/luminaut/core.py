@@ -2,7 +2,12 @@ import logging
 import sys
 
 from luminaut import models
-from luminaut.report import console, write_html_report, write_jsonl_report
+from luminaut.report import (
+    console,
+    write_csv_timeline,
+    write_html_report,
+    write_jsonl_report,
+)
 from luminaut.scanner import Scanner
 
 logger = logging.getLogger(__name__)
@@ -26,6 +31,11 @@ class Luminaut:
                 logger.info("Saved scan results to %s", self.config.report.json_file)
             else:
                 write_jsonl_report(scan_results, sys.stdout)
+
+        if self.config.report.timeline and self.config.report.timeline_file:
+            with self.config.report.timeline_file.open("w") as target:
+                write_csv_timeline(scan_results, target)
+            logger.info("Saved timeline to %s", self.config.report.timeline_file)
 
         if self.config.report.console:
             for scan_result in scan_results:
