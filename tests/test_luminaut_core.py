@@ -42,7 +42,7 @@ class LuminautCore(unittest.TestCase):
         scan_results = self.luminaut.discover_public_ips()
         self.assertEqual([], scan_results)
 
-        expected_result = models.ScanResult(ip="1.1.1.1", findings=[])
+        expected_result = models.ScanResult(ip="10.1.1.1", findings=[])
         self.luminaut.scanner.aws = lambda: [expected_result]
         self.config.aws.enabled = True
 
