@@ -778,7 +778,7 @@ class TimelineEvent:
 
 FindingServices = MutableSequence[NmapPortServices | ShodanService | Whatweb]
 FindingResources = MutableSequence[
-    AwsNetworkInterface | AwsConfigItem | SecurityGroup | Hostname
+    AwsConfigItem | AwsLoadBalancer | AwsNetworkInterface | SecurityGroup | Hostname
 ]
 
 
