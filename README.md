@@ -29,7 +29,9 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 - Gather information about associated EC2 instances and Elastic load balancers.
 - Identify permissive rules for attached security groups.
 - Scan CloudTrail history for related events to answer who, what, and when.
+  - Supports querying for activity related to discovered ENI, EC2, ELB, and Security Group resources.
 - Query AWS Config for resource configuration changes over time.
+  - Supports scanning AWS Config history for the discovered ENI and EC2 Instance associated with the ENI.
 
 ### Active scanning
 
