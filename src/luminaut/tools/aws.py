@@ -316,10 +316,10 @@ class LoadBalancers:
     def detect_elb_attachment(
         self, eni: models.AwsNetworkInterface, region: str = "us-east-1"
     ) -> models.ScanFindings | None:
+        """This detects if the ELB name found in the ENI description matches an existing load balancer."""
         if self.elb_client.meta.region_name != region:
             self.elb_client = boto3.client("elbv2", region_name=region)
 
-        """This detects if the ELB name found in the ENI description matches an existing load balancer."""
         if not eni.description or not eni.description.startswith("ELB "):
             return None
 
