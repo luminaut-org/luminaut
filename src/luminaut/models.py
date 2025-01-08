@@ -530,12 +530,12 @@ class AwsConfigItem:
         configuration: str,
     ) -> AwsEc2Instance | str:
         try:
-            configuration = json.loads(configuration)
+            loaded_configuration = json.loads(configuration)
         except json.JSONDecodeError:
             return configuration
 
         if resource_type == ResourceType.EC2_Instance:
-            return AwsEc2Instance.from_aws_config(configuration)
+            return AwsEc2Instance.from_aws_config(loaded_configuration)
         return configuration
 
     @classmethod
