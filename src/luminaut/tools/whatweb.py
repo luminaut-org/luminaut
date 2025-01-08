@@ -57,7 +57,7 @@ class Whatweb:
         ]
 
     @staticmethod
-    def read_json(json_result: Path) -> dict[str, Any]:
+    def read_json(json_result: Path) -> dict[str, Any] | list[Any]:
         with json_result.open("rb") as f:
             return json.loads(f.read())
 
