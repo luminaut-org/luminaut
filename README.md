@@ -32,6 +32,8 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
   - Supports querying for activity related to discovered ENI, EC2, ELB, and Security Group resources.
 - Query AWS Config for resource configuration changes over time.
   - Supports scanning AWS Config history for the discovered ENI and EC2 Instance associated with the ENI.
+- Skip scanning and reporting on resources based on the resource id or tag values
+  - Supports skipping based on the resource id of the ENI.
 
 ### Active scanning
 
