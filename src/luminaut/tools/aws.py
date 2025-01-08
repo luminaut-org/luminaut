@@ -6,6 +6,7 @@ from typing import Any
 
 import boto3
 import orjson as json
+from botocore.client import BaseClient as BotoClient
 
 from luminaut import models
 
@@ -46,7 +47,7 @@ class Aws:
             security_group_finding = self.explore_security_groups(eni.security_groups)
             findings.append(security_group_finding)
 
-            elb_attachment = self.detect_elb_attachment(eni)
+            elb_attachment = self.detect_elb_attachment(self.elb_client, eni)
             if elb_attachment:
                 findings.append(elb_attachment)
 
@@ -75,10 +76,11 @@ class Aws:
 
         return aws_exploration_results
 
+    @staticmethod
     def describe_elb_listeners(
-        self, load_balancer_arn: str
+        elb_client: BotoClient, load_balancer_arn: str
     ) -> list[models.AwsLoadBalancerListener]:
-        paginator = self.elb_client.get_paginator("describe_listeners")
+        paginator = elb_client.get_paginator("describe_listeners")
         results = paginator.paginate(LoadBalancerArn=load_balancer_arn)
         listeners = []
         for result in results:
@@ -89,8 +91,9 @@ class Aws:
 
         return listeners
 
+    @classmethod
     def detect_elb_attachment(
-        self, eni: models.AwsNetworkInterface
+        cls, elb_client: BotoClient, eni: models.AwsNetworkInterface
     ) -> models.ScanFindings | None:
         """This detects if the ELB name found in the ENI description matches an existing load balancer."""
         if not eni.description or not eni.description.startswith("ELB "):
@@ -102,7 +105,7 @@ class Aws:
             logger.warning("Could not extract ELB name from ENI description")
             return None
 
-        paginator = self.elb_client.get_paginator("describe_load_balancers")
+        paginator = elb_client.get_paginator("describe_load_balancers")
         results = paginator.paginate(Names=[elb_name])
         elb_finding = models.ScanFindings(
             tool="AWS Elastic Load Balancers",
@@ -112,7 +115,7 @@ class Aws:
         for elb in results:
             for load_balancer in elb["LoadBalancers"]:
                 lb_model = models.AwsLoadBalancer.from_describe_elb(load_balancer)
-                listeners = self.describe_elb_listeners(lb_model.arn)
+                listeners = cls.describe_elb_listeners(elb_client, lb_model.arn)
                 lb_model.listeners = listeners
                 elb_finding.resources.append(lb_model)
 
