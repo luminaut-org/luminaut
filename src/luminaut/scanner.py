@@ -17,6 +17,10 @@ class Scanner:
         self.config = config
 
     def aws(self) -> list[models.ScanResult]:
+        if not self.config.aws.aws_regions:
+            logger.info("No regions configured for AWS scan. Skipping")
+            return []
+
         aws = Aws(self.config)
 
         scan_results = []
