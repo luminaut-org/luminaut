@@ -249,7 +249,7 @@ class Aws:
         self,
         resource_type: models.ResourceType,
         resource_id: str,
-    ) -> (list[models.AwsConfigItem], list[models.TimelineEvent]):
+    ) -> tuple[list[models.AwsConfigItem], list[models.TimelineEvent]]:
         pagination_client = self.config_client.get_paginator(
             "get_resource_config_history"
         )
