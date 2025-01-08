@@ -71,8 +71,10 @@ class Luminaut:
         return []
 
     def query_shodan(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
-        if self.config.shodan.enabled:
-            return [self.scanner.shodan(scan_result.ip)]
+        if self.config.shodan.enabled and (
+            shodan_finding := self.scanner.shodan(scan_result.ip)
+        ):
+            return [shodan_finding]
         return []
 
     def run_whatweb(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
