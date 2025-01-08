@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
-from typing import Any, BinaryIO, Self
+from typing import Any, BinaryIO, ClassVar, Self
+from typing import Protocol as TypingProtocol
 
 from rich.emoji import Emoji
 
@@ -22,6 +23,13 @@ def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]
     return tags
 
 
+class IsDataclass(TypingProtocol):
+    # From: https://github.com/microsoft/pyright/issues/629
+    # checking for this attribute seems to currently be
+    # the most reliable way to ascertain that something is a dataclass
+    __dataclass_fields__: ClassVar[dict]
+
+
 @dataclass
 class ConfigDiff:
     added: dict[str, Any] = field(default_factory=dict)
@@ -33,14 +41,22 @@ class ConfigDiff:
 
 
 def generate_config_diff(
-    first: type[dataclass] | dict[str, Any], second: type[dataclass] | dict[str, Any]
+    first: IsDataclass | dict[str, Any], second: IsDataclass | dict[str, Any]
 ) -> ConfigDiff:
     diff = ConfigDiff()
 
-    if not isinstance(first, dict):
-        first = asdict(first)
-    if not isinstance(second, dict):
-        second = asdict(second)
+    if hasattr(first, "__dataclass_fields__"):
+        first = asdict(first)  # type: ignore
+    elif not isinstance(first, dict):
+        raise ValueError(
+            f"First argument must be a dataclass or dict, not {type(first)}"
+        )
+    if hasattr(second, "__dataclass_fields__"):
+        second = asdict(second)  # type: ignore
+    elif not isinstance(second, dict):
+        raise ValueError(
+            f"Second argument must be a dataclass or dict, not {type(second)}"
+        )
 
     first_keys = set(first.keys())
     second_keys = set(second.keys())
