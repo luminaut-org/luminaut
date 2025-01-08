@@ -42,7 +42,7 @@ class Whatweb:
 
     def build_data_class(self) -> models.Whatweb:
         json_data = self.read_json(self.json_file)
-        if json_data and not isinstance(json_data, list):
+        if not isinstance(json_data, list):
             raise ValueError(
                 "Expected WhatWeb data as a list. Please report this issue."
             )
