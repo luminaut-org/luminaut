@@ -2,7 +2,7 @@
 
 Casting light on shadow cloud deployments. Detect exposure of resources deployed in AWS.
 
-![Luminaut Picture](.github/images/luminaut_readme_300.png)
+![Luminaut Picture](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_readme_300.png)
 
 ![Under Development](https://img.shields.io/badge/Status-Under%20Development-orange)
 ![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fluminaut-org%2Fluminaut%2Frefs%2Fheads%2Fmain%2Fpyproject.toml)
