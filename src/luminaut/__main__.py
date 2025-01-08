@@ -84,11 +84,11 @@ def load_config(config_file: Path) -> models.LuminautConfig:
 
 
 def main(args: list[str] | None = None) -> None:
-    args = configure_cli_args(args)
-    configure_logging(args.log, args.verbose)
+    cli = configure_cli_args(args)
+    configure_logging(cli.log, cli.verbose)
     config = models.LuminautConfig()
-    if args.config and args.config.exists():
-        config = load_config(args.config)
+    if cli.config and cli.config.exists():
+        config = load_config(cli.config)
     luminaut = Luminaut(config)
     luminaut.run()
 
