@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import orjson as json
@@ -71,19 +72,26 @@ class TestWhatweb(unittest.TestCase):
         self.assertFalse(brief_file.exists())
         self.assertFalse(json_file.exists())
 
-    def test_build_data_class(self):
-        json_data = {"key": "value"}
+    def prep_whatweb_data(self, json_data: Any):
         brief_data = "foo"
-
         with self.whatweb.json_file.open("wb") as f:
             f.write(json.dumps(json_data))
-
         with self.whatweb.brief_file.open("w") as f:
             f.write(brief_data)
+        return brief_data, json_data
+
+    def test_build_data_class(self):
+        brief_data, json_data = self.prep_whatweb_data([{"key": "value"}])
 
         self.assertIsInstance(self.whatweb.build_data_class(), models.Whatweb)
         self.assertEqual(self.whatweb.build_data_class().summary_text, brief_data)
         self.assertEqual(self.whatweb.build_data_class().json_data, json_data)
+
+    def test_build_data_class_invalid_data(self):
+        self.prep_whatweb_data({"key": "value"})
+
+        with self.assertRaises(ValueError):
+            self.whatweb.build_data_class()
 
     def test_format_text(self):
         whatweb_model = models.Whatweb(
