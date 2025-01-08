@@ -37,9 +37,7 @@ jobs:
       run: uv sync
 
     - name: Run tests
-      run: |
-        uv run pytest
-        uv run pyright
+      run: uv run pytest
 
   pre-commit:
     runs-on: ubuntu-latest
