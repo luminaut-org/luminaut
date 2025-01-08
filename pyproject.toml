@@ -72,3 +72,6 @@ include = [
     "tests"
 ]
 pythonVersion = "3.11"
+# For detecting venv with pyright via pre-commit
+venvPath = "."
+venv = ".venv"
