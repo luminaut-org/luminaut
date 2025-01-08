@@ -23,13 +23,19 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install uv
-      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      id: setup-uv
+      uses: astral-sh/setup-uv@887a942a15af3a7626099df99e897a18d9e5ab3a
+      with:
+        enable-cache: true
+        cache-dependency-glob: |
+          **/uv.lock
+          **/requirements*.txt
+          **/pyproject.toml
 
     - uses: actions/setup-python@v5
       id: setup-python
       with:
         python-version: "3.12"
-        cache: 'pip'
 
     - name: Install dependencies
       run: uv sync
