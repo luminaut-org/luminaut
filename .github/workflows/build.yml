@@ -25,10 +25,10 @@ jobs:
       uses: astral-sh/setup-uv@v5
       with:
         enable-cache: true
-      cache-dependency-glob: |
-        **/uv.lock
-        **/requirements*.txt
-        **/pyproject.toml
+        cache-dependency-glob: |
+          **/uv.lock
+          **/requirements*.txt
+          **/pyproject.toml
 
     - uses: actions/setup-python@v5
       id: setup-python
