@@ -316,7 +316,7 @@ class Aws:
 
 
 class LoadBalancers:
-    def __init__(self, region: str = None):
+    def __init__(self, region: str | None = None):
         self.elb_client = boto3.client("elbv2", region_name=region)
 
     def detect_elb_attachment(
