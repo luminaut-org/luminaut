@@ -2,7 +2,7 @@ import logging
 from collections.abc import Generator
 from dataclasses import asdict
 from datetime import UTC
-from typing import Any
+from typing import Any, cast
 
 import boto3
 import orjson as json
@@ -150,7 +150,7 @@ class Aws:
         return models.ScanFindings(
             tool="AWS Config",
             emoji_name="gear",
-            resources=resource_history,
+            resources=cast(models.FindingResources, resource_history),
             events=events,
         )
 

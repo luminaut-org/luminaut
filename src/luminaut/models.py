@@ -1,6 +1,6 @@
 import json
 import tomllib
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, MutableSequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
@@ -776,8 +776,10 @@ class TimelineEvent:
         return f"[green]{self.timestamp.astimezone(UTC)}[/green] {self.event_type}: [magenta]{self.message}[/magenta] ({self.resource_type} {self.resource_id})\n"
 
 
-FindingServices = list[NmapPortServices | ShodanService | Whatweb]
-FindingResources = list[AwsNetworkInterface | AwsConfigItem | SecurityGroup | Hostname]
+FindingServices = MutableSequence[NmapPortServices | ShodanService | Whatweb]
+FindingResources = MutableSequence[
+    AwsNetworkInterface | AwsConfigItem | SecurityGroup | Hostname
+]
 
 
 @dataclass
