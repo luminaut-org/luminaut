@@ -37,11 +37,11 @@ def configure_logging(log_file: Path, verbose: bool) -> None:
     file_log_format = logging.Formatter(
         "%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s"
     )
-    log_file = logging.FileHandler(log_file)
-    log_file.setLevel(logging.DEBUG)
-    log_file.setFormatter(file_log_format)
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(file_log_format)
 
-    logger.addHandler(log_file)
+    logger.addHandler(file_handler)
 
     console_log_format = logging.Formatter(
         "%(asctime)s %(levelname)-8s %(name)-24s %(message)s"
