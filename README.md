@@ -171,6 +171,30 @@ enabled = true  # Enable the whatweb tool, requires the whatweb utility installe
 
 The source of truth for the luminaut configuration is located in `luminaut.models.LuminautConfig`.
 
+### AWS IAM Permissions
+
+Luminaut requires the following minimum permissions to run:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LuminautReadResourcePermissions",
+      "Action": [
+        "cloudtrail:LookupEvents",
+        "config:GetResourceConfigHistory",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeSecurityGroupRules",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancers"
+      ],
+      "Effect": "Allow",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
 ## Contributing
 
 If you would like to contribute to Luminaut, please follow the guidelines in the [CONTRIBUTING.md](.github/CONTRIBUTING.md) file.
