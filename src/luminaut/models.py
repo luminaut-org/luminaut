@@ -719,6 +719,10 @@ class Whatweb:
 
     @staticmethod
     def build_value_rich_text(item: dict[str, Any]) -> str:
+        item_text = ""
+        if not (plugins := item.get("plugins")):
+            return item_text
+
         plugins_to_skip = [
             "Cookies",
             "Country",
@@ -729,8 +733,8 @@ class Whatweb:
             "PasswordField",
             "X-Frame-Options",
         ]
-        item_text = ""
-        for key, value in item.get("plugins", {}).items():
+
+        for key, value in plugins.items():
             if key in plugins_to_skip:
                 continue
             item_text += f"  [orange1]{key}[/orange1]"
