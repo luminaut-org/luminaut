@@ -49,6 +49,22 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 
 ## Installation
 
+### Using python
+
+Luminaut is available on PyPI and can be installed with pip:
+
+```bash
+pip install luminaut
+```
+
+You can also download a release artifact from the [GitHub releases page](https://github.com/luminaut-org/luminaut/releases) and install it with pip.
+
+Once installed, you can run luminaut from the command line.
+
+```bash
+luminaut --help
+```
+
 ### Using docker
 
 The docker image is available on GitHub, you can pull it locally by running: 
