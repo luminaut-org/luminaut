@@ -103,6 +103,9 @@ class Aws:
                 )
         if elb_findings:
             for load_balancer in elb_findings.resources:
+                if not isinstance(load_balancer, models.AwsLoadBalancer):
+                    continue
+
                 cloudtrail_events += cloudtrail.lookup_events(
                     load_balancer.arn, models.ResourceType.ELB_LoadBalancer
                 )
