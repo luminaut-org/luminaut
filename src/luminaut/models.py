@@ -766,6 +766,9 @@ class ScanFindings:
     events: list[TimelineEvent] = field(default_factory=list)
     emoji_name: str | None = "mag"
 
+    def __bool__(self) -> bool:
+        return bool(self.services or self.resources or self.events)
+
     def build_rich_text(self) -> str:
         rich_title = f"[bold underline]{Emoji(self.emoji_name) if self.emoji_name else ''} {self.tool}[/bold underline]\n"
 
