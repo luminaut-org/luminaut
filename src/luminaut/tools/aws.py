@@ -33,7 +33,9 @@ class Aws:
         logger.info("Completed exploration of AWS region %s", region)
         return aws_exploration_results
 
-    def explore_enis(self, enis_with_public_ips, region):
+    def explore_enis(
+        self, enis_with_public_ips: list[models.AwsNetworkInterface], region: str
+    ) -> list[models.ScanResult]:
         aws_exploration_results = []
         for eni in enis_with_public_ips:
             findings = []
