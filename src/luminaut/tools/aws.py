@@ -363,9 +363,11 @@ class LoadBalancers:
         listeners = []
         for result in results:
             for listener in result["Listeners"]:
-                listeners.append(
-                    models.AwsLoadBalancerListener.from_describe_listener(listener)
+                listener_model = models.AwsLoadBalancerListener.from_describe_listener(
+                    listener
                 )
+                listener_model.tags = self.get_tags(listener.arn)
+                listeners.append(listener_model)
 
         return listeners
 

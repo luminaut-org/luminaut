@@ -295,6 +295,7 @@ class AwsLoadBalancerListener:
     arn: str
     port: int
     protocol: str
+    tags: dict[str, str] = field(default_factory=dict)
 
     def build_rich_text(self):
         return f"[blue]{self.port}[/blue]/[magenta]{self.protocol}[/magenta]"
