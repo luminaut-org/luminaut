@@ -94,6 +94,9 @@ class Aws:
             )
         if security_group_finding.resources:
             for security_group in security_group_finding.resources:
+                if not isinstance(security_group, models.SecurityGroup):
+                    continue
+
                 cloudtrail_events += cloudtrail.lookup_events(
                     security_group.group_id,
                     models.ResourceType.EC2_SecurityGroup,
