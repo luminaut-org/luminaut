@@ -730,7 +730,7 @@ class Whatweb:
             "X-Frame-Options",
         ]
         item_text = ""
-        for key, value in item.get("plugins").items():
+        for key, value in item.get("plugins", {}).items():
             if key in plugins_to_skip:
                 continue
             item_text += f"  [orange1]{key}[/orange1]"
