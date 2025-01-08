@@ -329,12 +329,13 @@ class TestCloudTrail(unittest.TestCase):
             "foo": "bar",
         }
         cloudtrail = CloudTrail(region="us-east-1")
-        cloudtrail._lookup = lambda x, y: [
+        cloudtrail._lookup = lambda resource_id, supported_events: (
             (
                 cloudtrail_event,
                 cloudtrail.supported_ec2_instance_events[cloudtrail_event["EventName"]],
             )
-        ]
+            for _ in [0]
+        )
 
         events = cloudtrail.lookup_events("i-1", models.ResourceType.EC2_Instance)
 
