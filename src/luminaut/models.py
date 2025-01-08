@@ -300,7 +300,9 @@ class SecurityGroup:
     rules: list[SecurityGroupRule] = field(default_factory=list)
 
     def build_rich_text(self):
-        rich_text = f"[orange1]{self.group_name}[/orange1] ({self.group_id})\n"
+        rich_text = (
+            f"[dark_orange3]{self.group_name}[/dark_orange3] ({self.group_id})\n"
+        )
         for rule in self.rules:
             if hasattr(rule, "build_rich_text"):
                 rich_text += rule.build_rich_text()
@@ -345,7 +347,7 @@ class AwsLoadBalancer:
     tags: dict[str, str] = field(default_factory=dict)
 
     def build_rich_text(self) -> str:
-        headline = f"[orange1]{self.resource_id}[/orange1] {self.scheme} ({self.state}) Created: {self.created_time}\n"
+        headline = f"[dark_orange3]{self.resource_id}[/dark_orange3] {self.scheme} ({self.state}) Created: {self.created_time}\n"
         listener_details = []
         for listener in self.listeners:
             listener_details.append(listener.build_rich_text())
@@ -402,13 +404,13 @@ class AwsNetworkInterface:
         return self.tags
 
     def build_rich_text(self) -> str:
-        rich_text = f"[orange1]{self.resource_id}[/orange1] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
+        rich_text = f"[dark_orange3]{self.resource_id}[/dark_orange3] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
         if self.ec2_instance_id:
-            rich_text += f"EC2: [orange1]{self.ec2_instance_id}[/orange1] attached at [none]{self.attachment_time}\n"
+            rich_text += f"EC2: [dark_orange3]{self.ec2_instance_id}[/dark_orange3] attached at [none]{self.attachment_time}\n"
         if self.security_groups:
             security_group_list = ", ".join(
                 [
-                    f"[orange1]{sg.group_name}[/orange1] ({sg.group_id})"
+                    f"[dark_orange3]{sg.group_name}[/dark_orange3] ({sg.group_id})"
                     for sg in self.security_groups
                 ]
             )
@@ -667,7 +669,9 @@ class Hostname:
     timestamp: datetime | None = None
 
     def build_rich_text(self) -> str:
-        return f"  Hostname: [orange1]{self.name}[/orange1] ({self.timestamp})\n"
+        return (
+            f"  Hostname: [dark_orange3]{self.name}[/dark_orange3] ({self.timestamp})\n"
+        )
 
 
 @dataclass
@@ -737,7 +741,7 @@ class Whatweb:
         for key, value in plugins.items():
             if key in plugins_to_skip:
                 continue
-            item_text += f"  [orange1]{key}[/orange1]"
+            item_text += f"  [dark_orange3]{key}[/dark_orange3]"
             value_text = ""
             if value:
                 if strings := value.get("string", []):
