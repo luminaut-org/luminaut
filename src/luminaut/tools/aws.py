@@ -47,7 +47,7 @@ class Aws:
             security_group_finding = self.explore_security_groups(eni.security_groups)
             findings.append(security_group_finding)
 
-            elb_attachment = self.detect_elb_attachment(self.elb_client, eni)
+            elb_attachment = LoadBalancers().detect_elb_attachment(self.elb_client, eni)
             if elb_attachment:
                 findings.append(elb_attachment)
 
@@ -75,51 +75,6 @@ class Aws:
         logger.info("Completed exploration of AWS region %s", region)
 
         return aws_exploration_results
-
-    @staticmethod
-    def describe_elb_listeners(
-        elb_client: BotoClient, load_balancer_arn: str
-    ) -> list[models.AwsLoadBalancerListener]:
-        paginator = elb_client.get_paginator("describe_listeners")
-        results = paginator.paginate(LoadBalancerArn=load_balancer_arn)
-        listeners = []
-        for result in results:
-            for listener in result["Listeners"]:
-                listeners.append(
-                    models.AwsLoadBalancerListener.from_describe_listener(listener)
-                )
-
-        return listeners
-
-    @classmethod
-    def detect_elb_attachment(
-        cls, elb_client: BotoClient, eni: models.AwsNetworkInterface
-    ) -> models.ScanFindings | None:
-        """This detects if the ELB name found in the ENI description matches an existing load balancer."""
-        if not eni.description or not eni.description.startswith("ELB "):
-            return None
-
-        try:
-            elb_name = eni.description[3:].split("/")[1]
-        except IndexError:
-            logger.warning("Could not extract ELB name from ENI description")
-            return None
-
-        paginator = elb_client.get_paginator("describe_load_balancers")
-        results = paginator.paginate(Names=[elb_name])
-        elb_finding = models.ScanFindings(
-            tool="AWS Elastic Load Balancers",
-            emoji_name="cloud",
-        )
-
-        for elb in results:
-            for load_balancer in elb["LoadBalancers"]:
-                lb_model = models.AwsLoadBalancer.from_describe_elb(load_balancer)
-                listeners = cls.describe_elb_listeners(elb_client, lb_model.arn)
-                lb_model.listeners = listeners
-                elb_finding.resources.append(lb_model)
-
-        return elb_finding
 
     @staticmethod
     def add_cloudtrail(
@@ -349,6 +304,56 @@ class Aws:
                     security_group.rules.append(sg_rule)
 
         return security_group
+
+
+class LoadBalancers:
+    def __init__(self, region: str = None):
+        self.elb_client = boto3.client("elbv2", region_name=region)
+
+    @classmethod
+    def detect_elb_attachment(
+        cls, elb_client: BotoClient, eni: models.AwsNetworkInterface
+    ) -> models.ScanFindings | None:
+        """This detects if the ELB name found in the ENI description matches an existing load balancer."""
+        if not eni.description or not eni.description.startswith("ELB "):
+            return None
+
+        try:
+            elb_name = eni.description[3:].split("/")[1]
+        except IndexError:
+            logger.warning("Could not extract ELB name from ENI description")
+            return None
+
+        paginator = elb_client.get_paginator("describe_load_balancers")
+        results = paginator.paginate(Names=[elb_name])
+        elb_finding = models.ScanFindings(
+            tool="AWS Elastic Load Balancers",
+            emoji_name="cloud",
+        )
+
+        for elb in results:
+            for load_balancer in elb["LoadBalancers"]:
+                lb_model = models.AwsLoadBalancer.from_describe_elb(load_balancer)
+                listeners = cls.describe_elb_listeners(elb_client, lb_model.arn)
+                lb_model.listeners = listeners
+                elb_finding.resources.append(lb_model)
+
+        return elb_finding
+
+    @staticmethod
+    def describe_elb_listeners(
+        elb_client: BotoClient, load_balancer_arn: str
+    ) -> list[models.AwsLoadBalancerListener]:
+        paginator = elb_client.get_paginator("describe_listeners")
+        results = paginator.paginate(LoadBalancerArn=load_balancer_arn)
+        listeners = []
+        for result in results:
+            for listener in result["Listeners"]:
+                listeners.append(
+                    models.AwsLoadBalancerListener.from_describe_listener(listener)
+                )
+
+        return listeners
 
 
 class ExtractEventsFromConfigDiffs:
