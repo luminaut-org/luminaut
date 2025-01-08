@@ -250,7 +250,9 @@ class SecurityGroupRule:
         return f"  [green]{self.target}[/green] {self.direction} [blue]{self.from_port}[/blue] to [blue]{self.to_port}[/blue] [magenta]{self.protocol}[/magenta] ({self.rule_id}: {self.description})\n"
 
     def is_permissive(self) -> bool:
-        if self.target_type == SecurityGroupRuleTargetType.CIDR:
+        if self.target_type == SecurityGroupRuleTargetType.CIDR and isinstance(
+            self.target, str
+        ):
             ip = ip_address(self.target.split("/")[0])
             return ip.is_global or ip in QUAD_ZERO_ADDRESSES
 
