@@ -1,7 +1,7 @@
 [project]
 name = "luminaut"
 dynamic = ["version"]
-description = "Casting light on shadow cloud deplouments"
+description = "Casting light on shadow cloud deployments"
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
