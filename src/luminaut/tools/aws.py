@@ -339,11 +339,21 @@ class LoadBalancers:
         for elb in results:
             for load_balancer in elb["LoadBalancers"]:
                 lb_model = models.AwsLoadBalancer.from_describe_elb(load_balancer)
+                lb_model.tags = self.get_tags(lb_model.arn)
                 listeners = self.describe_elb_listeners(lb_model.arn)
                 lb_model.listeners = listeners
                 elb_finding.resources.append(lb_model)
 
         return elb_finding
+
+    def get_tags(self, arn: str) -> dict[str, str]:
+        tags = {}
+        resource_tags = self.elb_client.describe_tags(ResourceArns=[arn])
+        for tag_description in resource_tags["TagDescriptions"]:
+            for tag in tag_description["Tags"]:
+                tags[tag["Key"]] = tag["Value"]
+
+        return tags
 
     def describe_elb_listeners(
         self, load_balancer_arn: str

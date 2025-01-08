@@ -323,6 +323,7 @@ class AwsLoadBalancer:
     security_groups: list[SecurityGroup] = field(default_factory=list)
     subnets: list[str] = field(default_factory=list)
     listeners: list[AwsLoadBalancerListener] = field(default_factory=list)
+    tags: dict[str, str] = field(default_factory=dict)
 
     def build_rich_text(self) -> str:
         headline = f"[orange1]{self.resource_id}[/orange1] {self.scheme} ({self.state}) Created: {self.created_time}\n"

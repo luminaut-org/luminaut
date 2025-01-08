@@ -208,7 +208,8 @@ Luminaut requires the following minimum permissions to run:
         "ec2:DescribeNetworkInterfaces",
         "ec2:DescribeSecurityGroupRules",
         "elasticloadbalancing:DescribeListeners",
-        "elasticloadbalancing:DescribeLoadBalancers"
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeTags"
       ],
       "Effect": "Allow",
       "Resource": "*"
