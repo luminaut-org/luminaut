@@ -34,4 +34,5 @@ def test_nmap():
     assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
     assert ip_addr == nmap_results.ip
     assert "nmap" == nmap_results.findings[0].tool
+    assert isinstance(nmap_results.findings[0].services[0], models.NmapPortServices)
     assert "foo" == nmap_results.findings[0].services[0].name
