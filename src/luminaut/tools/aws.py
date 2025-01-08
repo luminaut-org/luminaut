@@ -28,7 +28,12 @@ class Aws:
         logger.info("Exploring region %s", region)
 
         enis_with_public_ips = self._fetch_enis_with_public_ips()
+        aws_exploration_results = self.explore_enis(enis_with_public_ips, region)
 
+        logger.info("Completed exploration of AWS region %s", region)
+        return aws_exploration_results
+
+    def explore_enis(self, enis_with_public_ips, region):
         aws_exploration_results = []
         for eni in enis_with_public_ips:
             findings = []
@@ -70,9 +75,6 @@ class Aws:
                 findings=findings,
             )
             aws_exploration_results.append(eni_exploration)
-
-        logger.info("Completed exploration of AWS region %s", region)
-
         return aws_exploration_results
 
     @staticmethod
