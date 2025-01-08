@@ -4,6 +4,16 @@ dynamic = ["version"]
 description = "Casting light on shadow cloud deplouments"
 readme = "README.md"
 requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Security",
+    "Topic :: Utilities",
+]
 dependencies = [
     "boto3~=1.35.53",
     "orjson~=3.10.12",
