@@ -32,10 +32,16 @@ class Scanner:
         logger.info("Completed AWS scan of all specified regions.")
         return scan_results
 
-    def nmap(self, ip_address: str) -> models.ScanResult:
-        logger.info("Running nmap against %s", ip_address)
+    def nmap(
+        self, ip_address: str, ports: list[str] | None = None
+    ) -> models.ScanResult:
+        port_list = ",".join(ports) if ports else None
+        logger.info("Running nmap against %s with ports: %s", ip_address, port_list)
+
         nmap = nmap3.Nmap()
         nmap_args = "--version-light -Pn"
+        if port_list:
+            nmap_args += f" -p {port_list}"
         try:
             result = nmap.nmap_version_detection(
                 target=ip_address,

@@ -53,7 +53,7 @@ class LuminautCore(unittest.TestCase):
         self.config.nmap = models.LuminautConfigTool(enabled=False)
         empty_scan_results = models.ScanResult(ip="10.0.0.1", findings=[])
         scan_findings = [models.ScanFindings(tool="unittest")]
-        self.luminaut.scanner.nmap = lambda ip_address: models.ScanResult(
+        self.luminaut.scanner.nmap = lambda ip_address, ports=None: models.ScanResult(
             ip="10.0.0.1", findings=scan_findings
         )
 
