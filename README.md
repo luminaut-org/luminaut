@@ -192,7 +192,8 @@ enabled = true  # Enable the AWS tool, requires the configuration of AWS credent
 [tool.aws.config]
 enabled = false  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history. Disabled by default.
 
-# The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time
+# The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time.
+# You can specify either the start, end, both, or None to influence the time period of the scan as desired.
 
 # start_time = 2025-01-01T00:00:00Z  # The start time for the AWS Config scan. Defaults to no start time
 # end_time = 2025-01-02T00:00:00Z  # The end time for the AWS Config scan. Defaults to no end time
@@ -201,6 +202,7 @@ enabled = false  # Enables the scanning of AWS config. This can take a long time
 enabled = true  # Enables the collection of CloudTrail events related to discovered resources.
 
 # The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time
+# You can specify either the start, end, both, or None to influence the time period of the scan as desired.
 
 # start_time = 2025-01-01T00:00:00Z  # The start time for the AWS Config scan. Defaults to no start time
 # end_time = 2025-01-02T00:00:00Z  # The end time for the AWS Config scan. Defaults to no end time
