@@ -914,6 +914,18 @@ class ScanResult:
             ScanTarget(ip_address=self.ip, port=8443, schema="https"),
             ScanTarget(ip_address=self.ip, port=8888, schema="http"),
         ]
+        if sg_ports := self.generate_scan_targets_from_security_groups(default_ports):
+            ports.update(sg_ports)
+
+        if elb_ports := self.generate_scan_targets_from_elb_listeners():
+            ports.update(elb_ports)
+
+        return ports
+
+    def generate_scan_targets_from_security_groups(
+        self, default_ports: Iterable[ScanTarget]
+    ) -> set[ScanTarget]:
+        ports = set()
         if security_group_rules := self.get_security_group_rules():
             for sg_rule in security_group_rules:
                 if sg_rule.protocol in (Protocol.ICMP, Protocol.ICMPv6):
@@ -926,10 +938,6 @@ class ScanResult:
                         for x in range(sg_rule.from_port, sg_rule.to_port + 1)
                     }
                 )
-
-        if elb_ports := self.generate_scan_targets_from_elb_listeners():
-            ports.update(elb_ports)
-
         return ports
 
     def generate_scan_targets_from_elb_listeners(self) -> set[ScanTarget]:
