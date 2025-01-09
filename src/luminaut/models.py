@@ -900,9 +900,9 @@ class ScanResult:
         return resources
 
     def generate_ip_port_targets(self) -> list[str]:
-        return [str(x) for x in self.generate_port_targets()]
+        return [str(x) for x in self.generate_scan_targets()]
 
-    def generate_port_targets(self) -> set[ScanTarget]:
+    def generate_scan_targets(self) -> set[ScanTarget]:
         ports = set()
         default_ports = [
             ScanTarget(ip_address=self.ip, port=80, schema="http"),
