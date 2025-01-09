@@ -105,6 +105,8 @@ Luminaut requires access to AWS. The commands in this documentation assumes that
 No arguments are required to run luminaut. The default is to look for a `luminaut.toml` file in the same directory
 and run available tools to start detecting resources.
 
+The default configuration options are shown in the [Configuration](#configuration) section.
+
 Luminaut help is available with the argument `--help`.
 
 ```bash
@@ -171,17 +173,20 @@ The configuration file is a TOML file with the following structure and defaults:
 ```toml
 [report]
 console = true  # Rich STDOUT console output
-json = false  # JSON lines output, written to STDOUT.
-json_file = "luminaut.json"  # JSON lines output, written to a file. If omitted will write to stdout
-html = false  # HTML output, written to a file. Disabled by default.
+
+html = false  # Save the console output to an HTML file. Disabled by default.
 html_file = "luminaut.html"  # Path is required if html is true
+
+json = false  # JSON lines output, written to STDOUT. Disabled by default.
+json_file = "luminaut.json"  # JSON lines output, written to a file. If omitted will write to stdout
+
 timeline = false  # Timeline output, written to a CSV file. Disabled by default.
 timeline_file = "luminaut_timeline.csv"  # Path is required if timeline is true
 
 [tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
-aws_regions = []  # The AWS regions to scan. Defaults to the region set in your AWS profile.
-config.enabled = true  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history.
+aws_regions = []  # The AWS regions to scan. Defaults to the region set in your AWS profile if none is supplied.
+config.enabled = false  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history. Disabled by default.
 cloudtrail.enabled = true  # Enables the collection of CloudTrail events related to discovered resources.
 
 [[tool.aws.allowed_resources]]
@@ -193,18 +198,18 @@ type = "AWS::EC2::NetworkInterface"  # The resource type, as specified by AWS
 id = "eni-1234567890abcdef0"  # The resource ID
 
 # Skip resources that match any of the specified tags. The key and value are case-sensitive.
-# This is applied before, and separately from, the checks of a type and id.
+# This is applied before, and separately from, the checks of a type and id. This is also applied across all scanned regions.
 tags = { "luminaut" = "ignore", "reviewed" = "true" }
 
 [tool.nmap]
-enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path.
+enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path. Enabled by default but will not run if nmap is not found on the path.
 
 [tool.shodan]
-enabled = false  # Enable the shodan tool, requires the shodan API key to be set in the configuration.
+enabled = true  # Enable the shodan tool, requires the shodan API key to be set in the configuration. Enabled by default, but will not run without an API key.
 api_key = ""  # Shodan API key. If this is populated, treat the configuration file as a secret.
 
 [tool.whatweb]
-enabled = true  # Enable the whatweb tool, requires the whatweb utility installed and on the system path.
+enabled = true  # Enable the whatweb tool, requires the whatweb utility installed and on the system path. Enabled by default, but will not run if whatweb is not found on the path.
 ```
 
 The source of truth for the luminaut configuration is located in `luminaut.models.LuminautConfig`.
