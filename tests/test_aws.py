@@ -92,7 +92,9 @@ class AwsTool(unittest.TestCase):
         return aws
 
     def test_explore_region(self):
-        aws = self.aws_client_mock_setup()
+        config = models.LuminautConfig()
+        config.aws.config.enabled = True
+        aws = self.aws_client_mock_setup(config)
 
         exploration = aws.explore_region("us-east-1")
 
