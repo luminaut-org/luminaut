@@ -624,6 +624,10 @@ class CloudTrail:
         },
     }
     supported_ec2_eni_events = {
+        "CreateNetworkInterface": {
+            "event_type": models.TimelineEventType.RESOURCE_CREATED,
+            "message": "Network interface created",
+        },
         "RunInstances": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
             "message": "Instance created",
