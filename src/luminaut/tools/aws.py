@@ -259,11 +259,14 @@ class Aws:
         pagination_client = self.config_client.get_paginator(
             "get_resource_config_history"
         )
-        pages = pagination_client.paginate(
-            resourceType=str(resource_type),
-            resourceId=resource_id,
-            chronologicalOrder="Forward",
-        )
+
+        paginate_kwargs = {
+            "resourceType": str(resource_type),
+            "resourceId": resource_id,
+            "chronologicalOrder": "Forward",
+        }
+
+        pages = pagination_client.paginate(**paginate_kwargs)
 
         resources = []
         events = []
