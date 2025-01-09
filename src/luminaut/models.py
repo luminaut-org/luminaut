@@ -889,11 +889,16 @@ class ScanResult:
                 elif sg_rule.protocol == Protocol.ALL:
                     ports.update(default_ports)
                 ports.update({x for x in range(sg_rule.from_port, sg_rule.to_port + 1)})
-        self.get_ports_from_elb_listener(ports)
+
+        if elb_ports := self.get_ports_from_elb_listener():
+            ports.update(x[0] for x in elb_ports)
+
         return ports
 
-    def get_ports_from_elb_listener(self, ports):
+    def get_ports_from_elb_listener(self) -> set[tuple[int, str]]:
+        ports = set()
         if load_balancers := self.get_resources_by_type(AwsLoadBalancer):
             for elb in load_balancers:
                 for listener in elb.listeners:
-                    ports.add(listener.port)
+                    ports.add((listener.port, listener.protocol))
+        return ports
