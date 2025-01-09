@@ -143,14 +143,29 @@ class LuminautConfigAwsAllowedResource:
 
 
 @dataclass
+class LuminautConfigtoolAwsEvents(LuminautConfigTool):
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> Self:
+        aws_events_config = super().from_dict(config)
+        if start_time := config.get("start_time"):
+            aws_events_config.start_time = datetime.fromisoformat(start_time)
+        if end_time := config.get("end_time"):
+            aws_events_config.end_time = datetime.fromisoformat(end_time)
+        return aws_events_config
+
+
+@dataclass
 class LuminautConfigToolAws(LuminautConfigTool):
     aws_profile: str | None = None
     aws_regions: list[str] | None = field(default_factory=list)
     config: LuminautConfigTool = field(
-        default_factory=lambda: LuminautConfigTool(enabled=False)
+        default_factory=lambda: LuminautConfigtoolAwsEvents(enabled=False)
     )
     cloudtrail: LuminautConfigTool = field(
-        default_factory=lambda: LuminautConfigTool(enabled=True)
+        default_factory=lambda: LuminautConfigtoolAwsEvents(enabled=True)
     )
     allowed_resources: list[LuminautConfigAwsAllowedResource] = field(
         default_factory=list
