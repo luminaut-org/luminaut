@@ -17,17 +17,18 @@ class Scanner:
         self.config = config
 
     def aws(self) -> list[models.ScanResult]:
-        if not self.config.aws.aws_regions:
-            logger.info("No regions configured for AWS scan. Skipping")
-            return []
-
         aws = Aws(self.config)
 
         scan_results = []
-        logger.info("Scanning AWS regions: %s", ", ".join(self.config.aws.aws_regions))
+        regions = self.config.aws.aws_regions
 
-        for region in self.config.aws.aws_regions:
-            scan_results.extend(aws.explore_region(region))
+        if regions:
+            logger.info("Scanning AWS regions: %s", ", ".join(regions))
+            for region in regions:
+                scan_results.extend(aws.explore_region(region))
+        else:
+            logger.info("Scanning default AWS profile region")
+            scan_results.extend(aws.explore_region())
 
         logger.info("Completed AWS scan of all specified regions.")
         return scan_results

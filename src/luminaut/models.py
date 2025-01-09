@@ -145,7 +145,7 @@ class LuminautConfigAwsAllowedResource:
 @dataclass
 class LuminautConfigToolAws(LuminautConfigTool):
     aws_profile: str | None = None
-    aws_regions: list[str] | None = field(default_factory=lambda: ["us-east-1"])
+    aws_regions: list[str] | None = field(default_factory=list)
     config: LuminautConfigTool = field(
         default_factory=lambda: LuminautConfigTool(enabled=True)
     )

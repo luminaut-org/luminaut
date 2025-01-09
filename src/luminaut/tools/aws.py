@@ -20,17 +20,23 @@ class Aws:
         self.elb_client = boto3.client("elbv2")
         self.config_client = boto3.client("config")
 
-    def explore_region(self, region: str) -> list[models.ScanResult]:
+    def explore_region(self, region: str | None = None) -> list[models.ScanResult]:
         if not self.config.aws.enabled:
             return []
 
-        self.setup_client_region(region)
-        logger.info("Exploring region %s", region)
+        if region:
+            region_name = region
+        else:
+            # Use the region of the client, likely loaded from the default profile.
+            region_name: str = self.ec2_client.meta.region_name
+
+        self.setup_client_region(region_name)
+        logger.info("Exploring region %s", region_name)
 
         enis_with_public_ips = self._fetch_enis_with_public_ips()
-        aws_exploration_results = self.explore_enis(enis_with_public_ips, region)
+        aws_exploration_results = self.explore_enis(enis_with_public_ips, region_name)
 
-        logger.info("Completed exploration of AWS region %s", region)
+        logger.info("Completed exploration of AWS region %s", region_name)
         return aws_exploration_results
 
     def explore_enis(
