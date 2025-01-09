@@ -32,8 +32,10 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 - Identify permissive rules for attached security groups.
 - Scan CloudTrail history for related events to answer who, what, and when.
   - Supports querying for activity related to discovered ENI, EC2, ELB, and Security Group resources.
+  - Optionally specify a time frame to limit the scan to a specific time period.
 - Query AWS Config for resource configuration changes over time.
   - Supports scanning AWS Config history for the discovered ENI and EC2 Instance associated with the ENI.
+  - Optionally specify a time frame to limit the scan to a specific time period.
 - Skip scanning and reporting on resources based on the resource id or tag values
   - Supports skipping based on the resource id of the ENI.
 
@@ -185,9 +187,23 @@ timeline_file = "luminaut_timeline.csv"  # Path is required if timeline is true
 
 [tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
-aws_regions = []  # The AWS regions to scan. Defaults to the region set in your AWS profile if none is supplied.
-config.enabled = false  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history. Disabled by default.
-cloudtrail.enabled = true  # Enables the collection of CloudTrail events related to discovered resources.
+# aws_regions = ["us-east-1"] # The AWS regions to scan. Defaults to the region set in your AWS profile if none is supplied.
+
+[tool.aws.config]
+enabled = false  # Enables the scanning of AWS config. This can take a long time to run, as it scans all resource history. Disabled by default.
+
+# The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time
+
+# start_time = 2025-01-01T00:00:00Z  # The start time for the AWS Config scan. Defaults to no start time
+# end_time = 2025-01-02T00:00:00Z  # The end time for the AWS Config scan. Defaults to no end time
+
+[tool.aws.cloudtrail]
+enabled = true  # Enables the collection of CloudTrail events related to discovered resources.
+
+# The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time
+
+# start_time = 2025-01-01T00:00:00Z  # The start time for the AWS Config scan. Defaults to no start time
+# end_time = 2025-01-02T00:00:00Z  # The end time for the AWS Config scan. Defaults to no end time
 
 [[tool.aws.allowed_resources]]
 # This configuration allows you to skip resources based on their type, ID, or tags.
