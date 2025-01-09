@@ -85,14 +85,18 @@ class Aws:
             aws_exploration_results.append(eni_exploration)
         return aws_exploration_results
 
-    @staticmethod
     def add_cloudtrail(
+        self,
         eni: models.AwsNetworkInterface,
         security_group_finding: models.ScanFindings,
         region: str,
         elb_findings: models.ScanFindings | None = None,
     ) -> models.ScanFindings | None:
-        cloudtrail = CloudTrail(region)
+        cloudtrail = CloudTrail(
+            region,
+            scan_start_time=self.config.aws.cloudtrail.start_time,
+            scan_end_time=self.config.aws.cloudtrail.end_time,
+        )
         cloudtrail_events = cloudtrail.lookup_events(eni.resource_id, eni.resource_type)
         if eni.ec2_instance_id:
             cloudtrail_events += cloudtrail.lookup_events(
@@ -704,11 +708,16 @@ class CloudTrail:
         self, resource_id: str, supported_events: dict[str, dict[str, Any]]
     ) -> Generator[tuple[dict[str, Any], dict[str, Any]], None, None]:
         paginator = self.cloudtrail_client.get_paginator("lookup_events")
-        pagination_kwargs = {
+        pagination_kwargs: dict[str, list[dict[str, str]] | datetime] = {
             "LookupAttributes": [
                 {"AttributeKey": "ResourceName", "AttributeValue": resource_id}
             ]
         }
+        if self.scan_start_time:
+            pagination_kwargs["StartTime"] = self.scan_start_time
+        if self.scan_end_time:
+            pagination_kwargs["EndTime"] = self.scan_end_time
+
         for page in paginator.paginate(**pagination_kwargs):
             for event in page["Events"]:
                 if event.get("EventName") in supported_events:
