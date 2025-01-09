@@ -138,16 +138,26 @@ Similarly, if you'd like to enable Shodan, you will need to specify a configurat
 
 ### Usage with docker
 
-You may run luminaut with docker by mounting the configuration file and running the container. Replace `--help` with any other arguments you would like to pass to luminaut. Note that saved files, such as the log file and JSON reports, will be saved within the container. You may want to mount another volume to save the report files.
+When running with docker, we need to supply a few arguments:
+1. `-it` to run the container interactively and display the output in the terminal.
+2. `-v ~/.aws:/home/app/.aws` to mount the AWS credentials from your host machine to the container.
+3. `-e AWS_PROFILE=profile-name` to set the AWS profile to use in the container. Replace `profile-name` with the name of your AWS profile.
+4. `-v $(pwd)/configs:/app/configs` to mount the configuration file from your host machine to the container.
+5. `luminaut` to select the luminaut container.
+6. `--help` to display the help message, though replace this with your desired arguments (ie `-c disable_aws_config.toml`).
+
+Note that saved files, such as the log file and JSON reports, will be saved within the container. You may want to mount another volume to save the report files.
+
+Example commands for...
 
 Bash, zsh, and similar terminals:
 ```bash
-docker run -it -v ~/.aws:/home/app/.aws -v $(pwd)/configs:/app/configs luminaut --help
+docker run -it -v ~/.aws:/home/app/.aws -e AWS_PROFILE=profile-name -v $(pwd)/configs:/app/configs luminaut --help
 ```
 
 Powershell:
 ```powershell
-docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -v ${PWD}\configs:/app/configs luminaut --help
+docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -e AWS_PROFILE=profile-name -v ${PWD}\configs:/app/configs luminaut --help
 ```
 
 ## Configuration
