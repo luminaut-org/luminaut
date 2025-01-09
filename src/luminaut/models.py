@@ -1,6 +1,6 @@
 import json
 import tomllib
-from collections.abc import Collection, Iterable, Mapping, MutableSequence
+from collections.abc import Iterable, Mapping, MutableSequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
@@ -891,7 +891,7 @@ class ScanResult:
                     sg_rules.extend(resource.rules)
         return sg_rules
 
-    def get_resources_by_type(self, resource_type: type[T]) -> Collection[T]:
+    def get_resources_by_type(self, resource_type: type[T]) -> list[T]:
         resources = []
         for finding in self.findings:
             for resource in finding.resources:
