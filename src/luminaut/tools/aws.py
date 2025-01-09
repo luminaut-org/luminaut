@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Generator
 from dataclasses import asdict
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import boto3
@@ -260,11 +260,15 @@ class Aws:
             "get_resource_config_history"
         )
 
-        paginate_kwargs = {
+        paginate_kwargs: dict[str, str | datetime] = {
             "resourceType": str(resource_type),
             "resourceId": resource_id,
             "chronologicalOrder": "Forward",
         }
+        if self.config.aws.config.start_time:
+            paginate_kwargs["earlierTime"] = self.config.aws.config.start_time
+        if self.config.aws.config.end_time:
+            paginate_kwargs["laterTime"] = self.config.aws.config.end_time
 
         pages = pagination_client.paginate(**paginate_kwargs)
 
