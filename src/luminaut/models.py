@@ -876,22 +876,39 @@ class ScanResult:
     def generate_ip_port_targets(self) -> list[str]:
         ports = self.generate_port_targets()
 
-        targets = [f"{self.ip}:{port}" for port in ports]
+        targets = []
+        for port, protocol in ports:
+            target = f"{self.ip}:{port}"
+            if protocol:
+                target = f"{protocol.lower()}://{target}"
+            targets.append(target)
+
         return targets
 
-    def generate_port_targets(self):
+    def generate_port_targets(self) -> set[tuple[int, str]]:
         ports = set()
-        default_ports = {80, 443, 3000, 5000, 8000, 8080, 8443, 8888}
+        default_ports = {
+            (80, "http"),
+            (443, "https"),
+            (3000, "http"),
+            (5000, "http"),
+            (8000, "http"),
+            (8080, "http"),
+            (8443, "https"),
+            (8888, "http"),
+        }
         if security_group_rules := self.get_security_group_rules():
             for sg_rule in security_group_rules:
                 if sg_rule.protocol in (Protocol.ICMP, Protocol.ICMPv6):
                     continue
                 elif sg_rule.protocol == Protocol.ALL:
                     ports.update(default_ports)
-                ports.update({x for x in range(sg_rule.from_port, sg_rule.to_port + 1)})
+                ports.update(
+                    {(x, "") for x in range(sg_rule.from_port, sg_rule.to_port + 1)}
+                )
 
         if elb_ports := self.get_ports_from_elb_listener():
-            ports.update(x[0] for x in elb_ports)
+            ports.update(elb_ports)
 
         return ports
 
