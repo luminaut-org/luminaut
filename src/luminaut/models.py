@@ -147,7 +147,7 @@ class LuminautConfigToolAws(LuminautConfigTool):
     aws_profile: str | None = None
     aws_regions: list[str] | None = field(default_factory=list)
     config: LuminautConfigTool = field(
-        default_factory=lambda: LuminautConfigTool(enabled=True)
+        default_factory=lambda: LuminautConfigTool(enabled=False)
     )
     cloudtrail: LuminautConfigTool = field(
         default_factory=lambda: LuminautConfigTool(enabled=True)
