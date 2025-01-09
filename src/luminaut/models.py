@@ -783,6 +783,30 @@ class TimelineEvent:
         return f"[green]{self.timestamp.astimezone(UTC)}[/green] {self.event_type}: [magenta]{self.message}[/magenta] ({self.resource_type} {self.resource_id})\n"
 
 
+@dataclass
+class ScanTarget:
+    ip_address: str
+    port: int
+    schema: str | None = None
+
+    def __str__(self) -> str:
+        if self.schema:
+            return f"{self.schema.lower()}://{self.ip_address}:{self.port}"
+        return f"{self.ip_address}:{self.port}"
+
+    def __hash__(self) -> int:
+        return hash((self.ip_address, self.port, self.schema))
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, ScanTarget):
+            return False
+        return (self.ip_address, self.port, self.schema) == (
+            other.ip_address,
+            other.port,
+            other.schema,
+        )
+
+
 FindingServices = MutableSequence[NmapPortServices | ShodanService | Whatweb]
 FindingResources = MutableSequence[
     AwsConfigItem | AwsLoadBalancer | AwsNetworkInterface | SecurityGroup | Hostname
@@ -876,29 +900,20 @@ class ScanResult:
         return resources
 
     def generate_ip_port_targets(self) -> list[str]:
-        ports = self.generate_port_targets()
+        return [str(x) for x in self.generate_port_targets()]
 
-        targets = []
-        for port, protocol in ports:
-            target = f"{self.ip}:{port}"
-            if protocol:
-                target = f"{protocol.lower()}://{target}"
-            targets.append(target)
-
-        return targets
-
-    def generate_port_targets(self) -> set[tuple[int, str]]:
+    def generate_port_targets(self) -> set[ScanTarget]:
         ports = set()
-        default_ports = {
-            (80, "http"),
-            (443, "https"),
-            (3000, "http"),
-            (5000, "http"),
-            (8000, "http"),
-            (8080, "http"),
-            (8443, "https"),
-            (8888, "http"),
-        }
+        default_ports = [
+            ScanTarget(ip_address=self.ip, port=80, schema="http"),
+            ScanTarget(ip_address=self.ip, port=443, schema="https"),
+            ScanTarget(ip_address=self.ip, port=3000, schema="http"),
+            ScanTarget(ip_address=self.ip, port=5000, schema="http"),
+            ScanTarget(ip_address=self.ip, port=8000, schema="http"),
+            ScanTarget(ip_address=self.ip, port=8080, schema="http"),
+            ScanTarget(ip_address=self.ip, port=8443, schema="https"),
+            ScanTarget(ip_address=self.ip, port=8888, schema="http"),
+        ]
         if security_group_rules := self.get_security_group_rules():
             for sg_rule in security_group_rules:
                 if sg_rule.protocol in (Protocol.ICMP, Protocol.ICMPv6):
@@ -906,7 +921,10 @@ class ScanResult:
                 elif sg_rule.protocol == Protocol.ALL:
                     ports.update(default_ports)
                 ports.update(
-                    {(x, "") for x in range(sg_rule.from_port, sg_rule.to_port + 1)}
+                    {
+                        ScanTarget(ip_address=self.ip, port=x)
+                        for x in range(sg_rule.from_port, sg_rule.to_port + 1)
+                    }
                 )
 
         if elb_ports := self.get_ports_from_elb_listener():
@@ -914,10 +932,16 @@ class ScanResult:
 
         return ports
 
-    def get_ports_from_elb_listener(self) -> set[tuple[int, str]]:
+    def get_ports_from_elb_listener(self) -> set[ScanTarget]:
         ports = set()
         if load_balancers := self.get_resources_by_type(AwsLoadBalancer):
             for elb in load_balancers:
                 for listener in elb.listeners:
-                    ports.add((listener.port, listener.protocol))
+                    ports.add(
+                        ScanTarget(
+                            ip_address=self.ip,
+                            port=listener.port,
+                            schema=listener.protocol.lower(),
+                        )
+                    )
         return ports
