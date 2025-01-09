@@ -1,16 +1,17 @@
 import json
 import tomllib
-from collections.abc import Iterable, Mapping, MutableSequence
+from collections.abc import Collection, Iterable, Mapping, MutableSequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar, Self
+from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
 
 from rich.emoji import Emoji
 
+T = TypeVar("T")
 IPAddress = IPv4Address | IPv6Address
 QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
 
@@ -864,6 +865,14 @@ class ScanResult:
                     sg_rules.extend(resource.rules)
         return sg_rules
 
+    def get_resources_by_type(self, resource_type: type[T]) -> Collection[T]:
+        resources = []
+        for finding in self.findings:
+            for resource in finding.resources:
+                if isinstance(resource, resource_type):
+                    resources.append(resource)
+        return resources
+
     def generate_ip_port_targets(self) -> list[str]:
         ports = self.generate_port_targets()
 
@@ -880,4 +889,8 @@ class ScanResult:
                 elif sg_rule.protocol == Protocol.ALL:
                     ports.update(default_ports)
                 ports.update({x for x in range(sg_rule.from_port, sg_rule.to_port + 1)})
+        if load_balancers := self.get_resources_by_type(AwsLoadBalancer):
+            for elb in load_balancers:
+                for listener in elb.listeners:
+                    ports.add(listener.port)
         return ports
