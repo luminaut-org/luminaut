@@ -521,6 +521,36 @@ class CloudTrailEventMessageFormatter:
         return ". Allow: " + ", ".join(added_rules)
 
     @staticmethod
+    def format_sg_ingress_rule_modified(event: dict[str, Any]) -> str:
+        rule_details = (
+            event.get("requestParameters", {})
+            .get("ModifySecurityGroupRulesRequest", {})
+            .get("SecurityGroupRule", {})
+            .get("SecurityGroupRule", {})
+        )
+        if not rule_details:
+            return ""
+
+        if (from_port := rule_details.get("FromPort")) == (
+            to_port := rule_details.get("ToPort")
+        ):
+            port_range = from_port
+        else:
+            port_range = f"{from_port}-{to_port}"
+
+        target = ""
+        if ipv4_target := rule_details.get("CidrIpv4"):
+            target = ipv4_target
+
+        message = ""
+        if target:
+            message = f". Rule updated to: {target}:{port_range}"
+            if protocol := rule_details.get("IpProtocol"):
+                message += f" over {protocol}"
+
+        return message
+
+    @staticmethod
     def build_rule_summary(target: str, items: dict[str, Any]) -> str:
         from_port = items.get("fromPort")
         to_port = items.get("toPort")
@@ -609,6 +639,11 @@ class CloudTrail:
             "event_type": models.TimelineEventType.SECURITY_GROUP_RULE_CHANGE,
             "message": "Ingress rule added",
             "formatter": CloudTrailEventMessageFormatter.format_sg_ingress_rule_added,
+        },
+        "ModifySecurityGroupRules": {
+            "event_type": models.TimelineEventType.SECURITY_GROUP_RULE_CHANGE,
+            "message": "Security group rules modified",
+            "formatter": CloudTrailEventMessageFormatter.format_sg_ingress_rule_modified,
         },
         "RevokeSecurityGroupIngress": {
             "event_type": models.TimelineEventType.SECURITY_GROUP_RULE_CHANGE,
