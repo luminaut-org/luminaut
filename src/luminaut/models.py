@@ -865,6 +865,12 @@ class ScanResult:
         return sg_rules
 
     def generate_ip_port_targets(self) -> list[str]:
+        ports = self.generate_port_targets()
+
+        targets = [f"{self.ip}:{port}" for port in ports]
+        return targets
+
+    def generate_port_targets(self):
         ports = set()
         default_ports = {80, 443, 3000, 5000, 8000, 8080, 8443, 8888}
         if security_group_rules := self.get_security_group_rules():
@@ -874,6 +880,4 @@ class ScanResult:
                 elif sg_rule.protocol == Protocol.ALL:
                     ports.update(default_ports)
                 ports.update({x for x in range(sg_rule.from_port, sg_rule.to_port + 1)})
-
-        targets = [f"{self.ip}:{port}" for port in ports]
-        return targets
+        return ports
