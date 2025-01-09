@@ -674,8 +674,15 @@ class CloudTrail:
         },
     }
 
-    def __init__(self, region: str):
+    def __init__(
+        self,
+        region: str,
+        scan_start_time: datetime | None = None,
+        scan_end_time: datetime | None = None,
+    ):
         self.cloudtrail_client = boto3.client("cloudtrail", region_name=region)
+        self.scan_start_time = scan_start_time
+        self.scan_end_time = scan_end_time
 
     def _fetch_context(self, resource_type):
         context = {}
