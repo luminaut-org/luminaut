@@ -737,6 +737,8 @@ class Whatweb:
             "Script",
             "PasswordField",
             "X-Frame-Options",
+            "X-UA-Compatible",
+            "X-XSS-Protection",
         ]
 
         for key, value in plugins.items():
