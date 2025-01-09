@@ -35,10 +35,11 @@ class Scanner:
     def nmap(self, ip_address: str) -> models.ScanResult:
         logger.info("Running nmap against %s", ip_address)
         nmap = nmap3.Nmap()
+        nmap_args = "--version-light -Pn"
         try:
             result = nmap.nmap_version_detection(
                 target=ip_address,
-                args="--version-light -Pn",
+                args=nmap_args,
                 timeout=self.config.nmap.timeout,
             )
         except nmap3.exceptions.NmapNotInstalledError as e:
