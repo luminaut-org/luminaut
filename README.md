@@ -38,7 +38,9 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 ### Active scanning
 
 - [nmap](https://nmap.org/) to scan common ports and services against identified IP addresses.
+  - nmap will only scan ports associated with permissive security group rules or a load balancer listener.
 - [whatweb](https://github.com/urbanadventurer/WhatWeb) to identify services running on ports associated with exposed security group ports.
+  - whatweb will only scan ports associated with permissive security group rules or a load balancer listener.
 
 ### Passive sources
 
