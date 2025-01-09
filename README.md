@@ -55,7 +55,7 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 
 ## Installation
 
-### Using python
+### via python
 
 Luminaut is available on PyPI and can be installed with pip:
 
@@ -73,7 +73,7 @@ luminaut --help
 
 **Note:** Luminaut requires Python 3.11 or later. If you would like to leverage nmap or whatweb, you will need to install these tools separately.
 
-### Using docker
+### via docker
 
 The docker image is available on GitHub, you can pull it locally by running: 
 
