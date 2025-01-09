@@ -927,12 +927,12 @@ class ScanResult:
                     }
                 )
 
-        if elb_ports := self.get_ports_from_elb_listener():
+        if elb_ports := self.generate_scan_targets_from_elb_listeners():
             ports.update(elb_ports)
 
         return ports
 
-    def get_ports_from_elb_listener(self) -> set[ScanTarget]:
+    def generate_scan_targets_from_elb_listeners(self) -> set[ScanTarget]:
         ports = set()
         if load_balancers := self.get_resources_by_type(AwsLoadBalancer):
             for elb in load_balancers:
