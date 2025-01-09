@@ -151,9 +151,9 @@ class LuminautConfigtoolAwsEvents(LuminautConfigTool):
     def from_dict(cls, config: dict[str, Any]) -> Self:
         aws_events_config = super().from_dict(config)
         if start_time := config.get("start_time"):
-            aws_events_config.start_time = datetime.fromisoformat(start_time)
+            aws_events_config.start_time = start_time
         if end_time := config.get("end_time"):
-            aws_events_config.end_time = datetime.fromisoformat(end_time)
+            aws_events_config.end_time = end_time
         return aws_events_config
 
 
@@ -161,10 +161,10 @@ class LuminautConfigtoolAwsEvents(LuminautConfigTool):
 class LuminautConfigToolAws(LuminautConfigTool):
     aws_profile: str | None = None
     aws_regions: list[str] | None = field(default_factory=list)
-    config: LuminautConfigTool = field(
-        default_factory=lambda: LuminautConfigtoolAwsEvents(enabled=False)
+    config: LuminautConfigtoolAwsEvents = field(
+        default_factory=lambda: LuminautConfigtoolAwsEvents(enabled=True)
     )
-    cloudtrail: LuminautConfigTool = field(
+    cloudtrail: LuminautConfigtoolAwsEvents = field(
         default_factory=lambda: LuminautConfigtoolAwsEvents(enabled=True)
     )
     allowed_resources: list[LuminautConfigAwsAllowedResource] = field(
@@ -181,7 +181,11 @@ class LuminautConfigToolAws(LuminautConfigTool):
         if aws_regions := config.get("aws_regions"):
             aws_config.aws_regions = aws_regions
         if config_dict := config.get("config"):
-            aws_config.config = LuminautConfigTool.from_dict(config_dict)
+            aws_config.config = LuminautConfigtoolAwsEvents.from_dict(config_dict)
+        if cloudtrail_dict := config.get("cloudtrail"):
+            aws_config.cloudtrail = LuminautConfigtoolAwsEvents.from_dict(
+                cloudtrail_dict
+            )
 
         aws_config.allowed_resources = [
             LuminautConfigAwsAllowedResource.from_dict(x)
