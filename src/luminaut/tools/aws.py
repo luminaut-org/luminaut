@@ -697,11 +697,12 @@ class CloudTrail:
         self, resource_id: str, supported_events: dict[str, dict[str, Any]]
     ) -> Generator[tuple[dict[str, Any], dict[str, Any]], None, None]:
         paginator = self.cloudtrail_client.get_paginator("lookup_events")
-        for page in paginator.paginate(
-            LookupAttributes=[
+        pagination_kwargs = {
+            "LookupAttributes": [
                 {"AttributeKey": "ResourceName", "AttributeValue": resource_id}
             ]
-        ):
+        }
+        for page in paginator.paginate(**pagination_kwargs):
             for event in page["Events"]:
                 if event.get("EventName") in supported_events:
                     yield event, supported_events[event["EventName"]]
