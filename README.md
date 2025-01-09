@@ -9,7 +9,9 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 [![Test](https://github.com/luminaut-org/luminaut/actions/workflows/test.yml/badge.svg)](https://github.com/luminaut-org/luminaut/actions/workflows/test.yml)
 [![Build artifacts](https://github.com/luminaut-org/luminaut/actions/workflows/build.yml/badge.svg)](https://github.com/luminaut-org/luminaut/actions/workflows/build.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=luminaut-org_luminaut&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=luminaut-org_luminaut)
-
+![PyPI - Downloads](https://img.shields.io/pypi/dm/luminaut)
+![PyPI - Version](https://img.shields.io/pypi/v/luminaut)
+![GitHub License](https://img.shields.io/github/license/luminaut-org/luminaut)
 
 ## Introduction
 
