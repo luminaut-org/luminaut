@@ -13,9 +13,9 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 
 ## Introduction
 
-Luminaut is a framework that assembles tools and APIs commonly used to understand the scope of exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.
+Luminaut is a utility to scope cloud environment exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.
 
-Starting from the public IP addresses of Elastic Network Interfaces (ENIs), Luminaut gathers information about the associated EC2 instances, security groups, and related events. The framework also includes active scanning tools like nmap and whatweb to identify services running on exposed ports.
+Starting from the public IP addresses of AWS Elastic Network Interfaces (ENIs), Luminaut gathers information about the associated EC2 instances, load balancers, security groups, and related events. The framework also includes active scanning tools like nmap and whatweb, to identify services running on exposed ports, and passive sources like Shodan.
 
 By combining cloud configuration data with external sources, Luminaut provides context to guide the next steps of an investigation.
 
