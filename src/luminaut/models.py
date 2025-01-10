@@ -692,9 +692,10 @@ class Hostname:
     timestamp: datetime | None = None
 
     def build_rich_text(self) -> str:
-        return (
-            f"  Hostname: [dark_orange3]{self.name}[/dark_orange3] ({self.timestamp})\n"
-        )
+        rich_text = f" Hostname: [dark_orange3]{self.name}[/dark_orange3]"
+        if self.timestamp:
+            rich_text += f" (as of {self.timestamp})"
+        return rich_text + "\n"
 
 
 @dataclass
