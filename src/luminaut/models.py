@@ -629,6 +629,9 @@ class ShodanService:
         if self.product:
             rich_text += f" {self.product}"
 
+        if self.timestamp:
+            rich_text += f" (as of {self.timestamp})"
+
         if rich_text:
             # Add newline after title line
             rich_text += "\n"
