@@ -23,6 +23,10 @@ By combining cloud configuration data with external sources, Luminaut provides c
 
 While focused on AWS, Luminaut can be extended to support other cloud providers and services. The framework is designed to be modular, allowing for the addition of new tools and services as needed.
 
+![Luminaut execution](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_execution.png)
+![Luminaut result - IP address 1](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_result_ip_1.png)
+![Luminaut result - IP address 2](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_result_ip_2.png)
+
 ## Features
 
 ### AWS
