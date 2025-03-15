@@ -1,6 +1,6 @@
 ---
 title: Usage
-layout: page
+layout: default
 ---
 
 # Usage

@@ -1,6 +1,6 @@
 ---
 title: Installation
-layout: page
+layout: default
 ---
 
 # Installation

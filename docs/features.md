@@ -1,6 +1,6 @@
 ---
 title: Features
-layout: page
+layout: default
 ---
 
 # Features

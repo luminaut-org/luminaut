@@ -1,6 +1,6 @@
 ---
 title: Luminaut Documentation
-layout: page
+layout: default
 ---
 
 # Luminaut
