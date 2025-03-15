@@ -4,12 +4,9 @@ layout: splash
 header:
   overlay_color: "#555"
 excerpt: "Casting light on shadow cloud deployments."
-
 ---
 
 ![Luminaut Picture](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_readme_300.png)
-
-## Introduction
 
 Luminaut is a utility to scope cloud environment exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.
 
