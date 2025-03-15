@@ -3,6 +3,5 @@ plugins:
   - jekyll-remote-theme
   - jekyll-include-cache
 remote_theme: "mmistakes/minimal-mistakes@4.26.2"
-show_downloads: true
 repository: luminaut-org/luminaut
 minimal_mistakes_skin: "dark"
