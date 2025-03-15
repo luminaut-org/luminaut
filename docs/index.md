@@ -1,3 +1,7 @@
+---
+title: Luminaut Documentation
+---
+
 # Luminaut
 
 Casting light on shadow cloud deployments. Detect exposure of resources deployed in AWS.
