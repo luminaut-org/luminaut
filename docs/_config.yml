@@ -1,2 +1,5 @@
-theme: jekyll-theme-slate
 title: Luminaut Documentation
+plugins:
+  - jekyll-remote-theme
+remote_theme: pages-themes/slate@v0.2.0
+show_downloads: true
