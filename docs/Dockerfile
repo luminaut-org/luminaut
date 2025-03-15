@@ -1,14 +1,18 @@
 FROM ruby:3.4.2
 
-RUN gem install jekyll bundler && mkdir -p /app
+RUN groupadd -r jekyll && useradd -r -g jekyll jekyll
 
+RUN gem install jekyll bundler
 
-COPY Gemfile /app
 WORKDIR /app
-
+COPY Gemfile ./
 RUN bundle install
 
-COPY . /app
+COPY . .
+
+RUN chown -R jekyll:jekyll /app
+
+USER jekyll
 
 EXPOSE 4000
 CMD ["bundle", "exec", "jekyll", "serve", "--watch", "--source", "/app", "--port", "4000", "--host", "0.0.0.0"]
