@@ -4,10 +4,10 @@ main:
   - title: Overview
     url: /
   - title: Installation
-    url: /installation/
+    url: /installation.html
   - title: Usage
-    url: /usage/
+    url: /usage.html
   - title: Features
-    url: /features/
+    url: /features.html
   - title: Configuration
-    url: /configuration/
+    url: /configuration.html
