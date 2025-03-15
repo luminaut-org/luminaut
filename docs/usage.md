@@ -5,6 +5,16 @@ layout: default
 
 # Usage
 
+<h2>{{ site.data.navigation.title }}</h2>
+
+<ul>
+   {% for page in site.data.navigation.pages %}
+      <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+   {% endfor %}
+</ul>
+
+## Overview
+
 Luminaut requires access to AWS. The commands in this documentation assumes that your shell is already configured with the necessary AWS credentials. You can confirm your credential configuration by running `aws sts get-caller-identity`. For additional information on configuring AWS credentials, see the [AWS CLI documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html).
 
 No arguments are required to run luminaut. The default is to look for a `luminaut.toml` file in the same directory and run available tools to start detecting resources.

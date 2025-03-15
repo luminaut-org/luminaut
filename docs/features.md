@@ -5,6 +5,15 @@ layout: default
 
 # Features
 
+<h2>{{ site.data.navigation.title }}</h2>
+
+<ul>
+   {% for page in site.data.navigation.pages %}
+      <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+   {% endfor %}
+</ul>
+
+
 ## AWS
 
 - Enumerate ENIs with public IPs.

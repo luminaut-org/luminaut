@@ -9,6 +9,14 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 
 ![Luminaut Picture](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_readme_300.png)
 
+<h2>{{ site.data.navigation.title }}</h2>
+
+<ul>
+   {% for page in site.data.navigation.pages %}
+      <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+   {% endfor %}
+</ul>
+
 ## Introduction
 
 Luminaut is a utility to scope cloud environment exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.

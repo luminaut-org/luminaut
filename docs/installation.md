@@ -5,6 +5,14 @@ layout: default
 
 # Installation
 
+<h2>{{ site.data.navigation.title }}</h2>
+
+<ul>
+   {% for page in site.data.navigation.pages %}
+      <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+   {% endfor %}
+</ul>
+
 ## With Python
 
 Luminaut is available on PyPI and can be installed with pip:
