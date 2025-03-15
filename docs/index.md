@@ -12,6 +12,7 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 <h2>{{ site.data.navigation.title }}</h2>
 
 <ul>
+    <li><a href="{{ site.github.repository_url }}">GitHub Repository</a></li>
    {% for page in site.data.navigation.pages %}
       <li><a href="{{ site.github.url }}{{ page.url }}">{{ page.title }}</a></li>
    {% endfor %}
