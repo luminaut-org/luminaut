@@ -19,7 +19,7 @@ Luminaut requires access to AWS. The commands in this documentation assumes that
 
 No arguments are required to run luminaut. The default is to look for a `luminaut.toml` file in the same directory and run available tools to start detecting resources.
 
-The default configuration options are shown in the [Configuration](#configuration) section.
+The default configuration options are shown in the Configuration section.
 
 Luminaut help is available with the argument `--help`.
 
@@ -50,7 +50,7 @@ The AWS Config scanner takes at least 50 seconds to run per resource type. If yo
 luminaut -c configs/disable_aws_config.toml
 ```
 
-Similarly, if you'd like to enable Shodan, you will need to specify a configuration file that includes the Shodan API key. See the [Configuration](#configuration) section for more information on the configuration file specification.
+Similarly, if you'd like to enable Shodan, you will need to specify a configuration file that includes the Shodan API key. See the Configuration section for more information on the configuration file specification.
 
 ## Usage with docker
 
