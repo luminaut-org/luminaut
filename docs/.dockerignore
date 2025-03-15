@@ -1,4 +1,4 @@
 *
-!*.md
-!*.yml
+!**/*.md
+!**/*.yml
 !Gemfile
