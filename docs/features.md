@@ -9,7 +9,7 @@ layout: default
 
 <ul>
    {% for page in site.data.navigation.pages %}
-      <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+      <li><a href="{{ site.github.url }}{{ page.url }}">{{ page.title }}</a></li>
    {% endfor %}
 </ul>
 
