@@ -8,3 +8,5 @@ pages:
     url: /usage.html
   - title: Features
     url: /features.html
+  - title: Configuration
+    url: /configuration.html
