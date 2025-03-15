@@ -1,19 +1,10 @@
 ---
 title: Installation
-layout: default
+layout: single
+toc: true
 ---
 
-# Installation
-
-<h2>{{ site.data.navigation.title }}</h2>
-
-<ul>
-   {% for page in site.data.navigation.pages %}
-      <li><a href="{{ site.github.url }}{{ page.url }}">{{ page.title }}</a></li>
-   {% endfor %}
-</ul>
-
-## With Python
+# Using Python
 
 Luminaut is available on PyPI and can be installed with pip:
 
@@ -31,7 +22,7 @@ luminaut --help
 
 **Note:** Luminaut requires Python 3.11 or later. If you would like to leverage nmap or whatweb, you will need to install these tools separately.
 
-## With Docker
+# Using Docker
 
 The docker image is available on GitHub, you can pull it locally by running: 
 

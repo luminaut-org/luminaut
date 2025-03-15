@@ -1,19 +1,8 @@
 ---
 title: Configuration
-layout: default
+layout: single
+toc: true
 ---
-
-# Configuration
-
-<h2>{{ site.data.navigation.title }}</h2>
-
-<ul>
-   {% for page in site.data.navigation.pages %}
-      <li><a href="{{ site.github.url }}{{ page.url }}">{{ page.title }}</a></li>
-   {% endfor %}
-</ul>
-
-# Overview
 
 Luminaut uses a configuration file to define the tools and services to use. The default configuration will run with all tools enabled, though during runtime any tool not found will be skipped. The default reporting uses console output with JSON reporting disabled.
 

@@ -1,20 +1,10 @@
 ---
 title: Features
-layout: default
+layout: single
+toc: true
 ---
 
-# Features
-
-<h2>{{ site.data.navigation.title }}</h2>
-
-<ul>
-   {% for page in site.data.navigation.pages %}
-      <li><a href="{{ site.github.url }}{{ page.url }}">{{ page.title }}</a></li>
-   {% endfor %}
-</ul>
-
-
-## AWS
+# AWS
 
 - Enumerate ENIs with public IPs.
 - Gather information about associated EC2 instances and Elastic load balancers.
@@ -28,18 +18,18 @@ layout: default
 - Skip scanning and reporting on resources based on the resource id or tag values
   - Supports skipping based on the resource id of the ENI.
 
-## Active scanning
+# Active scanning
 
 - [nmap](https://nmap.org/) to scan common ports and services against identified IP addresses.
   - nmap will only scan ports associated with permissive security group rules or a load balancer listener.
 - [whatweb](https://github.com/urbanadventurer/WhatWeb) to identify services running on ports associated with exposed security group ports.
   - whatweb will only scan ports associated with permissive security group rules or a load balancer listener.
 
-## Passive sources
+# Passive sources
 
 - [shodan](https://www.shodan.io/) to gather information about exposed services and vulnerabilities.
 
-## Reporting
+# Reporting
 
 - Console output with rich formatting, displaying key information.
 - HTML capture of console output to preserve prior executions.

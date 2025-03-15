@@ -1,5 +1,7 @@
 title: Luminaut Documentation
 plugins:
   - jekyll-remote-theme
-remote_theme: pages-themes/slate@v0.2.0
+remote_theme: "mmistakes/minimal-mistakes@4.26.2"
 show_downloads: true
+repository: luminaut-org/luminaut
+minimal_mistakes_skin: "dark"

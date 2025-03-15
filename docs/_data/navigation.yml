@@ -1,12 +1,13 @@
-title: Table of Contents
-pages:
+main:
+  - title: "GitHub Repository"
+    url: https://github.com/luminaut-org/luminaut
   - title: Overview
     url: /
   - title: Installation
-    url: /installation.html
+    url: /installation/
   - title: Usage
-    url: /usage.html
+    url: /usage/
   - title: Features
-    url: /features.html
+    url: /features/
   - title: Configuration
-    url: /configuration.html
+    url: /configuration/

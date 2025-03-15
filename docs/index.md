@@ -1,22 +1,13 @@
 ---
 title: Luminaut Documentation
-layout: default
+layout: splash
+header:
+  overlay_color: "#555"
+excerpt: "Casting light on shadow cloud deployments."
+
 ---
 
-# Luminaut
-
-Casting light on shadow cloud deployments. Detect exposure of resources deployed in AWS.
-
 ![Luminaut Picture](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_readme_300.png)
-
-<h2>{{ site.data.navigation.title }}</h2>
-
-<ul>
-    <li><a href="{{ site.github.repository_url }}">GitHub Repository</a></li>
-   {% for page in site.data.navigation.pages %}
-      <li><a href="{{ site.github.url }}{{ page.url }}">{{ page.title }}</a></li>
-   {% endfor %}
-</ul>
 
 ## Introduction
 

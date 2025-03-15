@@ -1,19 +1,10 @@
 ---
 title: Usage
-layout: default
+layout: single
+toc: true
 ---
 
-# Usage
-
-<h2>{{ site.data.navigation.title }}</h2>
-
-<ul>
-   {% for page in site.data.navigation.pages %}
-      <li><a href="{{ site.github.url }}{{ page.url }}">{{ page.title }}</a></li>
-   {% endfor %}
-</ul>
-
-## Overview
+# Command line usage
 
 Luminaut requires access to AWS. The commands in this documentation assumes that your shell is already configured with the necessary AWS credentials. You can confirm your credential configuration by running `aws sts get-caller-identity`. For additional information on configuring AWS credentials, see the [AWS CLI documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html).
 
@@ -36,7 +27,7 @@ options:
   --verbose        Verbose output in the log file. (default: False)
 ```
 
-## Example
+## Examples
 
 By default, Luminaut will run all available tools. It requires your AWS profile to be configured with the necessary permissions, otherwise the first step of public IP detection on ENIs will fail.
 
@@ -52,7 +43,7 @@ luminaut -c configs/disable_aws_config.toml
 
 Similarly, if you'd like to enable Shodan, you will need to specify a configuration file that includes the Shodan API key. See the Configuration section for more information on the configuration file specification.
 
-## Usage with docker
+# Usage with docker
 
 When running with docker, we need to supply a few arguments:
 1. `-it` to run the container interactively and display the output in the terminal.
@@ -64,7 +55,7 @@ When running with docker, we need to supply a few arguments:
 
 Note that saved files, such as the log file and JSON reports, will be saved within the container. You may want to mount another volume to save the report files.
 
-Example commands for...
+## Examples
 
 Bash, zsh, and similar terminals:
 ```bash
