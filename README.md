@@ -107,6 +107,10 @@ See more usage information and examples in the [Luminaut documentation](https://
 
 See the [documentation on Luminaut configuration](https://luminaut-org.github.io/luminaut/configuration.html)
 
+## Examples
+
+See `examples/` for scripts that demonstrate the usage of Luminaut as a Python package.
+
 ## Contributing
 
 If you would like to contribute to Luminaut, please follow the guidelines in the [CONTRIBUTING.md](.github/CONTRIBUTING.md) file.
