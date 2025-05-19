@@ -16,6 +16,7 @@ classifiers = [
 ]
 dependencies = [
     "boto3~=1.35.53",
+    "google-cloud-compute>=1.30.0",
     "orjson~=3.10.12",
     "python3-nmap~=1.9.1",
     "rich~=13.9.4",
