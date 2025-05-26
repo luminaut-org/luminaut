@@ -2,6 +2,19 @@ import argparse
 
 from google.cloud import compute_v1
 
+from luminaut import models
+
+
+def fetch_network_interfaces(
+    gcp_computev1_client, project_id: str, zone_id: str
+) -> list[models.GcpNetworkInterface]:
+    instances = gcp_computev1_client.list(project=project_id, zone=zone_id)
+    interfaces = []
+    for instance in instances:
+        interfaces.append(models.GcpNetworkInterface.from_gcp_computev1_list(instance))
+    return interfaces
+
+
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="GCP Instance Manager")
     args.add_argument(

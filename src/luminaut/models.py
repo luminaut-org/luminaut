@@ -255,6 +255,34 @@ class LuminautConfig:
 
 
 @dataclass
+class GcpNetworkInterface:
+    resource_id: str
+    public_ip: str
+    compute_instance_id: str
+
+    @classmethod
+    def from_gcp_computev1_list(cls, instance: Any):
+        if len(instance.network_interfaces) == 0:
+            raise ValueError(
+                f"Instance {instance.name} ({instance.id}) has no network interfaces to extract public IP from."
+            )
+        network_interface = instance.network_interfaces[0]
+
+        if len(network_interface.access_configs) == 0:
+            raise ValueError(
+                f"Instance {instance.name} ({instance.id}) has no access configs to extract public IP from."
+            )
+
+        access_config = network_interface.access_configs[0]
+
+        return cls(
+            public_ip=access_config.nat_ip,
+            resource_id=network_interface.name,
+            compute_instance_id=instance.id,
+        )
+
+
+@dataclass
 class SecurityGroupRule:
     direction: Direction
     protocol: "Protocol"
