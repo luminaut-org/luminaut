@@ -51,7 +51,7 @@ class Gcp:
 
                     scan_finding = models.ScanFindings(
                         tool="GCP Instance",
-                        emoji_name=":cloud:",
+                        emoji_name="cloud",
                         resources=[gcp_instance],
                     )
                     scan_results.append(
