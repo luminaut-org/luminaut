@@ -16,7 +16,9 @@ class Gcp:
         gcp_client: compute_v1.InstancesClient | None = None,
     ):
         self.config = config
-        self.gcp_client = gcp_client or compute_v1.InstancesClient()
+
+    def get_compute_v1_client(self) -> compute_v1.InstancesClient:
+        return compute_v1.InstancesClient()
 
     def get_projects(self) -> list[str]:
         if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
@@ -93,7 +95,7 @@ class Gcp:
         return scan_results
 
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
-        instances = self.gcp_client.list(
+        instances = self.get_compute_v1_client().list(
             project=project,
             zone=zone,
         )

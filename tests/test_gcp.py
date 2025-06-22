@@ -67,16 +67,17 @@ class TestGCP(TestCase):
     def test_initialize_class(self):
         gcp_client = Mock()
 
-        gcp = Gcp(self.config, gcp_client=gcp_client)
+        gcp = Gcp(self.config)
+        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
 
         self.assertEqual(gcp.config, self.config)
-        self.assertEqual(gcp.gcp_client, gcp_client)
 
     def test_explore(self):
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInstance()]
 
-        gcp = Gcp(self.config, gcp_client=gcp_client)
+        gcp = Gcp(self.config)
+        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
         instances = gcp.explore()
 
         self.assertEqual(gcp_client.list.call_count, 6)
@@ -86,7 +87,8 @@ class TestGCP(TestCase):
         self.config.gcp.enabled = False
         gcp_client = Mock()
 
-        gcp = Gcp(self.config, gcp_client=gcp_client)
+        gcp = Gcp(self.config)
+        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
         instances = gcp.explore()
 
         self.assertEqual(gcp_client.list.call_count, 0)
@@ -122,7 +124,9 @@ class TestGCP(TestCase):
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInstance()]
 
-        instances = Gcp(self.config, gcp_client=gcp_client).fetch_instances(
+        gcp = Gcp(self.config)
+        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
@@ -155,7 +159,9 @@ class TestGCP(TestCase):
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInternalInstance()]
 
-        instances = Gcp(self.config, gcp_client=gcp_client).fetch_instances(
+        gcp = Gcp(self.config)
+        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
@@ -178,7 +184,9 @@ class TestGCP(TestCase):
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInternalInstance()]
 
-        instances = Gcp(self.config, gcp_client=gcp_client).explore()
+        gcp = Gcp(self.config, gcp_client=gcp_client)
+        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        instances = gcp.explore()
 
         self.assertEqual(gcp_client.list.call_count, 6)
         self.assertEqual(
