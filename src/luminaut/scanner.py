@@ -24,22 +24,14 @@ class Scanner:
         regions = self.config.aws.aws_regions
 
         if regions:
-            logger.info("Scanning AWS regions: %s", ", ".join(regions))
             for region in regions:
                 scan_results.extend(aws.explore_region(region))
         else:
-            logger.info("Scanning default AWS profile region")
             scan_results.extend(aws.explore_region())
-
-        logger.info("Completed AWS scan of all specified regions.")
         return scan_results
 
     def gcp(self) -> list[models.ScanResult]:
-        gcp = Gcp(self.config)
-        logger.info("Scanning GCP projects: %s", ", ".join(self.config.gcp.projects))
-        scan_results = gcp.explore()
-        logger.info("Completed GCP scan of all specified projects.")
-        return scan_results
+        return Gcp(self.config).explore()
 
     def nmap(
         self, ip_address: str, ports: list[str] | None = None

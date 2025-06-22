@@ -22,6 +22,13 @@ class Gcp:
         if not self.config.gcp.enabled:
             return []
 
+        if not self.config.gcp.projects:
+            logger.warning("No GCP projects specified in the configuration.")
+            return []
+        if not self.config.gcp.compute_zones:
+            logger.warning("No GCP compute zones specified in the configuration.")
+            return []
+
         scan_results = []
         for project in self.config.gcp.projects:
             for zone in self.config.gcp.compute_zones:
@@ -31,6 +38,7 @@ class Gcp:
                     zone,
                 )
                 scan_results += self.find_instances(project, zone)
+        logger.info("Completed scanning GCP projects")
         return scan_results
 
     def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
