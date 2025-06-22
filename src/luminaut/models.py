@@ -275,7 +275,7 @@ class LuminautConfig:
 @dataclass
 class GcpNetworkInterface:
     resource_id: str
-    public_ip: str
+    public_ip: str | None = None
     network: str | None = None
     network_attachment: str | None = None
     internal_ip: str | None = None
@@ -283,15 +283,17 @@ class GcpNetworkInterface:
 
     @classmethod
     def from_gcp(cls, network_interface: gcp_types.NetworkInterface) -> Self:
-        if len(network_interface.access_configs) == 0:
-            raise ValueError(
-                f"Instance {network_interface.name} has no access configs to extract public IP from."
-            )
-
-        access_config = network_interface.access_configs[0]
+        public_ip = None
+        if len(network_interface.access_configs) > 0:
+            access_config = network_interface.access_configs[0]
+            if not access_config.nat_i_p:
+                raise ValueError(
+                    f"Instance {network_interface.name} has no public IP in access config."
+                )
+            public_ip = access_config.nat_i_p
 
         return cls(
-            public_ip=access_config.nat_i_p,
+            public_ip=public_ip,
             resource_id=network_interface.name,
             internal_ip=network_interface.network_i_p,
             network=network_interface.network,
@@ -907,7 +909,12 @@ class ScanTarget:
 
 FindingServices = MutableSequence[NmapPortServices | ShodanService | Whatweb]
 FindingResources = MutableSequence[
-    AwsConfigItem | AwsLoadBalancer | AwsNetworkInterface | SecurityGroup | Hostname
+    AwsConfigItem
+    | AwsLoadBalancer
+    | AwsNetworkInterface
+    | GcpInstance
+    | SecurityGroup
+    | Hostname
 ]
 
 

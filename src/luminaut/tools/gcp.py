@@ -15,12 +15,27 @@ class Gcp:
         self.config = config
         self.gcp_client = gcp_client or compute_v1.InstancesClient()
 
-    def explore(self) -> list[models.GcpInstance]:
-        instances = []
+    def explore(self) -> list[models.ScanResult]:
+        scan_results = []
         for project in self.config.gcp.projects:
             for zone in self.config.gcp.compute_zones:
-                instances.extend(self.fetch_instances(project, zone))
-        return instances
+                for gcp_instance in self.fetch_instances(project, zone):
+                    if gcp_instance.network_interfaces:
+                        for network_interface in gcp_instance.network_interfaces:
+                            if network_interface.public_ip:
+                                scan_finding = models.ScanFindings(
+                                    tool="GCP Instance",
+                                    emoji_name=":cloud:",
+                                    resources=[gcp_instance],
+                                )
+                                scan_results.append(
+                                    models.ScanResult(
+                                        ip=network_interface.public_ip,
+                                        findings=[scan_finding],
+                                        region=zone,
+                                    )
+                                )
+        return scan_results
 
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
         instances = self.gcp_client.list(

@@ -2,7 +2,7 @@ import datetime
 from io import BytesIO
 from textwrap import dedent
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from luminaut import models
 from luminaut.tools.gcp import Gcp
@@ -25,6 +25,25 @@ class FakeGcpInstance:
     id = "abc123"
     name = "test-instance"
     network_interfaces = [FakeGcpNetworkInterface()]
+    creation_timestamp = "2025-05-19T05:35:09.886-07:00"
+    zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
+    status = "RUNNING"
+    description = "Test instance"
+
+
+class FakeGcpInternalNetworkInterface:
+    access_configs = []
+    name = "nic0"
+    network_i_p = "10.0.0.1"
+    network = "https://www.googleapis.com/compute/v1/projects/luminaut/global/networks/default"
+    network_attachment = ""
+    alias_ip_ranges = []
+
+
+class FakeGcpInternalInstance:
+    id = "abc123"
+    name = "test-instance"
+    network_interfaces = [FakeGcpInternalNetworkInterface()]
     creation_timestamp = "2025-05-19T05:35:09.886-07:00"
     zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
     status = "RUNNING"
@@ -58,11 +77,10 @@ class TestGCP(TestCase):
         gcp_client.list.return_value = [FakeGcpInstance()]
 
         gcp = Gcp(self.config, gcp_client=gcp_client)
-        with patch.object(gcp, "fetch_instances") as mock_fetch_instances:
-            mock_fetch_instances.return_value = [FakeGcpInstance()]
-            instances = gcp.explore()
-            self.assertEqual(mock_fetch_instances.call_count, 6)
-            self.assertEqual(len(instances), 6)
+        instances = gcp.explore()
+
+        self.assertEqual(gcp_client.list.call_count, 6)
+        self.assertEqual(len(instances), 6)
 
     def test_enumerate_instances_with_public_ips(self):
         expected_nic = models.GcpNetworkInterface(
@@ -114,3 +132,47 @@ class TestGCP(TestCase):
         self.assertEqual(actual_nic.resource_id, expected_nic.resource_id)
         self.assertEqual(actual_nic.public_ip, expected_nic.public_ip)
         self.assertEqual(actual_instance.resource_id, expected_instance.resource_id)
+
+    def test_enumerate_instances_without_public_ips(self):
+        expected_nic = models.GcpNetworkInterface(
+            resource_id=FakeGcpInternalNetworkInterface.name,
+            public_ip=None,
+            internal_ip=FakeGcpInternalNetworkInterface.network_i_p,
+            network=FakeGcpInternalNetworkInterface.network,
+            network_attachment=FakeGcpInternalNetworkInterface.network_attachment,
+            alias_ip_ranges=FakeGcpInternalNetworkInterface.alias_ip_ranges,
+        )
+        gcp_client = Mock()
+        gcp_client.list.return_value = [FakeGcpInternalInstance()]
+
+        instances = Gcp(self.config, gcp_client=gcp_client).fetch_instances(
+            project=self.config.gcp.projects[0],
+            zone=self.config.gcp.compute_zones[0],
+        )
+
+        gcp_client.list.assert_called_once()
+
+        self.assertEqual(
+            len(instances),
+            1,
+            f"Expected one instance, found {len(instances)}",
+        )
+
+        actual_nic = instances[0].network_interfaces[0]
+
+        self.assertEqual(actual_nic.resource_id, expected_nic.resource_id)
+        self.assertIsNone(actual_nic.public_ip)
+        self.assertEqual(actual_nic.internal_ip, expected_nic.internal_ip)
+
+    def test_explore_does_not_return_instances_without_internal_ips(self):
+        gcp_client = Mock()
+        gcp_client.list.return_value = [FakeGcpInternalInstance()]
+
+        instances = Gcp(self.config, gcp_client=gcp_client).explore()
+
+        self.assertEqual(gcp_client.list.call_count, 6)
+        self.assertEqual(
+            len(instances),
+            0,
+            f"Expected no instances, found {len(instances)}",
+        )
