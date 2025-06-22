@@ -1,5 +1,6 @@
 import logging
 
+import google.auth
 from google.cloud import compute_v1
 
 from luminaut import models
@@ -17,20 +18,49 @@ class Gcp:
         self.config = config
         self.gcp_client = gcp_client or compute_v1.InstancesClient()
 
+    def get_projects(self) -> list[str]:
+        if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
+            return self.config.gcp.projects
+
+        (_default_creds, default_project) = google.auth.default()
+        if default_project:
+            logger.warning(
+                "No GCP projects specified in the configuration. Using default project '%s'.",
+                default_project,
+            )
+            self.config.gcp.projects = [default_project]
+            return [default_project]
+
+        logger.error(
+            "No GCP projects specified in the configuration and no default project found."
+        )
+        return []
+
+    def get_zones(self, project: str) -> list[str]:
+        if self.config.gcp.compute_zones:
+            return self.config.gcp.compute_zones
+        try:
+            logger.warning(
+                "No GCP compute zones specified in the configuration. Using all available zones for the project %s.",
+                project,
+            )
+            all_zones = compute_v1.ZonesClient().list(project=project)
+            return [zone.name for zone in all_zones]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch zones for project %s: %s",
+                project,
+                str(e),
+            )
+            return []
+
     def explore(self) -> list[models.ScanResult]:
         if not self.config.gcp.enabled:
             return []
 
-        if not self.config.gcp.projects:
-            logger.warning("No GCP projects specified in the configuration.")
-            return []
-        if not self.config.gcp.compute_zones:
-            logger.warning("No GCP compute zones specified in the configuration.")
-            return []
-
         scan_results = []
-        for project in self.config.gcp.projects:
-            for zone in self.config.gcp.compute_zones:
+        for project in self.get_projects():
+            for zone in self.get_zones(project):
                 logger.info(
                     "Scanning GCP project %s in zone %s",
                     project,
