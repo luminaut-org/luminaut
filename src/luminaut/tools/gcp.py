@@ -15,6 +15,13 @@ class Gcp:
         self.config = config
         self.gcp_client = gcp_client or compute_v1.InstancesClient()
 
+    def explore(self) -> list[models.GcpInstance]:
+        instances = []
+        for project in self.config.gcp.projects:
+            for zone in self.config.gcp.compute_zones:
+                instances.extend(self.fetch_instances(project, zone))
+        return instances
+
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
         instances = self.gcp_client.list(
             project=project,

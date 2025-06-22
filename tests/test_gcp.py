@@ -2,7 +2,7 @@ import datetime
 from io import BytesIO
 from textwrap import dedent
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from luminaut import models
 from luminaut.tools.gcp import Gcp
@@ -32,24 +32,37 @@ class FakeGcpInstance:
 
 
 class TestGCP(TestCase):
-    def test_initialize_class(self):
+    def setUp(self):
         config = BytesIO(
             dedent(
                 """
-            [gcp]
+            [tool.gcp]
             enabled = true
-            project_id = ["test-project-1", "test-project-2"]
+            projects = ["test-project-1", "test-project-2"]
             compute_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
             """
             ).encode("utf-8")
         )
-        config = models.LuminautConfig.from_toml(config)
+        self.config = models.LuminautConfig.from_toml(config)
+
+    def test_initialize_class(self):
         gcp_client = Mock()
 
-        gcp = Gcp(config, gcp_client=gcp_client)
+        gcp = Gcp(self.config, gcp_client=gcp_client)
 
-        self.assertEqual(gcp.config, config)
+        self.assertEqual(gcp.config, self.config)
         self.assertEqual(gcp.gcp_client, gcp_client)
+
+    def test_explore(self):
+        gcp_client = Mock()
+        gcp_client.list.return_value = [FakeGcpInstance()]
+
+        gcp = Gcp(self.config, gcp_client=gcp_client)
+        with patch.object(gcp, "fetch_instances") as mock_fetch_instances:
+            mock_fetch_instances.return_value = [FakeGcpInstance()]
+            instances = gcp.explore()
+            self.assertEqual(mock_fetch_instances.call_count, 6)
+            self.assertEqual(len(instances), 6)
 
     def test_enumerate_instances_with_public_ips(self):
         expected_nic = models.GcpNetworkInterface(
@@ -80,17 +93,10 @@ class TestGCP(TestCase):
         )
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInstance()]
-        config = models.LuminautConfig(
-            gcp=models.LuminautConfigToolGcp(
-                enabled=True,
-                projects=["test-project-1"],
-                compute_zones=["us-central1-c"],
-            )
-        )
 
-        instances = Gcp(config, gcp_client=gcp_client).fetch_instances(
-            project=config.gcp.projects[0],
-            zone=config.gcp.compute_zones[0],
+        instances = Gcp(self.config, gcp_client=gcp_client).fetch_instances(
+            project=self.config.gcp.projects[0],
+            zone=self.config.gcp.compute_zones[0],
         )
 
         # Calls the list command
