@@ -304,6 +304,12 @@ class GcpNetworkInterface:
             ],
         )
 
+    def build_rich_text(self) -> str:
+        rich_text = f"[dark_orange3]{self.public_ip}[/dark_orange3] [orange3]{self.internal_ip}[/orange3] from [cyan]{self.resource_id}[/cyan]\n"
+        if self.alias_ip_ranges:
+            rich_text += f"  Alias ranges: [dark_orange3]{', '.join(self.alias_ip_ranges)}[/dark_orange3]\n"
+        return rich_text
+
 
 @dataclass
 class GcpInstance:
@@ -314,10 +320,20 @@ class GcpInstance:
     zone: str | None = None
     status: str | None = None
     description: str | None = None
-    started_time: datetime | None = None
 
     def has_public_ip(self) -> bool:
         return any(nic.public_ip for nic in self.network_interfaces)
+
+    def build_rich_text(self) -> str:
+        rich_text = f"[dark_orange3]{self.name}[/dark_orange3] {self.resource_id} ({self.status}) Created: {self.creation_time or 'Unknown'}\n"
+        if description := self.description:
+            rich_text += f"  Description: {description}\n"
+        for nic in self.network_interfaces:
+            # Indent each network interface line
+            rich_text += "\n".join(
+                ["  " + line for line in nic.build_rich_text().splitlines()]
+            )
+        return rich_text
 
     @classmethod
     def from_gcp(cls, instance: Any) -> Self:
