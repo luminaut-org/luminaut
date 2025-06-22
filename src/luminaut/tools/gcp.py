@@ -19,6 +19,9 @@ class Gcp:
         self.gcp_client = gcp_client or compute_v1.InstancesClient()
 
     def explore(self) -> list[models.ScanResult]:
+        if not self.config.gcp.enabled:
+            return []
+
         scan_results = []
         for project in self.config.gcp.projects:
             for zone in self.config.gcp.compute_zones:

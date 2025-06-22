@@ -82,6 +82,16 @@ class TestGCP(TestCase):
         self.assertEqual(gcp_client.list.call_count, 6)
         self.assertEqual(len(instances), 6)
 
+    def test_explore_gcp_disabled(self):
+        self.config.gcp.enabled = False
+        gcp_client = Mock()
+
+        gcp = Gcp(self.config, gcp_client=gcp_client)
+        instances = gcp.explore()
+
+        self.assertEqual(gcp_client.list.call_count, 0)
+        self.assertEqual(len(instances), 0)
+
     def test_enumerate_instances_with_public_ips(self):
         expected_nic = models.GcpNetworkInterface(
             resource_id=FakeGcpNetworkInterface.name,
