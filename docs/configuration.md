@@ -57,6 +57,16 @@ id = "eni-1234567890abcdef0"  # The resource ID
 # This is applied before, and separately from, the checks of a type and id. This is also applied across all scanned regions.
 tags = { "luminaut" = "ignore", "reviewed" = "true" }
 
+[tool.gcp]
+# Enable the GCP tool, requires the configuration of GCP credentials.
+enabled = true
+
+# The GCP projects to scan. Defaults to the project set in your GCP profile if none is supplied.
+projects = []
+
+# The GCP compute zones to scan. Defaults to default zone set in your GCP profile if none is supplied.
+compute_zones = []
+
 [tool.nmap]
 enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path. Enabled by default but will not run if nmap is not found on the path.
 

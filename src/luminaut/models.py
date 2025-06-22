@@ -197,6 +197,19 @@ class LuminautConfigToolAws(LuminautConfigTool):
 
 
 @dataclass
+class LuminautConfigToolGcp(LuminautConfigTool):
+    projects: list[str] = field(default_factory=list)
+    compute_zones: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> Self:
+        gcp_config = super().from_dict(config)
+        gcp_config.projects = config.get("projects", [])
+        gcp_config.compute_zones = config.get("compute_zones", [])
+        return gcp_config
+
+
+@dataclass
 class LuminautConfigReport:
     console: bool = True
     json: bool = False
@@ -230,6 +243,7 @@ class LuminautConfigReport:
 class LuminautConfig:
     report: LuminautConfigReport = field(default_factory=LuminautConfigReport)
     aws: LuminautConfigToolAws = field(default_factory=LuminautConfigToolAws)
+    gcp: LuminautConfigToolGcp = field(default_factory=LuminautConfigToolGcp)
     nmap: LuminautConfigTool = field(default_factory=LuminautConfigTool)
     shodan: LuminautConfigToolShodan = field(default_factory=LuminautConfigToolShodan)
     whatweb: LuminautConfigTool = field(default_factory=LuminautConfigTool)
@@ -245,6 +259,9 @@ class LuminautConfig:
         if tool_config := toml_data.get("tool"):
             luminaut_config.aws = LuminautConfigToolAws.from_dict(
                 tool_config.get("aws", {})
+            )
+            luminaut_config.gcp = LuminautConfigToolGcp.from_dict(
+                tool_config.get("gcp", {})
             )
             luminaut_config.nmap = LuminautConfigTool.from_dict(
                 tool_config.get("nmap", {})
