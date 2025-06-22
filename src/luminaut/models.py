@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
 
+from google.cloud.compute_v1 import types as gcp_types
 from rich.emoji import Emoji
 
 T = TypeVar("T")
@@ -258,27 +259,56 @@ class LuminautConfig:
 class GcpNetworkInterface:
     resource_id: str
     public_ip: str
-    compute_instance_id: str
+    network: str | None = None
+    network_attachment: str | None = None
+    internal_ip: str | None = None
+    alias_ip_ranges: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_gcp_computev1_list(cls, instance: Any):
-        if len(instance.network_interfaces) == 0:
-            raise ValueError(
-                f"Instance {instance.name} ({instance.id}) has no network interfaces to extract public IP from."
-            )
-        network_interface = instance.network_interfaces[0]
-
+    def from_gcp(cls, network_interface: gcp_types.NetworkInterface) -> Self:
         if len(network_interface.access_configs) == 0:
             raise ValueError(
-                f"Instance {instance.name} ({instance.id}) has no access configs to extract public IP from."
+                f"Instance {network_interface.name} has no access configs to extract public IP from."
             )
 
         access_config = network_interface.access_configs[0]
 
         return cls(
-            public_ip=access_config.nat_ip,
+            public_ip=access_config.nat_i_p,
             resource_id=network_interface.name,
-            compute_instance_id=instance.id,
+            internal_ip=network_interface.network_i_p,
+            network=network_interface.network,
+            network_attachment=network_interface.network_attachment,
+            alias_ip_ranges=[
+                alias_range.ip_cidr_range
+                for alias_range in network_interface.alias_ip_ranges
+            ],
+        )
+
+
+@dataclass
+class GcpInstance:
+    resource_id: str
+    name: str
+    network_interfaces: list[GcpNetworkInterface] = field(default_factory=list)
+    creation_time: datetime | None = None
+    zone: str | None = None
+    status: str | None = None
+    description: str | None = None
+    started_time: datetime | None = None
+
+    @classmethod
+    def from_gcp(cls, instance: Any) -> Self:
+        return cls(
+            resource_id=instance.id,
+            name=instance.name,
+            network_interfaces=[
+                GcpNetworkInterface.from_gcp(nic) for nic in instance.network_interfaces
+            ],
+            creation_time=datetime.fromisoformat(instance.creation_timestamp),
+            zone=instance.zone.split("/")[-1],
+            status=instance.status,
+            description=instance.description,
         )
 
 
