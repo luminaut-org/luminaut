@@ -3,7 +3,7 @@ from unittest import TestCase
 from unittest.mock import Mock
 
 from luminaut.models import GcpInstance, GcpNetworkInterface
-from luminaut.tools.gcp import fetch_instances
+from luminaut.tools.gcp import Gcp
 
 
 class TestGcpAccessConfig:
@@ -60,7 +60,7 @@ class TestGCP(TestCase):
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInstance()]
 
-        instances = fetch_instances(gcp_client, "unittest", "unittest")
+        instances = Gcp.fetch_instances(gcp_client, "unittest", "unittest")
 
         # Calls the list command
         gcp_client.list.assert_called_once()

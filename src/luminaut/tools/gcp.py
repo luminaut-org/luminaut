@@ -5,11 +5,13 @@ from google.cloud import compute_v1
 from luminaut import models
 
 
-def fetch_instances(
-    gcp_computev1_client, project_id: str, zone_id: str
-) -> list[models.GcpInstance]:
-    instances = gcp_computev1_client.list(project=project_id, zone=zone_id)
-    return [models.GcpInstance.from_gcp(instance) for instance in instances]
+class Gcp:
+    @staticmethod
+    def fetch_instances(
+        gcp_computev1_client, project_id: str, zone_id: str
+    ) -> list[models.GcpInstance]:
+        instances = gcp_computev1_client.list(project=project_id, zone=zone_id)
+        return [models.GcpInstance.from_gcp(instance) for instance in instances]
 
 
 if __name__ == "__main__":
@@ -27,7 +29,7 @@ if __name__ == "__main__":
     cli_args = args.parse_args()
 
     client = compute_v1.InstancesClient()
-    instances = fetch_instances(
+    instances = Gcp.fetch_instances(
         client,
         project_id=cli_args.project,
         zone_id=cli_args.zone,
