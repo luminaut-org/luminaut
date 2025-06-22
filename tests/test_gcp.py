@@ -80,8 +80,18 @@ class TestGCP(TestCase):
         )
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInstance()]
+        config = models.LuminautConfig(
+            gcp=models.LuminautConfigToolGcp(
+                enabled=True,
+                projects=["test-project-1"],
+                compute_zones=["us-central1-c"],
+            )
+        )
 
-        instances = Gcp.fetch_instances(gcp_client, "unittest", "unittest")
+        instances = Gcp(config, gcp_client=gcp_client).fetch_instances(
+            project=config.gcp.projects[0],
+            zone=config.gcp.compute_zones[0],
+        )
 
         # Calls the list command
         gcp_client.list.assert_called_once()

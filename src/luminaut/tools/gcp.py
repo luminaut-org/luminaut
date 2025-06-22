@@ -15,11 +15,11 @@ class Gcp:
         self.config = config
         self.gcp_client = gcp_client or compute_v1.InstancesClient()
 
-    @staticmethod
-    def fetch_instances(
-        gcp_computev1_client, project_id: str, zone_id: str
-    ) -> list[models.GcpInstance]:
-        instances = gcp_computev1_client.list(project=project_id, zone=zone_id)
+    def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
+        instances = self.gcp_client.list(
+            project=project,
+            zone=zone,
+        )
         return [models.GcpInstance.from_gcp(instance) for instance in instances]
 
 
@@ -37,11 +37,18 @@ if __name__ == "__main__":
     )
     cli_args = args.parse_args()
 
+    config = models.LuminautConfig(
+        gcp=models.LuminautConfigToolGcp(
+            enabled=True,
+            projects=[cli_args.project],
+            compute_zones=[cli_args.zone],
+        )
+    )
+
     client = compute_v1.InstancesClient()
-    instances = Gcp.fetch_instances(
-        client,
-        project_id=cli_args.project,
-        zone_id=cli_args.zone,
+    instances = Gcp(config, gcp_client=client).fetch_instances(
+        project=config.gcp.projects[0],
+        zone=config.gcp.compute_zones[0],
     )
     for instance in instances:
         print(f"Instance Name: {instance.name}")
