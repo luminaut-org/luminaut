@@ -316,6 +316,9 @@ class GcpInstance:
     description: str | None = None
     started_time: datetime | None = None
 
+    def has_public_ip(self) -> bool:
+        return any(nic.public_ip for nic in self.network_interfaces)
+
     @classmethod
     def from_gcp(cls, instance: Any) -> Self:
         return cls(
