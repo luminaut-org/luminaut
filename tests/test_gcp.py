@@ -1,8 +1,10 @@
 import datetime
+from io import BytesIO
+from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import Mock
 
-from luminaut.models import GcpInstance, GcpNetworkInterface
+from luminaut import models
 from luminaut.tools.gcp import Gcp
 
 
@@ -30,8 +32,27 @@ class FakeGcpInstance:
 
 
 class TestGCP(TestCase):
+    def test_initialize_class(self):
+        config = BytesIO(
+            dedent(
+                """
+            [gcp]
+            enabled = true
+            project_id = ["test-project-1", "test-project-2"]
+            compute_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+            """
+            ).encode("utf-8")
+        )
+        config = models.LuminautConfig.from_toml(config)
+        gcp_client = Mock()
+
+        gcp = Gcp(config, gcp_client=gcp_client)
+
+        self.assertEqual(gcp.config, config)
+        self.assertEqual(gcp.gcp_client, gcp_client)
+
     def test_enumerate_instances_with_public_ips(self):
-        expected_nic = GcpNetworkInterface(
+        expected_nic = models.GcpNetworkInterface(
             resource_id=FakeGcpNetworkInterface.name,
             public_ip=TestGcpAccessConfig.nat_i_p,
             internal_ip=FakeGcpNetworkInterface.network_i_p,
@@ -39,7 +60,7 @@ class TestGCP(TestCase):
             network_attachment=FakeGcpNetworkInterface.network_attachment,
             alias_ip_ranges=FakeGcpNetworkInterface.alias_ip_ranges,
         )
-        expected_instance = GcpInstance(
+        expected_instance = models.GcpInstance(
             resource_id=FakeGcpInstance.id,
             name=FakeGcpInstance.name,
             network_interfaces=[expected_nic],

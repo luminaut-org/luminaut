@@ -6,6 +6,15 @@ from luminaut import models
 
 
 class Gcp:
+    def __init__(
+        self,
+        config: models.LuminautConfig,
+        *,
+        gcp_client: compute_v1.InstancesClient | None = None,
+    ):
+        self.config = config
+        self.gcp_client = gcp_client or compute_v1.InstancesClient()
+
     @staticmethod
     def fetch_instances(
         gcp_computev1_client, project_id: str, zone_id: str
