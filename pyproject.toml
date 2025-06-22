@@ -33,6 +33,7 @@ dev = [
     "pytest>=8.3.3",
     "ruff>=0.8.3",
     "pyright>=1.1.391",
+    "pytest-watcher>=0.4.3",
 ]
 
 [project.urls]
