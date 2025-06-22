@@ -184,7 +184,7 @@ class TestGCP(TestCase):
         gcp_client = Mock()
         gcp_client.list.return_value = [FakeGcpInternalInstance()]
 
-        gcp = Gcp(self.config, gcp_client=gcp_client)
+        gcp = Gcp(self.config)
         gcp.get_compute_v1_client = Mock(return_value=gcp_client)
         instances = gcp.explore()
 

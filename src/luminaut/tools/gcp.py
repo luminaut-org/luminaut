@@ -9,12 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class Gcp:
-    def __init__(
-        self,
-        config: models.LuminautConfig,
-        *,
-        gcp_client: compute_v1.InstancesClient | None = None,
-    ):
+    def __init__(self, config: models.LuminautConfig):
         self.config = config
 
     def get_compute_v1_client(self) -> compute_v1.InstancesClient:
