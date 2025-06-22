@@ -7,6 +7,7 @@ import shodan
 
 from luminaut import models
 from luminaut.tools.aws import Aws
+from luminaut.tools.gcp import Gcp
 from luminaut.tools.whatweb import Whatweb
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,10 @@ class Scanner:
 
         logger.info("Completed AWS scan of all specified regions.")
         return scan_results
+
+    def gcp(self) -> list[models.ScanResult]:
+        gcp = Gcp(self.config)
+        return gcp.explore()
 
     def nmap(
         self, ip_address: str, ports: list[str] | None = None
