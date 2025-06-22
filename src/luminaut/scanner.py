@@ -36,7 +36,10 @@ class Scanner:
 
     def gcp(self) -> list[models.ScanResult]:
         gcp = Gcp(self.config)
-        return gcp.explore()
+        logger.info("Scanning GCP projects: %s", ", ".join(self.config.gcp.projects))
+        scan_results = gcp.explore()
+        logger.info("Completed GCP scan of all specified projects.")
+        return scan_results
 
     def nmap(
         self, ip_address: str, ports: list[str] | None = None

@@ -1,8 +1,11 @@
 import argparse
+import logging
 
 from google.cloud import compute_v1
 
 from luminaut import models
+
+logger = logging.getLogger(__name__)
 
 
 class Gcp:
@@ -19,6 +22,11 @@ class Gcp:
         scan_results = []
         for project in self.config.gcp.projects:
             for zone in self.config.gcp.compute_zones:
+                logger.info(
+                    "Scanning GCP project %s in zone %s",
+                    project,
+                    zone,
+                )
                 scan_results += self.find_instances(project, zone)
         return scan_results
 
