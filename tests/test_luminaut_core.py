@@ -39,6 +39,7 @@ class LuminautCore(unittest.TestCase):
 
     def test_discover_public_ips_only_runs_if_aws_enabled(self):
         self.config.aws.enabled = False
+        self.config.gcp.enabled = False
         scan_results = self.luminaut.discover_public_ips()
         self.assertEqual([], scan_results)
 
