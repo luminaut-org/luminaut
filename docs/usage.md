@@ -66,3 +66,7 @@ Powershell:
 ```powershell
 docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -e AWS_PROFILE=profile-name -v ${PWD}\configs:/app/configs luminaut --help
 ```
+
+# Library usage
+
+Luminaut is also designed for use as a Python library. For example usage, see the `examples/` directory within the root of the repository for scripts that showcase how to leverage Luminaut functionality as a Python library.
