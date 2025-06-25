@@ -64,7 +64,7 @@ enabled = true
 # The GCP projects to scan. Defaults to the project set in your GCP profile if none is supplied.
 projects = []
 
-# The GCP compute zones to scan. Defaults to default zone set in your GCP profile if none is supplied.
+# The GCP compute zones to scan. Defaults to all zones available for the GCP project if none is supplied.
 compute_zones = []
 
 [tool.nmap]
