@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
 
+from google.cloud.compute_v1 import types as gcp_types
 from rich.emoji import Emoji
 
 T = TypeVar("T")
@@ -196,6 +197,19 @@ class LuminautConfigToolAws(LuminautConfigTool):
 
 
 @dataclass
+class LuminautConfigToolGcp(LuminautConfigTool):
+    projects: list[str] = field(default_factory=list)
+    compute_zones: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> Self:
+        gcp_config = super().from_dict(config)
+        gcp_config.projects = config.get("projects", [])
+        gcp_config.compute_zones = config.get("compute_zones", [])
+        return gcp_config
+
+
+@dataclass
 class LuminautConfigReport:
     console: bool = True
     json: bool = False
@@ -229,6 +243,7 @@ class LuminautConfigReport:
 class LuminautConfig:
     report: LuminautConfigReport = field(default_factory=LuminautConfigReport)
     aws: LuminautConfigToolAws = field(default_factory=LuminautConfigToolAws)
+    gcp: LuminautConfigToolGcp = field(default_factory=LuminautConfigToolGcp)
     nmap: LuminautConfigTool = field(default_factory=LuminautConfigTool)
     shodan: LuminautConfigToolShodan = field(default_factory=LuminautConfigToolShodan)
     whatweb: LuminautConfigTool = field(default_factory=LuminautConfigTool)
@@ -245,6 +260,9 @@ class LuminautConfig:
             luminaut_config.aws = LuminautConfigToolAws.from_dict(
                 tool_config.get("aws", {})
             )
+            luminaut_config.gcp = LuminautConfigToolGcp.from_dict(
+                tool_config.get("gcp", {})
+            )
             luminaut_config.nmap = LuminautConfigTool.from_dict(
                 tool_config.get("nmap", {})
             )
@@ -252,6 +270,88 @@ class LuminautConfig:
                 tool_config.get("shodan", {})
             )
         return luminaut_config
+
+
+@dataclass
+class GcpNetworkInterface:
+    resource_id: str
+    public_ip: str | None = None
+    network: str | None = None
+    network_attachment: str | None = None
+    internal_ip: str | None = None
+    alias_ip_ranges: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_gcp(cls, network_interface: gcp_types.NetworkInterface) -> Self:
+        public_ip = None
+        if len(network_interface.access_configs) > 0:
+            access_config = network_interface.access_configs[0]
+            if not access_config.nat_i_p:
+                raise ValueError(
+                    f"Instance {network_interface.name} has no public IP in access config."
+                )
+            public_ip = access_config.nat_i_p
+
+        return cls(
+            public_ip=public_ip,
+            resource_id=network_interface.name,
+            internal_ip=network_interface.network_i_p,
+            network=network_interface.network,
+            network_attachment=network_interface.network_attachment,
+            alias_ip_ranges=[
+                alias_range.ip_cidr_range
+                for alias_range in network_interface.alias_ip_ranges
+            ],
+        )
+
+    def build_rich_text(self) -> str:
+        rich_text = f"Public IP: [dark_orange3]{self.public_ip}[/dark_orange3] Private IP: [orange3]{self.internal_ip}[/orange3] from [cyan]{self.resource_id}[/cyan]\n"
+        if self.alias_ip_ranges:
+            rich_text += f"  Alias ranges: [dark_orange3]{', '.join(self.alias_ip_ranges)}[/dark_orange3]\n"
+        return rich_text
+
+
+@dataclass
+class GcpInstance:
+    resource_id: str
+    name: str
+    network_interfaces: list[GcpNetworkInterface] = field(default_factory=list)
+    creation_time: datetime | None = None
+    zone: str | None = None
+    status: str | None = None
+    description: str | None = None
+
+    def get_public_ips(self) -> list[str]:
+        """Return a list of public IPs from the network interfaces."""
+        return [nic.public_ip for nic in self.network_interfaces if nic.public_ip]
+
+    def has_public_ip(self) -> bool:
+        return bool(self.get_public_ips())
+
+    def build_rich_text(self) -> str:
+        rich_text = f"[dark_orange3]{self.name}[/dark_orange3] Id: {self.resource_id} ([green]{self.status}[/green]) Created: {self.creation_time or 'Unknown'}\n"
+        if description := self.description:
+            rich_text += f"  Description: {description}\n"
+        for nic in self.network_interfaces:
+            # Indent each network interface line
+            rich_text += "\n".join(
+                ["  " + line for line in nic.build_rich_text().splitlines()]
+            )
+        return rich_text
+
+    @classmethod
+    def from_gcp(cls, instance: Any) -> Self:
+        return cls(
+            resource_id=instance.id,
+            name=instance.name,
+            network_interfaces=[
+                GcpNetworkInterface.from_gcp(nic) for nic in instance.network_interfaces
+            ],
+            creation_time=datetime.fromisoformat(instance.creation_timestamp),
+            zone=instance.zone.split("/")[-1],
+            status=instance.status,
+            description=instance.description,
+        )
 
 
 @dataclass
@@ -832,7 +932,12 @@ class ScanTarget:
 
 FindingServices = MutableSequence[NmapPortServices | ShodanService | Whatweb]
 FindingResources = MutableSequence[
-    AwsConfigItem | AwsLoadBalancer | AwsNetworkInterface | SecurityGroup | Hostname
+    AwsConfigItem
+    | AwsLoadBalancer
+    | AwsNetworkInterface
+    | GcpInstance
+    | SecurityGroup
+    | Hostname
 ]
 
 

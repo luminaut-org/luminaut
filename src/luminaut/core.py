@@ -49,7 +49,7 @@ class Luminaut:
             write_html_report(self.config.report.html_file)
 
     def discover_public_ips(self) -> list[models.ScanResult]:
-        return self.scanner.aws()
+        return self.scanner.aws() + self.scanner.gcp()
 
     def gather_public_ip_context(
         self, scan_results: list[models.ScanResult]

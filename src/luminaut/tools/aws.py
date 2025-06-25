@@ -31,12 +31,12 @@ class Aws:
             region_name: str = self.ec2_client.meta.region_name
 
         self.setup_client_region(region_name)
-        logger.info("Exploring region %s", region_name)
+        logger.info("Scanning AWS region %s", region_name)
 
         enis_with_public_ips = self._fetch_enis_with_public_ips()
         aws_exploration_results = self.explore_enis(enis_with_public_ips, region_name)
 
-        logger.info("Completed exploration of AWS region %s", region_name)
+        logger.info("Completed scanning AWS region %s", region_name)
         return aws_exploration_results
 
     def explore_enis(
