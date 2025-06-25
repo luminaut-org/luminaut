@@ -70,23 +70,19 @@ class Gcp:
     def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
         scan_results = []
         for gcp_instance in self.fetch_instances(project, zone):
-            if gcp_instance.has_public_ip():
-                for network_interface in gcp_instance.network_interfaces:
-                    if network_interface.public_ip is None:
-                        continue  # To assist with type checking
-
-                    scan_finding = models.ScanFindings(
-                        tool="GCP Instance",
-                        emoji_name="cloud",
-                        resources=[gcp_instance],
+            for public_ip in gcp_instance.get_public_ips():
+                scan_finding = models.ScanFindings(
+                    tool="GCP Instance",
+                    emoji_name="cloud",
+                    resources=[gcp_instance],
+                )
+                scan_results.append(
+                    models.ScanResult(
+                        ip=public_ip,
+                        findings=[scan_finding],
+                        region=zone,
                     )
-                    scan_results.append(
-                        models.ScanResult(
-                            ip=network_interface.public_ip,
-                            findings=[scan_finding],
-                            region=zone,
-                        )
-                    )
+                )
         return scan_results
 
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:

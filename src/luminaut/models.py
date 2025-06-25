@@ -321,8 +321,12 @@ class GcpInstance:
     status: str | None = None
     description: str | None = None
 
+    def get_public_ips(self) -> list[str]:
+        """Return a list of public IPs from the network interfaces."""
+        return [nic.public_ip for nic in self.network_interfaces if nic.public_ip]
+
     def has_public_ip(self) -> bool:
-        return any(nic.public_ip for nic in self.network_interfaces)
+        return bool(self.get_public_ips())
 
     def build_rich_text(self) -> str:
         rich_text = f"[dark_orange3]{self.name}[/dark_orange3] Id: {self.resource_id} ([green]{self.status}[/green]) Created: {self.creation_time or 'Unknown'}\n"
