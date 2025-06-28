@@ -1119,7 +1119,7 @@ class ScanResult:
 
     def build_rich_panel(self) -> tuple[str, str]:
         rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
-        title = self.ip or "No IP"
+        title = self.ip or self.url or "No IP or URL"
         if self.region:
             title += f" | {self.region}"
         return title, rich_text
