@@ -95,6 +95,23 @@ class Gcp:
         )
         return [models.GcpInstance.from_gcp(instance) for instance in instances]
 
+    def find_services(self, project: str, location: str) -> list[models.ScanResult]:
+        scan_results = []
+        for service in self.fetch_run_services(project, location):
+            scan_finding = models.ScanFindings(
+                tool="GCP Run Service",
+                emoji_name="cloud",
+                resources=[service],
+            )
+            scan_results.append(
+                models.ScanResult(
+                    url=service.uri,
+                    findings=[scan_finding],
+                    region=location,
+                )
+            )
+        return scan_results
+
     def fetch_run_services(
         self, project: str, location: str
     ) -> list[models.GcpService]:
