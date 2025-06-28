@@ -424,6 +424,7 @@ class GcpService:
 
     resource_id: str
     name: str
+    uri: str
     creation_time: datetime | None = None
     update_time: datetime | None = None
     created_by: str | None = None
@@ -441,6 +442,7 @@ class GcpService:
         return cls(
             resource_id=service.uid,
             name=service.name,
+            uri=service.uri,
             creation_time=datetime.fromisoformat(service.create_time.rfc3339()),  # type: ignore
             update_time=datetime.fromisoformat(service.update_time.rfc3339()),  # type: ignore
             created_by=service.creator,

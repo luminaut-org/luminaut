@@ -65,6 +65,7 @@ some_date = datetime.datetime(2025, 5, 19, 5, 35, 9, tzinfo=datetime.UTC)
 fake_service = run_v2_types.Service(
     name="test-service",
     uid="12345678-1234-1234-1234-123456789012",
+    uri="https://test-service-12345678-uc.a.run.app",
     creator="foo",
     last_modifier="bar",
     template=run_v2_types.RevisionTemplate(containers=[fake_container]),
@@ -233,6 +234,7 @@ class TestGCP(TestCase):
 
         service = services[0]
         self.assertEqual(service.name, fake_service.name)
+        self.assertEqual(service.uri, fake_service.uri)
         self.assertEqual(service.resource_id, fake_service.uid)
         self.assertEqual(service.created_by, fake_service.creator)
         self.assertEqual(service.creation_time, some_date)
