@@ -1,4 +1,5 @@
 import json
+import textwrap
 import tomllib
 from collections.abc import Iterable, Mapping, MutableSequence
 from dataclasses import asdict, dataclass, field
@@ -459,8 +460,13 @@ class GcpService:
             rich_text += f"  Ingress: [cyan]{self.ingress}[/cyan]\n"
         if self.urls:
             rich_text += f"  URLs: [blue]{', '.join(self.urls)}[/blue]\n"
+        container_text = ""
         for container in self.containers:
-            rich_text += container.build_rich_text()
+            # Indent each container line by 2 spaces
+            container_text += container.build_rich_text()
+        if container_text:
+            rich_text += "  Containers:\n"
+            rich_text += textwrap.indent(container_text, "    ")
         return rich_text
 
 
