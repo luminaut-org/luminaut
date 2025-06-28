@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
 
-from google.cloud.compute_v1 import types as gcp_types
+from google.cloud.compute_v1 import types as gcp_comput_v1_types
+from google.cloud.run_v2 import types as gcp_run_v2_types
 from rich.emoji import Emoji
 
 T = TypeVar("T")
@@ -282,7 +283,7 @@ class GcpNetworkInterface:
     alias_ip_ranges: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_gcp(cls, network_interface: gcp_types.NetworkInterface) -> Self:
+    def from_gcp(cls, network_interface: gcp_comput_v1_types.NetworkInterface) -> Self:
         public_ip = None
         if len(network_interface.access_configs) > 0:
             access_config = network_interface.access_configs[0]
@@ -352,6 +353,115 @@ class GcpInstance:
             status=instance.status,
             description=instance.description,
         )
+
+
+@dataclass
+class Container:
+    """A representation of a container"""
+
+    image: str
+    name: str | None = None
+    command: list[str] | None = None
+    network_ports: list[int] = field(default_factory=list)
+
+    @classmethod
+    def from_gcp(cls, container: gcp_run_v2_types.Container) -> Self:
+        return cls(
+            image=container.image,
+            name=container.name,
+            command=list(container.command),
+            network_ports=[port.container_port for port in container.ports or []],
+        )
+
+    def build_rich_text(self) -> str:
+        rich_text = f"Name: [dark_orange3]{self.name or 'Unnamed Container'}[/dark_orange3] Image: [blue]{self.image}[/blue]"
+        if self.command:
+            rich_text += f" Command: [green]{' '.join(self.command)}[/green]"
+        if self.network_ports:
+            rich_text += (
+                f" Ports: [cyan]{', '.join(map(str, self.network_ports))}[/cyan]"
+            )
+        return rich_text + "\n"
+
+
+@dataclass
+class GcpTask:
+    """A GCP Cloud Run Task"""
+
+    resource_id: str
+    name: str
+    creation_time: datetime | None = None
+    update_time: datetime | None = None
+    containers: list[Container] = field(default_factory=list)
+
+    @classmethod
+    def from_gcp(cls, task: gcp_run_v2_types.Task) -> Self:
+        containers = [Container.from_gcp(container) for container in task.containers]
+
+        return cls(
+            resource_id=task.uid,
+            name=task.name,
+            creation_time=task.create_time.ToDatetime(),
+            update_time=task.update_time.ToDatetime(),
+            containers=containers,
+        )
+
+    def build_rich_text(self) -> str:
+        rich_text = f"Name: [dark_orange3]{self.name or 'Unnamed Task'}[/dark_orange3] Id: {self.resource_id}\n"
+        if self.creation_time:
+            rich_text += f"  Created at: [blue]{self.creation_time}[/blue]\n"
+        if self.update_time:
+            rich_text += f"  Last updated at: [blue]{self.update_time}[/blue]\n"
+        for container in self.containers:
+            rich_text += container.build_rich_text()
+        return rich_text
+
+
+@dataclass
+class GcpService:
+    """A GCP Cloud Run Service"""
+
+    resource_id: str
+    name: str
+    creation_time: datetime | None = None
+    update_time: datetime | None = None
+    created_by: str | None = None
+    last_modified_by: str | None = None
+    ingress: str | None = None
+    urls: list[str] = field(default_factory=list)
+    containers: list[Container] = field(default_factory=list)
+
+    @classmethod
+    def from_gcp(cls, service: gcp_run_v2_types.Service) -> Self:
+        containers = [
+            Container.from_gcp(container) for container in service.template.containers
+        ]
+
+        return cls(
+            resource_id=service.uid,
+            name=service.name,
+            creation_time=datetime.fromisoformat(service.create_time.rfc3339()),  # type: ignore
+            update_time=datetime.fromisoformat(service.update_time.rfc3339()),  # type: ignore
+            created_by=service.creator,
+            last_modified_by=service.last_modifier,
+            ingress=service.ingress.name if service.ingress else None,
+            urls=list(service.urls),
+            containers=containers,
+        )
+
+    def build_rich_text(self) -> str:
+        rich_text = f"Name: [dark_orange3]{self.name or 'Unnamed Service'}[/dark_orange3] Id: {self.resource_id}\n"
+        if self.created_by:
+            rich_text += f"  Created by: [green]{self.created_by}[/green] at [blue]{self.creation_time}[/blue]\n"
+        if self.last_modified_by:
+            rich_text += f"  Last modified by: [green]{self.last_modified_by}[/green] at [blue]{self.update_time}[/blue]\n"
+        if self.ingress:
+            rich_text += f"  Ingress: [cyan]{self.ingress}[/cyan]\n"
+        if self.urls:
+            rich_text += f"  URLs: [blue]{', '.join(self.urls)}[/blue]\n"
+        for container in self.containers:
+            rich_text += container.build_rich_text()
+        return rich_text
 
 
 @dataclass
@@ -936,6 +1046,8 @@ FindingResources = MutableSequence[
     | AwsLoadBalancer
     | AwsNetworkInterface
     | GcpInstance
+    | GcpService
+    | GcpTask
     | SecurityGroup
     | Hostname
 ]
