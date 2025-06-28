@@ -1109,14 +1109,14 @@ class ScanFindings:
 
 @dataclass
 class ScanResult:
-    ip: str
-    findings: list[ScanFindings]
+    ip: str | None = None
+    findings: list[ScanFindings] = field(default_factory=list)
     region: str | None = None
     eni_id: str | None = None
 
     def build_rich_panel(self) -> tuple[str, str]:
         rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
-        title = self.ip
+        title = self.ip or "No IP"
         if self.region:
             title += f" | {self.region}"
         return title, rich_text
@@ -1146,30 +1146,39 @@ class ScanResult:
         return resources
 
     def generate_ip_port_targets(self) -> list[str]:
-        return [str(x) for x in self.generate_scan_targets()]
+        if not self.ip:
+            return []
+        return [str(x) for x in self.generate_ip_scan_targets(self.ip)]
 
     def generate_scan_targets(self) -> set[ScanTarget]:
+        if self.ip:
+            return self.generate_ip_scan_targets(self.ip)
+        return set()
+
+    def generate_ip_scan_targets(self, ip: str) -> set[ScanTarget]:
         ports = set()
         default_ports = [
-            ScanTarget(ip_address=self.ip, port=80, schema="http"),
-            ScanTarget(ip_address=self.ip, port=443, schema="https"),
-            ScanTarget(ip_address=self.ip, port=3000, schema="http"),
-            ScanTarget(ip_address=self.ip, port=5000, schema="http"),
-            ScanTarget(ip_address=self.ip, port=8000, schema="http"),
-            ScanTarget(ip_address=self.ip, port=8080, schema="http"),
-            ScanTarget(ip_address=self.ip, port=8443, schema="https"),
-            ScanTarget(ip_address=self.ip, port=8888, schema="http"),
+            ScanTarget(ip_address=ip, port=80, schema="http"),
+            ScanTarget(ip_address=ip, port=443, schema="https"),
+            ScanTarget(ip_address=ip, port=3000, schema="http"),
+            ScanTarget(ip_address=ip, port=5000, schema="http"),
+            ScanTarget(ip_address=ip, port=8000, schema="http"),
+            ScanTarget(ip_address=ip, port=8080, schema="http"),
+            ScanTarget(ip_address=ip, port=8443, schema="https"),
+            ScanTarget(ip_address=ip, port=8888, schema="http"),
         ]
-        if sg_ports := self.generate_scan_targets_from_security_groups(default_ports):
+        if sg_ports := self.generate_scan_targets_from_security_groups(
+            ip, default_ports
+        ):
             ports.update(sg_ports)
 
-        if elb_ports := self.generate_scan_targets_from_elb_listeners():
+        if elb_ports := self.generate_scan_targets_from_elb_listeners(ip):
             ports.update(elb_ports)
 
         return ports
 
     def generate_scan_targets_from_security_groups(
-        self, default_ports: Iterable[ScanTarget]
+        self, ip: str, default_ports: Iterable[ScanTarget]
     ) -> set[ScanTarget]:
         ports = set()
         if security_group_rules := self.get_security_group_rules():
@@ -1180,20 +1189,20 @@ class ScanResult:
                     ports.update(default_ports)
                 ports.update(
                     {
-                        ScanTarget(ip_address=self.ip, port=x)
+                        ScanTarget(ip_address=ip, port=x)
                         for x in range(sg_rule.from_port, sg_rule.to_port + 1)
                     }
                 )
         return ports
 
-    def generate_scan_targets_from_elb_listeners(self) -> set[ScanTarget]:
+    def generate_scan_targets_from_elb_listeners(self, ip: str) -> set[ScanTarget]:
         ports = set()
         if load_balancers := self.get_resources_by_type(AwsLoadBalancer):
             for elb in load_balancers:
                 for listener in elb.listeners:
                     ports.add(
                         ScanTarget(
-                            ip_address=self.ip,
+                            ip_address=ip,
                             port=listener.port,
                             schema=listener.protocol.lower(),
                         )
