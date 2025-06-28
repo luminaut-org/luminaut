@@ -4,6 +4,9 @@ from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import Mock
 
+from google.cloud.run_v2 import types as run_v2_types
+from google.protobuf.timestamp_pb2 import Timestamp
+
 from luminaut import models
 from luminaut.tools.gcp import Gcp
 
@@ -48,6 +51,28 @@ class FakeGcpInternalInstance:
     zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
     status = "RUNNING"
     description = "Test instance"
+
+
+fake_container = run_v2_types.Container(
+    name="test-container",
+    image="gcr.io/test-project/test-image",
+    command=["python", "app.py"],
+    ports=[run_v2_types.ContainerPort(name="http1", container_port=8080)],
+)
+
+some_date = datetime.datetime(2025, 5, 19, 5, 35, 9, tzinfo=datetime.UTC)
+
+fake_service = run_v2_types.Service(
+    name="test-service",
+    uid="12345678-1234-1234-1234-123456789012",
+    creator="foo",
+    last_modifier="bar",
+    template=run_v2_types.RevisionTemplate(containers=[fake_container]),
+    ingress=run_v2_types.IngressTraffic.INGRESS_TRAFFIC_ALL,
+    urls=["https://test-service-12345678-uc.a.run.app"],
+    create_time=Timestamp(seconds=int(some_date.timestamp())),
+    update_time=Timestamp(seconds=int(some_date.timestamp())),
+)
 
 
 class TestGCP(TestCase):
@@ -194,3 +219,32 @@ class TestGCP(TestCase):
             0,
             f"Expected no instances, found {len(instances)}",
         )
+
+    def test_get_run_services(self):
+        run_v2_client = Mock()
+        run_v2_client.list_services.return_value = [fake_service]
+
+        gcp = Gcp(self.config)
+        gcp.get_run_v2_services_client = Mock(return_value=run_v2_client)
+        services = gcp.fetch_run_services(project="unittest", location="unittest")
+
+        self.assertEqual(run_v2_client.list_services.call_count, 1)
+        self.assertEqual(len(services), 1)
+
+        service = services[0]
+        self.assertEqual(service.name, fake_service.name)
+        self.assertEqual(service.resource_id, fake_service.uid)
+        self.assertEqual(service.created_by, fake_service.creator)
+        self.assertEqual(service.creation_time, some_date)
+        self.assertEqual(service.last_modified_by, fake_service.last_modifier)
+        self.assertEqual(service.update_time, some_date)
+        self.assertEqual(len(service.containers), 1)
+        self.assertEqual(service.containers[0].name, fake_container.name)
+        self.assertEqual(service.containers[0].image, fake_container.image)
+        self.assertEqual(service.containers[0].command, fake_container.command)
+        self.assertEqual(
+            service.containers[0].network_ports[0],
+            fake_container.ports[0].container_port,
+        )
+        self.assertEqual(service.ingress, fake_service.ingress.name)
+        self.assertEqual(service.urls, fake_service.urls)

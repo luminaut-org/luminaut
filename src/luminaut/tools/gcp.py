@@ -1,7 +1,7 @@
 import logging
 
 import google.auth
-from google.cloud import compute_v1
+from google.cloud import compute_v1, run_v2
 
 from luminaut import models
 
@@ -14,6 +14,9 @@ class Gcp:
 
     def get_compute_v1_client(self) -> compute_v1.InstancesClient:
         return compute_v1.InstancesClient()
+
+    def get_run_v2_services_client(self) -> run_v2.ServicesClient:
+        return run_v2.ServicesClient()
 
     def get_projects(self) -> list[str]:
         if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
@@ -91,3 +94,12 @@ class Gcp:
             zone=zone,
         )
         return [models.GcpInstance.from_gcp(instance) for instance in instances]
+
+    def fetch_run_services(
+        self, project: str, location: str
+    ) -> list[models.GcpService]:
+        client = self.get_run_v2_services_client()
+        services = client.list_services(
+            parent=f"projects/{project}/locations/{location}"
+        )
+        return [models.GcpService.from_gcp(service) for service in services]
