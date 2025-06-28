@@ -1109,7 +1109,10 @@ class ScanFindings:
 
 @dataclass
 class ScanResult:
+    """All associated findings for a single IP address or URL."""
+
     ip: str | None = None
+    url: str | None = None
     findings: list[ScanFindings] = field(default_factory=list)
     region: str | None = None
     eni_id: str | None = None
