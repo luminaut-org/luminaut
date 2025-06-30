@@ -140,23 +140,26 @@ class TestGCP(TestCase):
         gcp_cloud_run_client.list_services.return_value = [fake_service]
 
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_compute_client)
-        gcp.get_run_v2_services_client = Mock(return_value=gcp_cloud_run_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            compute_list_instance_response=[FakeGcpInstance()],
+            cloud_run_list_service_response=[fake_service],
+        )
         instances = gcp.explore()
 
-        self.assertEqual(gcp_compute_client.list.call_count, 6)
-        self.assertEqual(gcp_cloud_run_client.list_services.call_count, 4)
+        self.assertEqual(mock_clients["compute_v1"].list.call_count, 6)
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 4)
         self.assertEqual(len(instances), 10)
 
     def test_explore_gcp_disabled(self):
         self.config.gcp.enabled = False
-        gcp_client = Mock()
 
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(gcp)
         instances = gcp.explore()
 
-        self.assertEqual(gcp_client.list.call_count, 0)
+        self.assertEqual(mock_clients["compute_v1"].list.call_count, 0)
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 0)
         self.assertEqual(len(instances), 0)
 
     def test_enumerate_instances_with_public_ips(self):
@@ -190,14 +193,16 @@ class TestGCP(TestCase):
         gcp_client.list.return_value = [FakeGcpInstance()]
 
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp, compute_list_instance_response=[FakeGcpInstance()]
+        )
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
 
         # Calls the list command
-        gcp_client.list.assert_called_once()
+        mock_clients["compute_v1"].list.assert_called_once()
 
         self.assertEqual(
             len(instances),
@@ -225,13 +230,16 @@ class TestGCP(TestCase):
         gcp_client.list.return_value = [FakeGcpInternalInstance()]
 
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            compute_list_instance_response=[FakeGcpInternalInstance()],
+        )
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
 
-        gcp_client.list.assert_called_once()
+        mock_clients["compute_v1"].list.assert_called_once()
 
         self.assertEqual(
             len(instances),
@@ -247,17 +255,14 @@ class TestGCP(TestCase):
 
     @patch("luminaut.tools.gcp.compute_v1", new=Mock())
     def test_explore_only_returns_instances_with_external_ips(self):
-        gcp_client = Mock()
-        gcp_client.list.return_value = [FakeGcpInternalInstance()]
-        gcp_cloud_run_client = Mock()
-        gcp_cloud_run_client.list_services.return_value = []
-
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
-        gcp.get_run_v2_services_client = Mock(return_value=gcp_cloud_run_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            compute_list_instance_response=[FakeGcpInternalInstance()],
+        )
         instances = gcp.explore()
 
-        self.assertEqual(gcp_client.list.call_count, 6)
+        self.assertEqual(mock_clients["compute_v1"].list.call_count, 6)
         self.assertEqual(
             len(instances),
             0,
@@ -284,14 +289,14 @@ class TestGCP(TestCase):
         )
 
     def test_get_run_services(self):
-        run_v2_client = Mock()
-        run_v2_client.list_services.return_value = [fake_service]
-
         gcp = Gcp(self.config)
-        gcp.get_run_v2_services_client = Mock(return_value=run_v2_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            cloud_run_list_service_response=[fake_service],
+        )
         services = gcp.fetch_run_services(project="unittest", location="unittest")
 
-        self.assertEqual(run_v2_client.list_services.call_count, 1)
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 1)
         self.assertEqual(len(services), 1)
 
         service = services[0]
