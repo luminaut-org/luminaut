@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import google.auth
@@ -73,26 +74,24 @@ class Gcp:
             return []
 
     def explore(self) -> list[models.ScanResult]:
+        return asyncio.run(self.explore_async())
+
+    async def explore_async(self) -> list[models.ScanResult]:
         if not self.config.gcp.enabled:
             return []
 
-        scan_results = []
+        tasks = []
         for project in self.get_projects():
             for zone in self.get_zones(project):
-                logger.info(
-                    "Scanning GCP project %s in zone %s",
-                    project,
-                    zone,
-                )
-                scan_results += self.find_instances(project, zone)
+                tasks.append(asyncio.to_thread(self.find_instances, project, zone))
             for region in self.get_regions(project):
-                logger.info(
-                    "Scanning GCP project %s in region %s",
-                    project,
-                    region,
-                )
-                scan_results += self.find_services(project, region)
-        logger.info("Completed scanning GCP projects")
+                tasks.append(asyncio.to_thread(self.find_services, project, region))
+        results = await asyncio.gather(*tasks)
+
+        scan_results = []
+        for r in results:
+            scan_results.extend(r)
+        logger.info("Completed scanning GCP")
         return scan_results
 
     def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
