@@ -23,11 +23,15 @@ class Scanner:
         scan_results = []
         regions = self.config.aws.aws_regions
 
-        if regions:
-            for region in regions:
-                scan_results.extend(aws.explore_region(region))
-        else:
-            scan_results.extend(aws.explore_region())
+        try:
+            if regions:
+                for region in regions:
+                    scan_results.extend(aws.explore_region(region))
+            else:
+                scan_results.extend(aws.explore_region())
+        except Exception as e:
+            logger.error("Failed to explore AWS regions: %s", e)
+            return []
         return scan_results
 
     def gcp(self) -> list[models.ScanResult]:
