@@ -1036,23 +1036,23 @@ class TimelineEvent:
 
 @dataclass
 class ScanTarget:
-    ip_address: str
+    target: str
     port: int
     schema: str | None = None
 
     def __str__(self) -> str:
         if self.schema:
-            return f"{self.schema.lower()}://{self.ip_address}:{self.port}"
-        return f"{self.ip_address}:{self.port}"
+            return f"{self.schema.lower()}://{self.target}:{self.port}"
+        return f"{self.target}:{self.port}"
 
     def __hash__(self) -> int:
-        return hash((self.ip_address, self.port, self.schema))
+        return hash((self.target, self.port, self.schema))
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, ScanTarget):
             return False
-        return (self.ip_address, self.port, self.schema) == (
-            other.ip_address,
+        return (self.target, self.port, self.schema) == (
+            other.target,
             other.port,
             other.schema,
         )
@@ -1172,14 +1172,14 @@ class ScanResult:
 
     def generate_default_scan_targets(self, target: str) -> set[ScanTarget]:
         return {
-            ScanTarget(ip_address=target, port=80, schema="http"),
-            ScanTarget(ip_address=target, port=443, schema="https"),
-            ScanTarget(ip_address=target, port=3000, schema="http"),
-            ScanTarget(ip_address=target, port=5000, schema="http"),
-            ScanTarget(ip_address=target, port=8000, schema="http"),
-            ScanTarget(ip_address=target, port=8080, schema="http"),
-            ScanTarget(ip_address=target, port=8443, schema="https"),
-            ScanTarget(ip_address=target, port=8888, schema="http"),
+            ScanTarget(target=target, port=80, schema="http"),
+            ScanTarget(target=target, port=443, schema="https"),
+            ScanTarget(target=target, port=3000, schema="http"),
+            ScanTarget(target=target, port=5000, schema="http"),
+            ScanTarget(target=target, port=8000, schema="http"),
+            ScanTarget(target=target, port=8080, schema="http"),
+            ScanTarget(target=target, port=8443, schema="https"),
+            ScanTarget(target=target, port=8888, schema="http"),
         }
 
     def generate_ip_scan_targets(self, ip: str) -> set[ScanTarget]:
@@ -1206,7 +1206,7 @@ class ScanResult:
                     ports.update(default_ports)
                 ports.update(
                     {
-                        ScanTarget(ip_address=ip, port=x)
+                        ScanTarget(target=ip, port=x)
                         for x in range(sg_rule.from_port, sg_rule.to_port + 1)
                     }
                 )
@@ -1219,7 +1219,7 @@ class ScanResult:
                 for listener in elb.listeners:
                     ports.add(
                         ScanTarget(
-                            ip_address=ip,
+                            target=ip,
                             port=listener.port,
                             schema=listener.protocol.lower(),
                         )
