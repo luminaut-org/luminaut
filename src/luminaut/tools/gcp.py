@@ -3,6 +3,7 @@ import logging
 
 import google.auth
 from google.cloud import compute_v1, run_v2
+from tqdm import tqdm
 
 from luminaut import models
 
@@ -86,10 +87,12 @@ class Gcp:
                 tasks.append(asyncio.to_thread(self.find_instances, project, zone))
             for region in self.get_regions(project):
                 tasks.append(asyncio.to_thread(self.find_services, project, region))
-        results = await asyncio.gather(*tasks)
 
         scan_results = []
-        for r in results:
+        for coro in tqdm(
+            asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
+        ):
+            r = await coro
             scan_results.extend(r)
         logger.info("Completed scanning GCP")
         return scan_results
