@@ -1170,20 +1170,22 @@ class ScanResult:
             return self.generate_ip_scan_targets(self.ip)
         return set()
 
+    def generate_default_scan_targets(self, target: str) -> set[ScanTarget]:
+        return {
+            ScanTarget(ip_address=target, port=80, schema="http"),
+            ScanTarget(ip_address=target, port=443, schema="https"),
+            ScanTarget(ip_address=target, port=3000, schema="http"),
+            ScanTarget(ip_address=target, port=5000, schema="http"),
+            ScanTarget(ip_address=target, port=8000, schema="http"),
+            ScanTarget(ip_address=target, port=8080, schema="http"),
+            ScanTarget(ip_address=target, port=8443, schema="https"),
+            ScanTarget(ip_address=target, port=8888, schema="http"),
+        }
+
     def generate_ip_scan_targets(self, ip: str) -> set[ScanTarget]:
         ports = set()
-        default_ports = [
-            ScanTarget(ip_address=ip, port=80, schema="http"),
-            ScanTarget(ip_address=ip, port=443, schema="https"),
-            ScanTarget(ip_address=ip, port=3000, schema="http"),
-            ScanTarget(ip_address=ip, port=5000, schema="http"),
-            ScanTarget(ip_address=ip, port=8000, schema="http"),
-            ScanTarget(ip_address=ip, port=8080, schema="http"),
-            ScanTarget(ip_address=ip, port=8443, schema="https"),
-            ScanTarget(ip_address=ip, port=8888, schema="http"),
-        ]
         if sg_ports := self.generate_scan_targets_from_security_groups(
-            ip, default_ports
+            ip, self.generate_default_scan_targets(ip)
         ):
             ports.update(sg_ports)
 
