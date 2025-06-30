@@ -85,6 +85,13 @@ class Gcp:
                     zone,
                 )
                 scan_results += self.find_instances(project, zone)
+            for region in self.get_regions(project):
+                logger.info(
+                    "Scanning GCP project %s in region %s",
+                    project,
+                    region,
+                )
+                scan_results += self.find_services(project, region)
         logger.info("Completed scanning GCP projects")
         return scan_results
 
@@ -116,6 +123,12 @@ class Gcp:
     def find_services(self, project: str, location: str) -> list[models.ScanResult]:
         scan_results = []
         for service in self.fetch_run_services(project, location):
+            if not service.allows_ingress():
+                logger.debug(
+                    "Skipping GCP Run Service %s as it does not have external ingress",
+                    service.name,
+                )
+                continue
             scan_finding = models.ScanFindings(
                 tool="GCP Run Service",
                 emoji_name="cloud",

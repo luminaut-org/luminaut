@@ -454,6 +454,14 @@ class GcpService:
             containers=containers,
         )
 
+    def allows_ingress(self) -> bool:
+        """Check if the service has external ingress."""
+        return self.ingress in [
+            gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_ALL.name,
+            gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER.name,
+            gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_UNSPECIFIED.name,
+        ]
+
     def build_rich_text(self) -> str:
         rich_text = f"Name: [dark_orange3]{self.name or 'Unnamed Service'}[/dark_orange3] Id: {self.resource_id}\n"
         if self.created_by:
