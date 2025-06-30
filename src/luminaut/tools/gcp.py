@@ -114,11 +114,20 @@ class Gcp:
         return scan_results
 
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
-        instances = self.get_compute_v1_client().list(
-            project=project,
-            zone=zone,
-        )
-        return [models.GcpInstance.from_gcp(instance) for instance in instances]
+        try:
+            instances = self.get_compute_v1_client().list(
+                project=project,
+                zone=zone,
+            )
+            return [models.GcpInstance.from_gcp(instance) for instance in instances]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP instances for project %s in zone %s: %s",
+                project,
+                zone,
+                str(e),
+            )
+            return []
 
     def find_services(self, project: str, location: str) -> list[models.ScanResult]:
         scan_results = []
@@ -146,8 +155,17 @@ class Gcp:
     def fetch_run_services(
         self, project: str, location: str
     ) -> list[models.GcpService]:
-        client = self.get_run_v2_services_client()
-        services = client.list_services(
-            parent=f"projects/{project}/locations/{location}"
-        )
-        return [models.GcpService.from_gcp(service) for service in services]
+        try:
+            client = self.get_run_v2_services_client()
+            services = client.list_services(
+                parent=f"projects/{project}/locations/{location}"
+            )
+            return [models.GcpService.from_gcp(service) for service in services]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP Run services for project %s in location %s: %s",
+                project,
+                location,
+                str(e),
+            )
+            return []
