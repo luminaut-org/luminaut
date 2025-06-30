@@ -201,12 +201,14 @@ class LuminautConfigToolAws(LuminautConfigTool):
 @dataclass
 class LuminautConfigToolGcp(LuminautConfigTool):
     projects: list[str] = field(default_factory=list)
+    regions: list[str] = field(default_factory=list)
     compute_zones: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
         gcp_config = super().from_dict(config)
         gcp_config.projects = config.get("projects", [])
+        gcp_config.regions = config.get("regions", [])
         gcp_config.compute_zones = config.get("compute_zones", [])
         return gcp_config
 

@@ -61,10 +61,13 @@ tags = { "luminaut" = "ignore", "reviewed" = "true" }
 # Enable the GCP tool, requires the configuration of GCP credentials.
 enabled = true
 
-# The GCP projects to scan. Defaults to the project set in your GCP profile if none is supplied.
+# The GCP projects to scan. Defaults to the project set in your GCP profile if none are supplied.
 projects = []
 
-# The GCP compute zones to scan. Defaults to all zones available for the GCP project if none is supplied.
+# The GCP regions to scan. Defaults to all regions available for the GCP project if none are supplied.
+regions = []
+
+# The GCP compute zones to scan. Defaults to all zones available for the GCP project if none are supplied.
 compute_zones = []
 
 [tool.nmap]
