@@ -109,18 +109,19 @@ class TestGCP(TestCase):
         gcp: Gcp,
         compute_list_instance_response=None,
         cloud_run_list_service_response=None,
-    ):
-        gcp_compute_client = Mock()
-        gcp_compute_client.list.return_value = compute_list_instance_response or []
-        gcp.get_compute_v1_client = Mock(return_value=gcp_compute_client)
+    ) -> dict[str, Mock]:
+        clients = {}
+        clients["compute_v1"] = Mock()
+        clients["compute_v1"].list.return_value = compute_list_instance_response or []
+        gcp.get_compute_v1_client = Mock(return_value=clients["compute_v1"])
 
-        gcp_cloud_run_client = Mock()
-        gcp_cloud_run_client.list_services.return_value = (
+        clients["run_v2"] = Mock()
+        clients["run_v2"].list_services.return_value = (
             cloud_run_list_service_response or []
         )
-        gcp.get_run_v2_services_client = Mock(return_value=gcp_cloud_run_client)
+        gcp.get_run_v2_services_client = Mock(return_value=clients["run_v2"])
 
-        return gcp_compute_client, gcp_cloud_run_client
+        return clients
 
     def test_initialize_class(self):
         gcp_client = Mock()
@@ -266,7 +267,7 @@ class TestGCP(TestCase):
     @patch("luminaut.tools.gcp.compute_v1", new=Mock())
     def test_explore_only_returns_cloud_run_services_with_ingress(self):
         gcp = Gcp(self.config)
-        _, gcp_cloud_run_client = self.mock_gcp_clients(
+        mock_clients = self.mock_gcp_clients(
             gcp,
             cloud_run_list_service_response=[
                 fake_service_with_no_ingress,
@@ -275,7 +276,7 @@ class TestGCP(TestCase):
         )
         instances = gcp.explore()
 
-        self.assertEqual(gcp_cloud_run_client.list_services.call_count, 4)
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 4)
         self.assertEqual(
             len(instances),
             len(self.config.gcp.projects) * len(self.config.gcp.regions),
