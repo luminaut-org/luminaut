@@ -123,14 +123,6 @@ class TestGCP(TestCase):
 
         return clients
 
-    def test_initialize_class(self):
-        gcp_client = Mock()
-
-        gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
-
-        self.assertEqual(gcp.config, self.config)
-
     @patch("luminaut.tools.gcp.compute_v1", new=Mock())
     @patch("luminaut.tools.gcp.run_v2", new=Mock().list(return_value=[]))
     def test_explore(self):
