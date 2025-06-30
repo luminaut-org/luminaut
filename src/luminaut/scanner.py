@@ -35,7 +35,11 @@ class Scanner:
         return scan_results
 
     def gcp(self) -> list[models.ScanResult]:
-        return Gcp(self.config).explore()
+        try:
+            return Gcp(self.config).explore()
+        except Exception as e:
+            logger.error("Failed to explore GCP: %s", e)
+            return []
 
     def nmap(
         self, ip_address: str, ports: list[str] | None = None
