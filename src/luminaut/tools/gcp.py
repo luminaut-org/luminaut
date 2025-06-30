@@ -36,6 +36,24 @@ class Gcp:
         )
         return []
 
+    def get_regions(self, project: str) -> list[str]:
+        if self.config.gcp.regions:
+            return self.config.gcp.regions
+        try:
+            logger.warning(
+                "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
+                project,
+            )
+            all_regions = compute_v1.RegionsClient().list(project=project)
+            return [region.name for region in all_regions]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch regions for project %s: %s",
+                project,
+                str(e),
+            )
+            return []
+
     def get_zones(self, project: str) -> list[str]:
         if self.config.gcp.compute_zones:
             return self.config.gcp.compute_zones
