@@ -9,6 +9,7 @@ from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
+from urllib.parse import urlparse
 
 from google.cloud.compute_v1 import types as gcp_comput_v1_types
 from google.cloud.run_v2 import types as gcp_run_v2_types
@@ -1180,6 +1181,23 @@ class ScanResult:
             ScanTarget(target=target, port=8080, schema="http"),
             ScanTarget(target=target, port=8443, schema="https"),
             ScanTarget(target=target, port=8888, schema="http"),
+        }
+
+    def generate_url_scan_targets(self) -> set[ScanTarget]:
+        if not self.url:
+            return set()
+
+        site = urlparse(self.url)
+        if not site.hostname:
+            return set()
+        if not site.port:
+            return self.generate_default_scan_targets(site.hostname)
+        return {
+            ScanTarget(
+                target=site.hostname,
+                port=site.port,
+                schema=site.scheme or "http",
+            )
         }
 
     def generate_ip_scan_targets(self, ip: str) -> set[ScanTarget]:
