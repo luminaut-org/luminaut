@@ -1,7 +1,9 @@
+import asyncio
 import logging
 
 import google.auth
-from google.cloud import compute_v1
+from google.cloud import compute_v1, run_v2
+from tqdm import tqdm
 
 from luminaut import models
 
@@ -14,6 +16,9 @@ class Gcp:
 
     def get_compute_v1_client(self) -> compute_v1.InstancesClient:
         return compute_v1.InstancesClient()
+
+    def get_run_v2_services_client(self) -> run_v2.ServicesClient:
+        return run_v2.ServicesClient()
 
     def get_projects(self) -> list[str]:
         if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
@@ -32,6 +37,24 @@ class Gcp:
             "No GCP projects specified in the configuration and no default project found."
         )
         return []
+
+    def get_regions(self, project: str) -> list[str]:
+        if self.config.gcp.regions:
+            return self.config.gcp.regions
+        try:
+            logger.warning(
+                "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
+                project,
+            )
+            all_regions = compute_v1.RegionsClient().list(project=project)
+            return [region.name for region in all_regions]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch regions for project %s: %s",
+                project,
+                str(e),
+            )
+            return []
 
     def get_zones(self, project: str) -> list[str]:
         if self.config.gcp.compute_zones:
@@ -52,19 +75,26 @@ class Gcp:
             return []
 
     def explore(self) -> list[models.ScanResult]:
+        return asyncio.run(self.explore_async())
+
+    async def explore_async(self) -> list[models.ScanResult]:
         if not self.config.gcp.enabled:
             return []
 
-        scan_results = []
+        tasks = []
         for project in self.get_projects():
             for zone in self.get_zones(project):
-                logger.info(
-                    "Scanning GCP project %s in zone %s",
-                    project,
-                    zone,
-                )
-                scan_results += self.find_instances(project, zone)
-        logger.info("Completed scanning GCP projects")
+                tasks.append(asyncio.to_thread(self.find_instances, project, zone))
+            for region in self.get_regions(project):
+                tasks.append(asyncio.to_thread(self.find_services, project, region))
+
+        scan_results = []
+        for coro in tqdm(
+            asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
+        ):
+            r = await coro
+            scan_results.extend(r)
+        logger.info("Completed scanning GCP")
         return scan_results
 
     def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
@@ -86,8 +116,58 @@ class Gcp:
         return scan_results
 
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
-        instances = self.get_compute_v1_client().list(
-            project=project,
-            zone=zone,
-        )
-        return [models.GcpInstance.from_gcp(instance) for instance in instances]
+        try:
+            instances = self.get_compute_v1_client().list(
+                project=project,
+                zone=zone,
+            )
+            return [models.GcpInstance.from_gcp(instance) for instance in instances]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP instances for project %s in zone %s: %s",
+                project,
+                zone,
+                str(e),
+            )
+            return []
+
+    def find_services(self, project: str, location: str) -> list[models.ScanResult]:
+        scan_results = []
+        for service in self.fetch_run_services(project, location):
+            if not service.allows_ingress():
+                logger.debug(
+                    "Skipping GCP Run Service %s as it does not have external ingress",
+                    service.name,
+                )
+                continue
+            scan_finding = models.ScanFindings(
+                tool="GCP Run Service",
+                emoji_name="cloud",
+                resources=[service],
+            )
+            scan_results.append(
+                models.ScanResult(
+                    url=service.uri,
+                    findings=[scan_finding],
+                    region=location,
+                )
+            )
+        return scan_results
+
+    def fetch_run_services(
+        self, project: str, location: str
+    ) -> list[models.GcpService]:
+        try:
+            client = self.get_run_v2_services_client()
+            services = client.list_services(
+                parent=f"projects/{project}/locations/{location}"
+            )
+            return [models.GcpService.from_gcp(service) for service in services]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP Run services for project %s in location %s: %s",
+                project,
+                location,
+                str(e),
+            )
+            return []

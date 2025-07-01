@@ -17,10 +17,12 @@ classifiers = [
 dependencies = [
     "boto3~=1.35.53",
     "google-cloud-compute>=1.30.0",
+    "google-cloud-run>=0.10.18",
     "orjson~=3.10.12",
     "python3-nmap~=1.9.1",
     "rich~=13.9.4",
     "shodan~=1.31.0",
+    "tqdm>=4.67.1",
 ]
 
 [project.scripts]

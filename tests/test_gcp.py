@@ -4,6 +4,9 @@ from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import Mock
 
+from google.cloud.run_v2 import types as run_v2_types
+from google.protobuf.timestamp_pb2 import Timestamp
+
 from luminaut import models
 from luminaut.tools.gcp import Gcp
 
@@ -50,6 +53,42 @@ class FakeGcpInternalInstance:
     description = "Test instance"
 
 
+fake_container = run_v2_types.Container(
+    name="test-container",
+    image="gcr.io/test-project/test-image",
+    command=["python", "app.py"],
+    ports=[run_v2_types.ContainerPort(name="http1", container_port=8080)],
+)
+
+some_date = datetime.datetime(2025, 5, 19, 5, 35, 9, tzinfo=datetime.UTC)
+
+fake_service = run_v2_types.Service(
+    name="test-service",
+    uid="12345678-1234-1234-1234-123456789012",
+    uri="https://test-service-12345678-uc.a.run.app",
+    creator="foo",
+    last_modifier="bar",
+    template=run_v2_types.RevisionTemplate(containers=[fake_container]),
+    ingress=run_v2_types.IngressTraffic.INGRESS_TRAFFIC_ALL,
+    urls=["https://test-service-12345678-uc.a.run.app"],
+    create_time=Timestamp(seconds=int(some_date.timestamp())),
+    update_time=Timestamp(seconds=int(some_date.timestamp())),
+)
+
+fake_service_with_no_ingress = run_v2_types.Service(
+    name="test-service-ingress-none",
+    uid="12345678-1234-1234-1234-123456789013",
+    uri="https://test-service-12345678-uc.a.run.app",
+    creator="foo",
+    last_modifier="bar",
+    template=run_v2_types.RevisionTemplate(containers=[fake_container]),
+    ingress=run_v2_types.IngressTraffic.INGRESS_TRAFFIC_NONE,
+    urls=["https://test-service-12345678-uc.a.run.app"],
+    create_time=Timestamp(seconds=int(some_date.timestamp())),
+    update_time=Timestamp(seconds=int(some_date.timestamp())),
+)
+
+
 class TestGCP(TestCase):
     def setUp(self):
         config = BytesIO(
@@ -58,40 +97,54 @@ class TestGCP(TestCase):
             [tool.gcp]
             enabled = true
             projects = ["test-project-1", "test-project-2"]
+            regions = ["us-central1", "us-east1"]
             compute_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
             """
             ).encode("utf-8")
         )
         self.config = models.LuminautConfig.from_toml(config)
 
-    def test_initialize_class(self):
-        gcp_client = Mock()
+    def mock_gcp_clients(
+        self,
+        gcp: Gcp,
+        compute_list_instance_response=None,
+        cloud_run_list_service_response=None,
+    ) -> dict[str, Mock]:
+        clients = {}
+        clients["compute_v1"] = Mock()
+        clients["compute_v1"].list.return_value = compute_list_instance_response or []
+        gcp.get_compute_v1_client = Mock(return_value=clients["compute_v1"])
 
-        gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        clients["run_v2"] = Mock()
+        clients["run_v2"].list_services.return_value = (
+            cloud_run_list_service_response or []
+        )
+        gcp.get_run_v2_services_client = Mock(return_value=clients["run_v2"])
 
-        self.assertEqual(gcp.config, self.config)
+        return clients
 
     def test_explore(self):
-        gcp_client = Mock()
-        gcp_client.list.return_value = [FakeGcpInstance()]
-
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            compute_list_instance_response=[FakeGcpInstance()],
+            cloud_run_list_service_response=[fake_service],
+        )
         instances = gcp.explore()
 
-        self.assertEqual(gcp_client.list.call_count, 6)
-        self.assertEqual(len(instances), 6)
+        self.assertEqual(mock_clients["compute_v1"].list.call_count, 6)
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 4)
+        self.assertEqual(len(instances), 10)
 
     def test_explore_gcp_disabled(self):
         self.config.gcp.enabled = False
-        gcp_client = Mock()
 
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(gcp)
         instances = gcp.explore()
 
-        self.assertEqual(gcp_client.list.call_count, 0)
+        self.assertEqual(mock_clients["compute_v1"].list.call_count, 0)
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 0)
         self.assertEqual(len(instances), 0)
 
     def test_enumerate_instances_with_public_ips(self):
@@ -121,18 +174,18 @@ class TestGCP(TestCase):
             status=FakeGcpInstance.status,
             description=FakeGcpInstance.description,
         )
-        gcp_client = Mock()
-        gcp_client.list.return_value = [FakeGcpInstance()]
 
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp, compute_list_instance_response=[FakeGcpInstance()]
+        )
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
 
         # Calls the list command
-        gcp_client.list.assert_called_once()
+        mock_clients["compute_v1"].list.assert_called_once()
 
         self.assertEqual(
             len(instances),
@@ -156,17 +209,18 @@ class TestGCP(TestCase):
             network_attachment=FakeGcpInternalNetworkInterface.network_attachment,
             alias_ip_ranges=FakeGcpInternalNetworkInterface.alias_ip_ranges,
         )
-        gcp_client = Mock()
-        gcp_client.list.return_value = [FakeGcpInternalInstance()]
 
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            compute_list_instance_response=[FakeGcpInternalInstance()],
+        )
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
 
-        gcp_client.list.assert_called_once()
+        mock_clients["compute_v1"].list.assert_called_once()
 
         self.assertEqual(
             len(instances),
@@ -180,17 +234,72 @@ class TestGCP(TestCase):
         self.assertIsNone(actual_nic.public_ip)
         self.assertEqual(actual_nic.internal_ip, expected_nic.internal_ip)
 
-    def test_explore_does_not_return_instances_without_internal_ips(self):
-        gcp_client = Mock()
-        gcp_client.list.return_value = [FakeGcpInternalInstance()]
-
+    def test_explore_only_returns_instances_with_external_ips(self):
         gcp = Gcp(self.config)
-        gcp.get_compute_v1_client = Mock(return_value=gcp_client)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            compute_list_instance_response=[FakeGcpInternalInstance()],
+        )
         instances = gcp.explore()
 
-        self.assertEqual(gcp_client.list.call_count, 6)
+        self.assertEqual(mock_clients["compute_v1"].list.call_count, 6)
         self.assertEqual(
             len(instances),
             0,
             f"Expected no instances, found {len(instances)}",
         )
+
+    def test_explore_only_returns_cloud_run_services_with_ingress(self):
+        gcp = Gcp(self.config)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            cloud_run_list_service_response=[
+                fake_service_with_no_ingress,
+                fake_service,
+            ],
+        )
+        instances = gcp.explore()
+
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 4)
+        self.assertEqual(
+            len(instances),
+            len(self.config.gcp.projects) * len(self.config.gcp.regions),
+            f"Expected {len(self.config.gcp.projects) * len(self.config.gcp.regions)} instances, found {len(instances)}",
+        )
+
+    def test_get_run_services(self):
+        gcp = Gcp(self.config)
+        mock_clients = self.mock_gcp_clients(
+            gcp,
+            cloud_run_list_service_response=[fake_service],
+        )
+        services = gcp.fetch_run_services(project="unittest", location="unittest")
+
+        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 1)
+        self.assertEqual(len(services), 1)
+
+        service = services[0]
+        self.assertEqual(service.name, fake_service.name)
+        self.assertEqual(service.uri, fake_service.uri)
+        self.assertEqual(service.resource_id, fake_service.uid)
+        self.assertEqual(service.created_by, fake_service.creator)
+        self.assertEqual(service.creation_time, some_date)
+        self.assertEqual(service.last_modified_by, fake_service.last_modifier)
+        self.assertEqual(service.update_time, some_date)
+        self.assertEqual(len(service.containers), 1)
+        self.assertEqual(service.containers[0].name, fake_container.name)
+        self.assertEqual(service.containers[0].image, fake_container.image)
+        self.assertEqual(service.containers[0].command, fake_container.command)
+        self.assertEqual(
+            service.containers[0].network_ports[0],
+            fake_container.ports[0].container_port,
+        )
+        self.assertEqual(service.ingress, fake_service.ingress.name)
+        self.assertEqual(service.urls, fake_service.urls)
+
+    def test_service_allows_ingress(self):
+        service = models.GcpService.from_gcp(fake_service)
+        self.assertTrue(service.allows_ingress())
+
+        service_no_ingress = models.GcpService.from_gcp(fake_service_with_no_ingress)
+        self.assertFalse(service_no_ingress.allows_ingress())

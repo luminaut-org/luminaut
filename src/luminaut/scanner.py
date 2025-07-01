@@ -23,15 +23,23 @@ class Scanner:
         scan_results = []
         regions = self.config.aws.aws_regions
 
-        if regions:
-            for region in regions:
-                scan_results.extend(aws.explore_region(region))
-        else:
-            scan_results.extend(aws.explore_region())
+        try:
+            if regions:
+                for region in regions:
+                    scan_results.extend(aws.explore_region(region))
+            else:
+                scan_results.extend(aws.explore_region())
+        except Exception as e:
+            logger.error("Failed to explore AWS regions: %s", e)
+            return []
         return scan_results
 
     def gcp(self) -> list[models.ScanResult]:
-        return Gcp(self.config).explore()
+        try:
+            return Gcp(self.config).explore()
+        except Exception as e:
+            logger.error("Failed to explore GCP: %s", e)
+            return []
 
     def nmap(
         self, ip_address: str, ports: list[str] | None = None

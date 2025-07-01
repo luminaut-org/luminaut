@@ -18,6 +18,11 @@ toc: true
 - Skip scanning and reporting on resources based on the resource id or tag values
   - Supports skipping based on the resource id of the ENI.
 
+# GCP
+
+- Enumerate Compute Engine instances with public IPs.
+- Enumerate Cloud Run services with public URIs.
+
 # Active scanning
 
 - [nmap](https://nmap.org/) to scan common ports and services against identified IP addresses.

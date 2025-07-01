@@ -1,4 +1,5 @@
 import json
+import textwrap
 import tomllib
 from collections.abc import Iterable, Mapping, MutableSequence
 from dataclasses import asdict, dataclass, field
@@ -8,8 +9,10 @@ from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
+from urllib.parse import urlparse
 
-from google.cloud.compute_v1 import types as gcp_types
+from google.cloud.compute_v1 import types as gcp_compute_v1_types
+from google.cloud.run_v2 import types as gcp_run_v2_types
 from rich.emoji import Emoji
 
 T = TypeVar("T")
@@ -199,12 +202,14 @@ class LuminautConfigToolAws(LuminautConfigTool):
 @dataclass
 class LuminautConfigToolGcp(LuminautConfigTool):
     projects: list[str] = field(default_factory=list)
+    regions: list[str] = field(default_factory=list)
     compute_zones: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
         gcp_config = super().from_dict(config)
         gcp_config.projects = config.get("projects", [])
+        gcp_config.regions = config.get("regions", [])
         gcp_config.compute_zones = config.get("compute_zones", [])
         return gcp_config
 
@@ -282,7 +287,7 @@ class GcpNetworkInterface:
     alias_ip_ranges: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_gcp(cls, network_interface: gcp_types.NetworkInterface) -> Self:
+    def from_gcp(cls, network_interface: gcp_compute_v1_types.NetworkInterface) -> Self:
         public_ip = None
         if len(network_interface.access_configs) > 0:
             access_config = network_interface.access_configs[0]
@@ -352,6 +357,130 @@ class GcpInstance:
             status=instance.status,
             description=instance.description,
         )
+
+
+@dataclass
+class Container:
+    """A representation of a container"""
+
+    image: str
+    name: str | None = None
+    command: list[str] | None = None
+    network_ports: list[int] = field(default_factory=list)
+
+    @classmethod
+    def from_gcp(cls, container: gcp_run_v2_types.Container) -> Self:
+        return cls(
+            image=container.image,
+            name=container.name,
+            command=list(container.command),
+            network_ports=[port.container_port for port in container.ports or []],
+        )
+
+    def build_rich_text(self) -> str:
+        rich_text = f"Name: [dark_orange3]{self.name or 'Unnamed Container'}[/dark_orange3] Image: [blue]{self.image}[/blue]"
+        if self.command:
+            rich_text += f" Command: [green]{' '.join(self.command)}[/green]"
+        if self.network_ports:
+            rich_text += (
+                f" Ports: [cyan]{', '.join(map(str, self.network_ports))}[/cyan]"
+            )
+        return rich_text + "\n"
+
+
+@dataclass
+class GcpTask:
+    """A GCP Cloud Run Task"""
+
+    resource_id: str
+    name: str
+    creation_time: datetime | None = None
+    update_time: datetime | None = None
+    containers: list[Container] = field(default_factory=list)
+
+    @classmethod
+    def from_gcp(cls, task: gcp_run_v2_types.Task) -> Self:
+        containers = [Container.from_gcp(container) for container in task.containers]
+
+        return cls(
+            resource_id=task.uid,
+            name=task.name,
+            creation_time=task.create_time.ToDatetime(),
+            update_time=task.update_time.ToDatetime(),
+            containers=containers,
+        )
+
+    def build_rich_text(self) -> str:
+        rich_text = f"Name: [dark_orange3]{self.name or 'Unnamed Task'}[/dark_orange3] Id: {self.resource_id}\n"
+        if self.creation_time:
+            rich_text += f"  Created at: [blue]{self.creation_time}[/blue]\n"
+        if self.update_time:
+            rich_text += f"  Last updated at: [blue]{self.update_time}[/blue]\n"
+        for container in self.containers:
+            rich_text += container.build_rich_text()
+        return rich_text
+
+
+@dataclass
+class GcpService:
+    """A GCP Cloud Run Service"""
+
+    resource_id: str
+    name: str
+    uri: str
+    creation_time: datetime | None = None
+    update_time: datetime | None = None
+    created_by: str | None = None
+    last_modified_by: str | None = None
+    ingress: str | None = None
+    urls: list[str] = field(default_factory=list)
+    containers: list[Container] = field(default_factory=list)
+
+    @classmethod
+    def from_gcp(cls, service: gcp_run_v2_types.Service) -> Self:
+        containers = [
+            Container.from_gcp(container) for container in service.template.containers
+        ]
+
+        return cls(
+            resource_id=service.uid,
+            name=service.name,
+            uri=service.uri,
+            creation_time=datetime.fromisoformat(service.create_time.rfc3339()),  # type: ignore
+            update_time=datetime.fromisoformat(service.update_time.rfc3339()),  # type: ignore
+            created_by=service.creator,
+            last_modified_by=service.last_modifier,
+            ingress=service.ingress.name if service.ingress else None,
+            urls=list(service.urls),
+            containers=containers,
+        )
+
+    def allows_ingress(self) -> bool:
+        """Check if the service has external ingress."""
+        return self.ingress in [
+            gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_ALL.name,
+            gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER.name,
+            gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_UNSPECIFIED.name,
+        ]
+
+    def build_rich_text(self) -> str:
+        rich_text = f"Name: [dark_orange3]{self.name or 'Unnamed Service'}[/dark_orange3] Id: {self.resource_id}\n"
+        if self.created_by:
+            rich_text += f"  Created by: [green]{self.created_by}[/green] at [blue]{self.creation_time}[/blue]\n"
+        if self.last_modified_by:
+            rich_text += f"  Last modified by: [green]{self.last_modified_by}[/green] at [blue]{self.update_time}[/blue]\n"
+        if self.ingress:
+            rich_text += f"  Ingress: [cyan]{self.ingress}[/cyan]\n"
+        if self.urls:
+            rich_text += f"  URLs: [blue]{', '.join(self.urls)}[/blue]\n"
+        container_text = ""
+        for container in self.containers:
+            # Indent each container line by 2 spaces
+            container_text += container.build_rich_text()
+        if container_text:
+            rich_text += "  Containers:\n"
+            rich_text += textwrap.indent(container_text, "    ")
+        return rich_text
 
 
 @dataclass
@@ -908,23 +1037,23 @@ class TimelineEvent:
 
 @dataclass
 class ScanTarget:
-    ip_address: str
+    target: str
     port: int
     schema: str | None = None
 
     def __str__(self) -> str:
         if self.schema:
-            return f"{self.schema.lower()}://{self.ip_address}:{self.port}"
-        return f"{self.ip_address}:{self.port}"
+            return f"{self.schema.lower()}://{self.target}:{self.port}"
+        return f"{self.target}:{self.port}"
 
     def __hash__(self) -> int:
-        return hash((self.ip_address, self.port, self.schema))
+        return hash((self.target, self.port, self.schema))
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, ScanTarget):
             return False
-        return (self.ip_address, self.port, self.schema) == (
-            other.ip_address,
+        return (self.target, self.port, self.schema) == (
+            other.target,
             other.port,
             other.schema,
         )
@@ -936,6 +1065,8 @@ FindingResources = MutableSequence[
     | AwsLoadBalancer
     | AwsNetworkInterface
     | GcpInstance
+    | GcpService
+    | GcpTask
     | SecurityGroup
     | Hostname
 ]
@@ -991,14 +1122,17 @@ class ScanFindings:
 
 @dataclass
 class ScanResult:
-    ip: str
-    findings: list[ScanFindings]
+    """All associated findings for a single IP address or URL."""
+
+    ip: str | None = None
+    url: str | None = None
+    findings: list[ScanFindings] = field(default_factory=list)
     region: str | None = None
     eni_id: str | None = None
 
     def build_rich_panel(self) -> tuple[str, str]:
         rich_text = "\n".join(finding.build_rich_text() for finding in self.findings)
-        title = self.ip
+        title = self.ip or self.url or "No IP or URL"
         if self.region:
             title += f" | {self.region}"
         return title, rich_text
@@ -1028,30 +1162,58 @@ class ScanResult:
         return resources
 
     def generate_ip_port_targets(self) -> list[str]:
-        return [str(x) for x in self.generate_scan_targets()]
+        if not self.ip:
+            return []
+        return [str(x) for x in self.generate_ip_scan_targets(self.ip)]
 
     def generate_scan_targets(self) -> set[ScanTarget]:
+        if self.ip:
+            return self.generate_ip_scan_targets(self.ip)
+        return set()
+
+    def generate_default_scan_targets(self, target: str) -> set[ScanTarget]:
+        return {
+            ScanTarget(target=target, port=80, schema="http"),
+            ScanTarget(target=target, port=443, schema="https"),
+            ScanTarget(target=target, port=3000, schema="http"),
+            ScanTarget(target=target, port=5000, schema="http"),
+            ScanTarget(target=target, port=8000, schema="http"),
+            ScanTarget(target=target, port=8080, schema="http"),
+            ScanTarget(target=target, port=8443, schema="https"),
+            ScanTarget(target=target, port=8888, schema="http"),
+        }
+
+    def generate_url_scan_targets(self) -> set[ScanTarget]:
+        if not self.url:
+            return set()
+
+        site = urlparse(self.url)
+        if not site.hostname:
+            return set()
+        if not site.port:
+            return self.generate_default_scan_targets(site.hostname)
+        return {
+            ScanTarget(
+                target=site.hostname,
+                port=site.port,
+                schema=site.scheme or "http",
+            )
+        }
+
+    def generate_ip_scan_targets(self, ip: str) -> set[ScanTarget]:
         ports = set()
-        default_ports = [
-            ScanTarget(ip_address=self.ip, port=80, schema="http"),
-            ScanTarget(ip_address=self.ip, port=443, schema="https"),
-            ScanTarget(ip_address=self.ip, port=3000, schema="http"),
-            ScanTarget(ip_address=self.ip, port=5000, schema="http"),
-            ScanTarget(ip_address=self.ip, port=8000, schema="http"),
-            ScanTarget(ip_address=self.ip, port=8080, schema="http"),
-            ScanTarget(ip_address=self.ip, port=8443, schema="https"),
-            ScanTarget(ip_address=self.ip, port=8888, schema="http"),
-        ]
-        if sg_ports := self.generate_scan_targets_from_security_groups(default_ports):
+        if sg_ports := self.generate_scan_targets_from_security_groups(
+            ip, self.generate_default_scan_targets(ip)
+        ):
             ports.update(sg_ports)
 
-        if elb_ports := self.generate_scan_targets_from_elb_listeners():
+        if elb_ports := self.generate_scan_targets_from_elb_listeners(ip):
             ports.update(elb_ports)
 
         return ports
 
     def generate_scan_targets_from_security_groups(
-        self, default_ports: Iterable[ScanTarget]
+        self, ip: str, default_ports: Iterable[ScanTarget]
     ) -> set[ScanTarget]:
         ports = set()
         if security_group_rules := self.get_security_group_rules():
@@ -1062,20 +1224,20 @@ class ScanResult:
                     ports.update(default_ports)
                 ports.update(
                     {
-                        ScanTarget(ip_address=self.ip, port=x)
+                        ScanTarget(target=ip, port=x)
                         for x in range(sg_rule.from_port, sg_rule.to_port + 1)
                     }
                 )
         return ports
 
-    def generate_scan_targets_from_elb_listeners(self) -> set[ScanTarget]:
+    def generate_scan_targets_from_elb_listeners(self, ip: str) -> set[ScanTarget]:
         ports = set()
         if load_balancers := self.get_resources_by_type(AwsLoadBalancer):
             for elb in load_balancers:
                 for listener in elb.listeners:
                     ports.add(
                         ScanTarget(
-                            ip_address=self.ip,
+                            target=ip,
                             port=listener.port,
                             schema=listener.protocol.lower(),
                         )

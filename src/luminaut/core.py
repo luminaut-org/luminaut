@@ -66,17 +66,19 @@ class Luminaut:
         return updated_scan_results
 
     def run_nmap(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
-        if self.config.nmap.enabled:
+        if self.config.nmap.enabled and scan_result.ip:
             targets = {
                 str(scan_target.port)
-                for scan_target in scan_result.generate_scan_targets()
+                for scan_target in scan_result.generate_ip_scan_targets(scan_result.ip)
             }
             return self.scanner.nmap(scan_result.ip, ports=list(targets)).findings
         return []
 
     def query_shodan(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
-        if self.config.shodan.enabled and (
-            shodan_finding := self.scanner.shodan(scan_result.ip)
+        if (
+            self.config.shodan.enabled
+            and scan_result.ip
+            and (shodan_finding := self.scanner.shodan(scan_result.ip))
         ):
             return [shodan_finding]
         return []
