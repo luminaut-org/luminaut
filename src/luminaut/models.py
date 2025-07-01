@@ -11,7 +11,7 @@ from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
 from urllib.parse import urlparse
 
-from google.cloud.compute_v1 import types as gcp_comput_v1_types
+from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from google.cloud.run_v2 import types as gcp_run_v2_types
 from rich.emoji import Emoji
 
@@ -287,7 +287,7 @@ class GcpNetworkInterface:
     alias_ip_ranges: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_gcp(cls, network_interface: gcp_comput_v1_types.NetworkInterface) -> Self:
+    def from_gcp(cls, network_interface: gcp_compute_v1_types.NetworkInterface) -> Self:
         public_ip = None
         if len(network_interface.access_configs) > 0:
             access_config = network_interface.access_configs[0]
