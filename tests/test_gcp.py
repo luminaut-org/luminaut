@@ -2,7 +2,7 @@ import datetime
 from io import BytesIO
 from textwrap import dedent
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from google.cloud.run_v2 import types as run_v2_types
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -123,14 +123,7 @@ class TestGCP(TestCase):
 
         return clients
 
-    @patch("luminaut.tools.gcp.compute_v1", new=Mock())
-    @patch("luminaut.tools.gcp.run_v2", new=Mock().list(return_value=[]))
     def test_explore(self):
-        gcp_compute_client = Mock()
-        gcp_compute_client.list.return_value = [FakeGcpInstance()]
-        gcp_cloud_run_client = Mock()
-        gcp_cloud_run_client.list_services.return_value = [fake_service]
-
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
             gcp,
@@ -181,8 +174,6 @@ class TestGCP(TestCase):
             status=FakeGcpInstance.status,
             description=FakeGcpInstance.description,
         )
-        gcp_client = Mock()
-        gcp_client.list.return_value = [FakeGcpInstance()]
 
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
@@ -218,8 +209,6 @@ class TestGCP(TestCase):
             network_attachment=FakeGcpInternalNetworkInterface.network_attachment,
             alias_ip_ranges=FakeGcpInternalNetworkInterface.alias_ip_ranges,
         )
-        gcp_client = Mock()
-        gcp_client.list.return_value = [FakeGcpInternalInstance()]
 
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
@@ -245,7 +234,6 @@ class TestGCP(TestCase):
         self.assertIsNone(actual_nic.public_ip)
         self.assertEqual(actual_nic.internal_ip, expected_nic.internal_ip)
 
-    @patch("luminaut.tools.gcp.compute_v1", new=Mock())
     def test_explore_only_returns_instances_with_external_ips(self):
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
@@ -261,7 +249,6 @@ class TestGCP(TestCase):
             f"Expected no instances, found {len(instances)}",
         )
 
-    @patch("luminaut.tools.gcp.compute_v1", new=Mock())
     def test_explore_only_returns_cloud_run_services_with_ingress(self):
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
