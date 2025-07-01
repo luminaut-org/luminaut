@@ -47,24 +47,35 @@ Similarly, if you'd like to enable Shodan, you will need to specify a configurat
 
 When running with docker, we need to supply a few arguments:
 1. `-it` to run the container interactively and display the output in the terminal.
-2. `-v ~/.aws:/home/app/.aws` to mount the AWS credentials from your host machine to the container.
-3. `-e AWS_PROFILE=profile-name` to set the AWS profile to use in the container. Replace `profile-name` with the name of your AWS profile.
-4. `-v $(pwd)/configs:/app/configs` to mount the configuration file from your host machine to the container.
-5. `luminaut` to select the luminaut container.
-6. `--help` to display the help message, though replace this with your desired arguments (ie `-c disable_aws_config.toml`).
+2. `-v ~/.aws:/home/app/.aws` to mount the AWS credentials from your host machine to the container, if you are using AWS.
+3. `-e AWS_PROFILE=aws-profile-name` to set the AWS profile to use in the container. Replace `aws-profile-name` with the name of your AWS profile.
+4. `-v ~/.config/gcloud:/home/app/.config/gcloud` to mount the GCP credentials from your host machine to the container, if you are using GCP.
+5. `-v $(pwd)/configs:/app/configs` to mount the configuration file from your host machine to the container.
+6. `luminaut` to select the luminaut container.
+7. `--help` to display the help message, though replace this with your desired arguments (ie `-c disable_aws_config.toml`).
 
-Note that saved files, such as the log file and JSON reports, will be saved within the container. You may want to mount another volume to save the report files.
+Note that saved files, such as the log file and JSON reports, will be saved within the container. You may want to mount another volume to save the report files. If you would like to run other commands within the container, you can override the default entrypoint by adding `--entrypoint /bin/bash`.
 
 ## Examples
 
 Bash, zsh, and similar terminals:
 ```bash
-docker run -it -v ~/.aws:/home/app/.aws -e AWS_PROFILE=profile-name -v $(pwd)/configs:/app/configs luminaut --help
+docker run -it \
+  -v ~/.aws:/home/app/.aws \
+  -e AWS_PROFILE=aws-profile-name \
+  -v ~/.config/gcloud:/home/app/.config/gcloud \
+  -v $(pwd)/configs:/app/configs \
+  luminaut --help
 ```
 
 Powershell:
 ```powershell
-docker run -it -v $env:USERPROFILE\.aws:/home/app/.aws -e AWS_PROFILE=profile-name -v ${PWD}\configs:/app/configs luminaut --help
+docker run -it `
+  -v $env:USERPROFILE\.aws:/home/app/.aws `
+  -e AWS_PROFILE=aws-profile-name `
+  -v $env:APPDATA\gcloud:/home/app/.config/gcloud `
+  -v ${PWD}\configs:/app/configs `
+  luminaut --help
 ```
 
 # Library usage
