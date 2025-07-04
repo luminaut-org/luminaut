@@ -1035,11 +1035,24 @@ class TimelineEvent:
         return f"[green]{self.timestamp.astimezone(UTC)}[/green] {self.event_type}: [magenta]{self.message}[/magenta] ({self.resource_type} {self.resource_id})\n"
 
 
+class TargetType(StrEnum):
+    IP = auto()
+    HOSTNAME = auto()
+
+
 @dataclass
 class ScanTarget:
     target: str
     port: int
     schema: str | None = None
+    target_type: TargetType = field(init=False)
+
+    def __post_init__(self) -> None:
+        try:
+            ip_address(self.target)
+            self.target_type = TargetType.IP
+        except ValueError:
+            self.target_type = TargetType.HOSTNAME
 
     def __str__(self) -> str:
         if self.schema:
