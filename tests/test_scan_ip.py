@@ -107,7 +107,7 @@ def test_nmap_targets_single(
     scan_target = models.ScanTarget(target=target, port=port, schema=schema)
     nmap_response = create_nmap_response(target, port, service_name, "nginx", "1.20")
 
-    with patch("luminaut.scanner.nmap3") as mocked_nmap3:
+    with patch("luminaut.tools.nmap.nmap3") as mocked_nmap3:
         mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
         results = scanner.nmap_targets([scan_target])
 
@@ -131,7 +131,7 @@ def test_nmap_targets_multiple_mixed(scanner: Scanner) -> None:
         **create_nmap_response(hostname, port2, "https", "Apache", "2.4"),
     }
 
-    with patch("luminaut.scanner.nmap3") as mocked_nmap3:
+    with patch("luminaut.tools.nmap.nmap3") as mocked_nmap3:
         mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
         results = scanner.nmap_targets(scan_targets)
 
