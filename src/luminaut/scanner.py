@@ -81,6 +81,94 @@ class Scanner:
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
         return models.ScanResult(ip=ip_address, findings=[nmap_findings])
 
+    def nmap_targets(
+        self, scan_targets: list[models.ScanTarget]
+    ) -> list[models.ScanResult]:
+        if not scan_targets:
+            return []
+
+        # Build target list and port list for nmap
+        target_list = []
+        port_set = set()
+
+        for scan_target in scan_targets:
+            target_list.append(scan_target.target)
+            port_set.add(str(scan_target.port))
+
+        targets_str = ",".join(target_list)
+        ports_str = ",".join(sorted(port_set))
+
+        logger.info(
+            "Running nmap against targets %s with ports: %s", targets_str, ports_str
+        )
+
+        nmap = nmap3.Nmap()
+        nmap_args = "--version-light -Pn"
+        if ports_str:
+            nmap_args += f" -p {ports_str}"
+
+        try:
+            result = nmap.nmap_version_detection(
+                target=targets_str,
+                args=nmap_args,
+                timeout=self.config.nmap.timeout,
+            )
+        except nmap3.exceptions.NmapNotInstalledError as e:
+            logger.warning(f"Skipping nmap, not found: {e}")
+            return []
+        except subprocess.TimeoutExpired:
+            logger.warning(f"nmap scan for {targets_str} timed out")
+            return []
+
+        # Process results for each target
+        scan_results = []
+        for scan_target in scan_targets:
+            target = scan_target.target
+            if target in result:
+                port_services = []
+                for port in result[target]["ports"]:
+                    port_services.append(
+                        models.NmapPortServices(
+                            port=int(port["portid"]),
+                            protocol=models.Protocol(port["protocol"]),
+                            name=port["service"].get("name"),
+                            product=port["service"].get("product"),
+                            version=port["service"].get("version"),
+                            state=port["state"],
+                        )
+                    )
+
+                nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
+
+                # Create ScanResult based on target type
+                if scan_target.target_type == models.TargetType.IP:
+                    scan_result = models.ScanResult(ip=target, findings=[nmap_findings])
+                else:
+                    scan_result = models.ScanResult(
+                        url=self._build_url(scan_target), findings=[nmap_findings]
+                    )
+
+                scan_results.append(scan_result)
+                logger.info("Nmap found %s services on %s", len(port_services), target)
+            else:
+                # Target not found in results
+                if scan_target.target_type == models.TargetType.IP:
+                    scan_result = models.ScanResult(ip=target, findings=[])
+                else:
+                    scan_result = models.ScanResult(
+                        url=self._build_url(scan_target), findings=[]
+                    )
+                scan_results.append(scan_result)
+                logger.warning("No nmap results found for target %s", target)
+
+        return scan_results
+
+    def _build_url(self, scan_target: models.ScanTarget) -> str:
+        """Build URL from ScanTarget for hostname targets."""
+        if scan_target.schema:
+            return f"{scan_target.schema}://{scan_target.target}:{scan_target.port}"
+        return f"http://{scan_target.target}:{scan_target.port}"
+
     def shodan(self, ip_address: str) -> models.ScanFindings:
         shodan_findings = models.ScanFindings(
             tool="Shodan.io", emoji_name="globe_with_meridians"
