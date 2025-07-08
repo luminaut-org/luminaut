@@ -54,7 +54,7 @@ class LuminautCore(unittest.TestCase):
         self.config.nmap = models.LuminautConfigTool(enabled=False)
         empty_scan_results = models.ScanResult(ip="10.0.0.1", findings=[])
         scan_findings = [models.ScanFindings(tool="unittest")]
-        self.luminaut.scanner.nmap = lambda ip_address, ports=None: models.ScanResult(
+        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
             ip="10.0.0.1", findings=scan_findings
         )
 
@@ -66,3 +66,32 @@ class LuminautCore(unittest.TestCase):
 
         nmap_findings = self.luminaut.run_nmap(empty_scan_results)
         self.assertEqual(scan_findings, nmap_findings)
+
+    def test_nmap_supports_url_scanning(self):
+        """Test that run_nmap can handle URL-based scan results."""
+        # Test IP-based scanning (existing behavior)
+        ip_scan_result = models.ScanResult(ip="192.168.1.1", findings=[])
+        ip_scan_findings = [models.ScanFindings(tool="nmap")]
+
+        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
+            ip="192.168.1.1", findings=ip_scan_findings
+        )
+
+        nmap_findings = self.luminaut.run_nmap(ip_scan_result)
+        self.assertEqual(ip_scan_findings, nmap_findings)
+
+        # Test URL-based scanning (new behavior)
+        url_scan_result = models.ScanResult(url="example.com", findings=[])
+        url_scan_findings = [models.ScanFindings(tool="nmap")]
+
+        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
+            url="example.com", findings=url_scan_findings
+        )
+
+        nmap_findings = self.luminaut.run_nmap(url_scan_result)
+        self.assertEqual(url_scan_findings, nmap_findings)
+
+        # Test that scan result with neither IP nor URL returns empty findings
+        empty_scan_result = models.ScanResult(findings=[])
+        nmap_findings = self.luminaut.run_nmap(empty_scan_result)
+        self.assertEqual([], nmap_findings)
