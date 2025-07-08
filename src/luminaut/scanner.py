@@ -46,13 +46,6 @@ class Scanner:
         port_list = ",".join(ports) if ports else None
         logger.info("Running nmap against %s with ports: %s", target, port_list)
 
-        # Determine if target is an IP address or hostname
-        try:
-            ip_address(target)
-            is_ip = True
-        except ValueError:
-            is_ip = False
-
         nmap = nmap3.Nmap()
         nmap_args = "--version-light -Pn"
         if port_list:
@@ -65,16 +58,10 @@ class Scanner:
             )
         except nmap3.exceptions.NmapNotInstalledError as e:
             logger.warning(f"Skipping nmap, not found: {e}")
-            if is_ip:
-                return models.ScanResult(ip=target, findings=[])
-            else:
-                return models.ScanResult(url=target, findings=[])
+            return self._create_scan_result(target, [])
         except subprocess.TimeoutExpired:
             logger.warning(f"nmap scan for {target} timed out")
-            if is_ip:
-                return models.ScanResult(ip=target, findings=[])
-            else:
-                return models.ScanResult(url=target, findings=[])
+            return self._create_scan_result(target, [])
 
         port_services = []
         for port in result[target]["ports"]:
@@ -91,10 +78,7 @@ class Scanner:
         logger.info("Nmap found %s services on %s", len(port_services), target)
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
-        if is_ip:
-            return models.ScanResult(ip=target, findings=[nmap_findings])
-        else:
-            return models.ScanResult(url=target, findings=[nmap_findings])
+        return self._create_scan_result(target, [nmap_findings])
 
     def shodan(self, ip_addr: str) -> models.ScanFindings:
         shodan_findings = models.ScanFindings(
@@ -155,3 +139,13 @@ class Scanner:
         logger.info("Whatweb found %s services across targets", len(finding.services))
 
         return finding
+
+    def _create_scan_result(
+        self, target: str, findings: list[models.ScanFindings]
+    ) -> models.ScanResult:
+        """Helper to create ScanResult with correct field based on target type."""
+        try:
+            ip_address(target)
+            return models.ScanResult(ip=target, findings=findings)
+        except ValueError:
+            return models.ScanResult(url=target, findings=findings)
