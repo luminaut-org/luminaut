@@ -67,29 +67,28 @@ class LuminautCore(unittest.TestCase):
         nmap_findings = self.luminaut.run_nmap(empty_scan_results)
         self.assertEqual(scan_findings, nmap_findings)
 
+    @staticmethod
+    def _test_nmap_target(
+        luminaut_instance: Luminaut, target_field: str, target_value: str
+    ) -> None:
+        """Helper to test nmap scanning for a specific target type."""
+        scan_result = models.ScanResult(**{target_field: target_value}, findings=[])
+        scan_findings = [models.ScanFindings(tool="nmap")]
+
+        luminaut_instance.scanner.nmap = lambda target, ports=None: models.ScanResult(
+            **{target_field: target_value}, findings=scan_findings
+        )
+
+        nmap_findings = luminaut_instance.run_nmap(scan_result)
+        assert scan_findings == nmap_findings
+
     def test_nmap_supports_url_scanning(self):
         """Test that run_nmap can handle URL-based scan results."""
         # Test IP-based scanning (existing behavior)
-        ip_scan_result = models.ScanResult(ip="192.168.1.1", findings=[])
-        ip_scan_findings = [models.ScanFindings(tool="nmap")]
-
-        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
-            ip="192.168.1.1", findings=ip_scan_findings
-        )
-
-        nmap_findings = self.luminaut.run_nmap(ip_scan_result)
-        self.assertEqual(ip_scan_findings, nmap_findings)
+        self._test_nmap_target(self.luminaut, "ip", "192.168.1.1")
 
         # Test URL-based scanning (new behavior)
-        url_scan_result = models.ScanResult(url="example.com", findings=[])
-        url_scan_findings = [models.ScanFindings(tool="nmap")]
-
-        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
-            url="example.com", findings=url_scan_findings
-        )
-
-        nmap_findings = self.luminaut.run_nmap(url_scan_result)
-        self.assertEqual(url_scan_findings, nmap_findings)
+        self._test_nmap_target(self.luminaut, "url", "example.com")
 
         # Test that scan result with neither IP nor URL returns empty findings
         empty_scan_result = models.ScanResult(findings=[])
