@@ -65,16 +65,7 @@ class Scanner:
 
         port_services = []
         for port in result[target]["ports"]:
-            port_services.append(
-                models.NmapPortServices(
-                    port=int(port["portid"]),
-                    protocol=models.Protocol(port["protocol"]),
-                    name=port["service"].get("name"),
-                    product=port["service"].get("product"),
-                    version=port["service"].get("version"),
-                    state=port["state"],
-                )
-            )
+            port_services.append(models.NmapPortServices.from_nmap_port_data(port))
         logger.info("Nmap found %s services on %s", len(port_services), target)
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)

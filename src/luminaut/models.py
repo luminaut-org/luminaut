@@ -835,6 +835,18 @@ class NmapPortServices:
 
         return rich_text
 
+    @classmethod
+    def from_nmap_port_data(cls, port_data: dict[str, Any]) -> Self:
+        """Create NmapPortServices from raw nmap port data."""
+        return cls(
+            port=int(port_data["portid"]),
+            protocol=Protocol(port_data["protocol"]),
+            name=port_data["service"].get("name"),
+            product=port_data["service"].get("product"),
+            version=port_data["service"].get("version"),
+            state=port_data["state"],
+        )
+
 
 @dataclass
 class ShodanService:
