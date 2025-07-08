@@ -1169,6 +1169,8 @@ class ScanResult:
     def generate_scan_targets(self) -> set[ScanTarget]:
         if self.ip:
             return self.generate_ip_scan_targets(self.ip)
+        elif self.url:
+            return self.generate_url_scan_targets()
         return set()
 
     def generate_default_scan_targets(self, target: str) -> set[ScanTarget]:
@@ -1188,6 +1190,14 @@ class ScanResult:
             return set()
 
         site = urlparse(self.url)
+
+        # Handle case where URL has no scheme (e.g., "example.com")
+        # urlparse treats it as path instead of hostname
+        if not site.netloc and site.path:
+            # Assume it's a hostname without scheme
+            hostname = site.path
+            return self.generate_default_scan_targets(hostname)
+
         if not site.hostname:
             return set()
         if not site.port:
