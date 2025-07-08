@@ -66,9 +66,8 @@ def test_nmap_hostname():
         nmap_results = Scanner(config=models.LuminautConfig()).nmap(hostname)
 
     assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
-    assert (
-        hostname == nmap_results.ip
-    )  # Currently expecting IP field to contain hostname
+    assert hostname == nmap_results.url  # Hostname should be in url field
+    assert nmap_results.ip is None  # IP field should be None for hostname scans
     assert "nmap" == nmap_results.findings[0].tool
     assert isinstance(nmap_results.findings[0].services[0], models.NmapPortServices)
     assert "http" == nmap_results.findings[0].services[0].name

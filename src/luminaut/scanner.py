@@ -1,5 +1,6 @@
 import logging
 import subprocess
+from ipaddress import ip_address
 
 import nmap3
 import nmap3.exceptions
@@ -41,11 +42,16 @@ class Scanner:
             logger.error("Failed to explore GCP: %s", e)
             return []
 
-    def nmap(
-        self, ip_address: str, ports: list[str] | None = None
-    ) -> models.ScanResult:
+    def nmap(self, target: str, ports: list[str] | None = None) -> models.ScanResult:
         port_list = ",".join(ports) if ports else None
-        logger.info("Running nmap against %s with ports: %s", ip_address, port_list)
+        logger.info("Running nmap against %s with ports: %s", target, port_list)
+
+        # Determine if target is an IP address or hostname
+        try:
+            ip_address(target)
+            is_ip = True
+        except ValueError:
+            is_ip = False
 
         nmap = nmap3.Nmap()
         nmap_args = "--version-light -Pn"
@@ -53,19 +59,25 @@ class Scanner:
             nmap_args += f" -p {port_list}"
         try:
             result = nmap.nmap_version_detection(
-                target=ip_address,
+                target=target,
                 args=nmap_args,
                 timeout=self.config.nmap.timeout,
             )
         except nmap3.exceptions.NmapNotInstalledError as e:
             logger.warning(f"Skipping nmap, not found: {e}")
-            return models.ScanResult(ip=ip_address, findings=[])
+            if is_ip:
+                return models.ScanResult(ip=target, findings=[])
+            else:
+                return models.ScanResult(url=target, findings=[])
         except subprocess.TimeoutExpired:
-            logger.warning(f"nmap scan for {ip_address} timed out")
-            return models.ScanResult(ip=ip_address, findings=[])
+            logger.warning(f"nmap scan for {target} timed out")
+            if is_ip:
+                return models.ScanResult(ip=target, findings=[])
+            else:
+                return models.ScanResult(url=target, findings=[])
 
         port_services = []
-        for port in result[ip_address]["ports"]:
+        for port in result[target]["ports"]:
             port_services.append(
                 models.NmapPortServices(
                     port=int(port["portid"]),
@@ -76,12 +88,15 @@ class Scanner:
                     state=port["state"],
                 )
             )
-        logger.info("Nmap found %s services on %s", len(port_services), ip_address)
+        logger.info("Nmap found %s services on %s", len(port_services), target)
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
-        return models.ScanResult(ip=ip_address, findings=[nmap_findings])
+        if is_ip:
+            return models.ScanResult(ip=target, findings=[nmap_findings])
+        else:
+            return models.ScanResult(url=target, findings=[nmap_findings])
 
-    def shodan(self, ip_address: str) -> models.ScanFindings:
+    def shodan(self, ip_addr: str) -> models.ScanFindings:
         shodan_findings = models.ScanFindings(
             tool="Shodan.io", emoji_name="globe_with_meridians"
         )
@@ -92,7 +107,7 @@ class Scanner:
 
         shodan_client = shodan.Shodan(self.config.shodan.api_key)
         try:
-            host = shodan_client.host(ip_address)
+            host = shodan_client.host(ip_addr)
         except shodan.APIError as e:
             logger.warning("Incomplete Shodan finding due to API error: %s", e)
             return shodan_findings
@@ -103,7 +118,7 @@ class Scanner:
             )
 
         logger.info(
-            "Shodan found %s services on %s", len(shodan_findings.services), ip_address
+            "Shodan found %s services on %s", len(shodan_findings.services), ip_addr
         )
 
         for domain in host["domains"]:
@@ -115,7 +130,7 @@ class Scanner:
             )
 
         logger.info(
-            "Shodan found %s domains on %s", len(shodan_findings.resources), ip_address
+            "Shodan found %s domains on %s", len(shodan_findings.resources), ip_addr
         )
 
         return shodan_findings
