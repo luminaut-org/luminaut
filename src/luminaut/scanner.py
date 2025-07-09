@@ -64,8 +64,16 @@ class Scanner:
             return self._create_scan_result(target, [])
 
         port_services = []
-        for port in result[target]["ports"]:
-            port_services.append(models.NmapPortServices.from_nmap_port_data(port))
+        # For hostname targets, nmap will resolve the hostname and scan one of the resolved IPs.
+        # Because of this, we do not know what the target IP is, though since we are only scanning
+        # one target, we can iterate over all of the result values and use any section that has
+        # the "ports" key. There should only be one entry for the ports key.
+        for result_values in result.values():
+            if "ports" in result_values:
+                for port in result_values["ports"]:
+                    port_services.append(
+                        models.NmapPortServices.from_nmap_port_data(port)
+                    )
         logger.info("Nmap found %s services on %s", len(port_services), target)
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)
