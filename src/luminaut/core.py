@@ -79,11 +79,22 @@ class Luminaut:
 
         # Handle URL-based scanning
         elif scan_result.url:
-            targets = {
-                str(scan_target.port)
-                for scan_target in scan_result.generate_url_scan_targets()
-            }
-            return self.scanner.nmap(scan_result.url, ports=list(targets)).findings
+            url_targets = scan_result.generate_url_scan_targets()
+
+            target = list({scan_target.target for scan_target in url_targets})
+            if not target:
+                logger.warning(
+                    "No valid targets found for nmap scan on URL: %s", scan_result.url
+                )
+                return []
+
+            target_ports = list({str(scan_target.port) for scan_target in url_targets})
+            if not target_ports:
+                logger.warning(
+                    "No valid ports found for nmap scan on URL: %s", scan_result.url
+                )
+                return []
+            return self.scanner.nmap(target[0], ports=target_ports).findings
 
         return []
 
