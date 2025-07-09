@@ -240,3 +240,24 @@ def test_core_extracts_hostname_from_url():
     assert "8443" in call_args[1]["ports"]  # Should include the port from the URL
     assert len(findings) == 1
     assert findings[0].tool == "nmap"
+
+
+def test_scan_result_ip_without_aws_metadata_uses_default_targets():
+    """Test that ScanResult can generate default scan targets for IPs without AWS metadata."""
+    # Test IP without any AWS metadata should use default ports
+    scan_result = models.ScanResult(ip="192.168.1.1")
+    targets = scan_result.generate_scan_targets()
+
+    # Should generate default ports for the IP
+    assert (
+        len(targets) == 8
+    )  # Default ports: 80, 443, 3000, 5000, 8000, 8080, 8443, 8888
+    ips = {target.target for target in targets}
+    assert ips == {"192.168.1.1"}
+
+    # Verify some expected ports are present
+    ports = {target.port for target in targets}
+    assert 80 in ports
+    assert 443 in ports
+    assert 8080 in ports
+    assert 8443 in ports

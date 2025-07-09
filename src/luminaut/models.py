@@ -1232,6 +1232,10 @@ class ScanResult:
         if elb_ports := self.generate_scan_targets_from_elb_listeners(ip):
             ports.update(elb_ports)
 
+        # If no ports found from security groups or ELB listeners, use default scan targets
+        if not ports:
+            ports = self.generate_default_scan_targets(ip)
+
         return ports
 
     def generate_scan_targets_from_security_groups(

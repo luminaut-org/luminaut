@@ -93,7 +93,9 @@ class LuminautCore(unittest.TestCase):
         nmap_findings = self.luminaut.run_nmap(empty_scan_result)
         self.assertEqual([], nmap_findings)
 
-        # Test that IP without security groups/ELB returns empty findings
+        # Test that IP without security groups/ELB uses default scan targets
         ip_scan_result = models.ScanResult(ip="192.168.1.1", findings=[])
         nmap_findings = self.luminaut.run_nmap(ip_scan_result)
-        self.assertEqual([], nmap_findings)
+        # Should return nmap findings with default scan targets
+        self.assertEqual(1, len(nmap_findings))
+        self.assertEqual("nmap", nmap_findings[0].tool)
