@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 
@@ -54,16 +55,7 @@ class Luminaut:
     def gather_public_ip_context(
         self, scan_results: list[models.ScanResult]
     ) -> list[models.ScanResult]:
-        updated_scan_results = []
-
-        for scan_result in scan_results:
-            scan_result.findings += self.run_nmap(scan_result)
-            scan_result.findings += self.query_shodan(scan_result)
-            scan_result.findings += self.run_whatweb(scan_result)
-
-            updated_scan_results.append(scan_result)
-
-        return updated_scan_results
+        return asyncio.run(self.process_all_scan_results(scan_results))
 
     def run_nmap(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
         if not self.config.nmap.enabled:
@@ -101,3 +93,44 @@ class Luminaut:
             if targets and (whatweb_findings := self.scanner.whatweb(targets)):
                 return [whatweb_findings]
         return []
+
+    async def _run_nmap_async(
+        self, scan_result: models.ScanResult
+    ) -> list[models.ScanFindings]:
+        """Async wrapper for nmap scanning."""
+        return await asyncio.to_thread(self.run_nmap, scan_result)
+
+    async def _query_shodan_async(
+        self, scan_result: models.ScanResult
+    ) -> list[models.ScanFindings]:
+        """Async wrapper for Shodan querying."""
+        return await asyncio.to_thread(self.query_shodan, scan_result)
+
+    async def _run_whatweb_async(
+        self, scan_result: models.ScanResult
+    ) -> list[models.ScanFindings]:
+        """Async wrapper for whatweb scanning."""
+        return await asyncio.to_thread(self.run_whatweb, scan_result)
+
+    async def process_scan_result(
+        self, scan_result: models.ScanResult
+    ) -> models.ScanResult:
+        # Run all scanner operations concurrently for each scan result
+        nmap_task = asyncio.create_task(self._run_nmap_async(scan_result))
+        shodan_task = asyncio.create_task(self._query_shodan_async(scan_result))
+        whatweb_task = asyncio.create_task(self._run_whatweb_async(scan_result))
+
+        # Wait for all tasks to complete
+        nmap_findings, shodan_findings, whatweb_findings = await asyncio.gather(
+            nmap_task, shodan_task, whatweb_task
+        )
+
+        # Update scan result with findings
+        scan_result.findings += nmap_findings + shodan_findings + whatweb_findings
+        return scan_result
+
+    async def process_all_scan_results(
+        self, scan_results: list[models.ScanResult]
+    ) -> list[models.ScanResult]:
+        tasks = [self.process_scan_result(scan_result) for scan_result in scan_results]
+        return await asyncio.gather(*tasks)
