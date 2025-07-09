@@ -1,6 +1,7 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from luminaut import models
+from luminaut.core import Luminaut
 from luminaut.scanner import Scanner
 
 
@@ -157,3 +158,85 @@ def test_nmap_with_url_scan_targets():
     assert "http-proxy" == nmap_results.findings[0].services[0].name
     assert "nginx" == nmap_results.findings[0].services[0].product
     assert "1.20.1" == nmap_results.findings[0].services[0].version
+
+
+def test_nmap_passes_hostname_not_full_url():
+    """Test that nmap receives only the hostname, not the full URL with schema."""
+    expected_hostname = "example.com"
+
+    # Mock nmap response using hostname's IP as key (which is what happens in real life)
+    nmap_response = {
+        "10.1.2.3": {
+            "ports": [
+                {
+                    "portid": "8080",
+                    "protocol": models.Protocol.TCP,
+                    "reason": "syn-ack",
+                    "service": {
+                        "name": "http-alt",
+                        "product": "nginx",
+                        "version": "1.20.1",
+                    },
+                    "state": "open",
+                }
+            ]
+        }
+    }
+
+    with patch("luminaut.scanner.nmap3") as mocked_nmap3:
+        mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
+        nmap_results = Scanner(config=models.LuminautConfig()).nmap(
+            expected_hostname, ports=["8080"]
+        )
+
+        # Verify that nmap was called with just the hostname, not the full URL
+        mocked_nmap3.Nmap().nmap_version_detection.assert_called_once_with(
+            target=expected_hostname,  # Should be hostname only
+            args="--version-light -Pn -p 8080",
+            timeout=None,
+        )
+
+        # Verify the result contains the hostname in the url field
+        assert expected_hostname == nmap_results.url
+        assert nmap_results.ip is None
+        assert len(nmap_results.findings) == 1
+        assert nmap_results.findings[0].tool == "nmap"
+        assert len(nmap_results.findings[0].services) == 1
+        assert isinstance(nmap_results.findings[0].services[0], models.NmapPortServices)
+        assert nmap_results.findings[0].services[0].name == "http-alt"
+
+
+def test_core_extracts_hostname_from_url():
+    """Test that core.py extracts hostname from URL before passing to nmap."""
+    full_url = "https://api.example.com:8443/v1/endpoint"
+    expected_hostname = "api.example.com"
+
+    # Create a scan result with the full URL
+    scan_result = models.ScanResult(url=full_url)
+
+    # Mock the scanner's nmap method to capture what target it receives
+    config = models.LuminautConfig()
+    config.nmap.enabled = True
+    luminaut = Luminaut(config)
+
+    # Create a mock that returns a proper ScanResult and tracks calls
+    mock_nmap = Mock(
+        return_value=models.ScanResult(
+            url=expected_hostname, findings=[models.ScanFindings(tool="nmap")]
+        )
+    )
+    luminaut.scanner.nmap = mock_nmap
+
+    # Run the nmap scan
+    findings = luminaut.run_nmap(scan_result)
+
+    # Verify that the hostname (not full URL) was passed to nmap
+    mock_nmap.assert_called_once()
+    call_args = mock_nmap.call_args
+    assert (
+        call_args[0][0] == expected_hostname
+    )  # First positional argument should be hostname
+    assert call_args[1]["ports"] is not None  # ports keyword argument should exist
+    assert "8443" in call_args[1]["ports"]  # Should include the port from the URL
+    assert len(findings) == 1
+    assert findings[0].tool == "nmap"

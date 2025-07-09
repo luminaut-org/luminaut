@@ -52,19 +52,20 @@ class LuminautCore(unittest.TestCase):
 
     def test_nmap_only_runs_if_enabled(self):
         self.config.nmap = models.LuminautConfigTool(enabled=False)
-        empty_scan_results = models.ScanResult(ip="10.0.0.1", findings=[])
+        # Create a scan result with URL since IP scanning requires security groups/ELB
+        scan_result_with_url = models.ScanResult(url="example.com", findings=[])
         scan_findings = [models.ScanFindings(tool="unittest")]
         self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
-            ip="10.0.0.1", findings=scan_findings
+            url="example.com", findings=scan_findings
         )
 
-        nmap_findings = self.luminaut.run_nmap(empty_scan_results)
+        nmap_findings = self.luminaut.run_nmap(scan_result_with_url)
 
         self.assertEqual([], nmap_findings)
 
         self.config.nmap.enabled = True
 
-        nmap_findings = self.luminaut.run_nmap(empty_scan_results)
+        nmap_findings = self.luminaut.run_nmap(scan_result_with_url)
         self.assertEqual(scan_findings, nmap_findings)
 
     @staticmethod
@@ -84,13 +85,15 @@ class LuminautCore(unittest.TestCase):
 
     def test_nmap_supports_url_scanning(self):
         """Test that run_nmap can handle URL-based scan results."""
-        # Test IP-based scanning (existing behavior)
-        self._test_nmap_target(self.luminaut, "ip", "192.168.1.1")
-
-        # Test URL-based scanning (new behavior)
+        # Test URL-based scanning (URLs have default ports so they work)
         self._test_nmap_target(self.luminaut, "url", "example.com")
 
         # Test that scan result with neither IP nor URL returns empty findings
         empty_scan_result = models.ScanResult(findings=[])
         nmap_findings = self.luminaut.run_nmap(empty_scan_result)
+        self.assertEqual([], nmap_findings)
+
+        # Test that IP without security groups/ELB returns empty findings
+        ip_scan_result = models.ScanResult(ip="192.168.1.1", findings=[])
+        nmap_findings = self.luminaut.run_nmap(ip_scan_result)
         self.assertEqual([], nmap_findings)

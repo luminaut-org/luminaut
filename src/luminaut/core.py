@@ -69,34 +69,22 @@ class Luminaut:
         if not self.config.nmap.enabled:
             return []
 
-        # Handle IP-based scanning
-        if scan_result.ip:
-            targets = {
-                str(scan_target.port)
-                for scan_target in scan_result.generate_ip_scan_targets(scan_result.ip)
-            }
-            return self.scanner.nmap(scan_result.ip, ports=list(targets)).findings
+        scan_targets = scan_result.generate_scan_targets()
 
-        # Handle URL-based scanning
-        elif scan_result.url:
-            url_targets = scan_result.generate_url_scan_targets()
+        target = list({scan_target.target for scan_target in scan_targets})
+        if not target:
+            logger.warning(
+                "No valid targets found for nmap scan on URL: %s", scan_result.url
+            )
+            return []
 
-            target = list({scan_target.target for scan_target in url_targets})
-            if not target:
-                logger.warning(
-                    "No valid targets found for nmap scan on URL: %s", scan_result.url
-                )
-                return []
-
-            target_ports = list({str(scan_target.port) for scan_target in url_targets})
-            if not target_ports:
-                logger.warning(
-                    "No valid ports found for nmap scan on URL: %s", scan_result.url
-                )
-                return []
-            return self.scanner.nmap(target[0], ports=target_ports).findings
-
-        return []
+        target_ports = list({str(scan_target.port) for scan_target in scan_targets})
+        if not target_ports:
+            logger.warning(
+                "No valid ports found for nmap scan on URL: %s", scan_result.url
+            )
+            return []
+        return self.scanner.nmap(target[0], ports=target_ports).findings
 
     def query_shodan(self, scan_result: models.ScanResult) -> list[models.ScanFindings]:
         if (
