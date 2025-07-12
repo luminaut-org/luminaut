@@ -52,17 +52,49 @@ class LuminautCore(unittest.TestCase):
 
     def test_nmap_only_runs_if_enabled(self):
         self.config.nmap = models.LuminautConfigTool(enabled=False)
-        empty_scan_results = models.ScanResult(ip="10.0.0.1", findings=[])
+        # Create a scan result with URL since IP scanning requires security groups/ELB
+        scan_result_with_url = models.ScanResult(url="example.com", findings=[])
         scan_findings = [models.ScanFindings(tool="unittest")]
-        self.luminaut.scanner.nmap = lambda ip_address, ports=None: models.ScanResult(
-            ip="10.0.0.1", findings=scan_findings
+        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
+            url="example.com", findings=scan_findings
         )
 
-        nmap_findings = self.luminaut.run_nmap(empty_scan_results)
+        nmap_findings = self.luminaut.run_nmap(scan_result_with_url)
 
         self.assertEqual([], nmap_findings)
 
         self.config.nmap.enabled = True
 
-        nmap_findings = self.luminaut.run_nmap(empty_scan_results)
+        nmap_findings = self.luminaut.run_nmap(scan_result_with_url)
         self.assertEqual(scan_findings, nmap_findings)
+
+    def test_nmap_supports_url_scanning(self):
+        scan_result = models.ScanResult(url="example.com", findings=[])
+        scan_findings = [models.ScanFindings(tool="nmap")]
+
+        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
+            url=target, findings=scan_findings
+        )
+
+        nmap_findings = self.luminaut.run_nmap(scan_result)
+        assert scan_findings == nmap_findings
+
+    def test_nmap_results_are_empty_for_missing_targets(self):
+        empty_scan_result = models.ScanResult(findings=[])
+        nmap_findings = self.luminaut.run_nmap(empty_scan_result)
+        self.assertEqual([], nmap_findings)
+
+    def test_nmap_uses_default_ports(self):
+        ip_scan_result = models.ScanResult(ip="192.168.1.1", findings=[])
+        self.luminaut.scanner.nmap = Mock()
+        self.luminaut.run_nmap(ip_scan_result)
+        # Should return nmap findings with default scan targets
+        default_ports = {
+            str(x.port)
+            for x in ip_scan_result.generate_default_scan_targets(target="192.168.1.1")
+        }
+        self.luminaut.scanner.nmap.assert_called_once()
+        self.assertEqual(
+            set(self.luminaut.scanner.nmap.call_args_list[0].kwargs["ports"]),
+            default_ports,
+        )

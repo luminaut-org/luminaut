@@ -170,3 +170,8 @@ cython_debug/
 #.idea/
 
 Gemfile.lock
+
+
+# AI coding tools
+CLAUDE.md
+github-copilot*.md

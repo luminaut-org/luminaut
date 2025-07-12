@@ -835,6 +835,18 @@ class NmapPortServices:
 
         return rich_text
 
+    @classmethod
+    def from_nmap_port_data(cls, port_data: dict[str, Any]) -> Self:
+        """Create NmapPortServices from raw nmap port data."""
+        return cls(
+            port=int(port_data["portid"]),
+            protocol=Protocol(port_data["protocol"]),
+            name=port_data["service"].get("name"),
+            product=port_data["service"].get("product"),
+            version=port_data["service"].get("version"),
+            state=port_data["state"],
+        )
+
 
 @dataclass
 class ShodanService:
@@ -1169,6 +1181,8 @@ class ScanResult:
     def generate_scan_targets(self) -> set[ScanTarget]:
         if self.ip:
             return self.generate_ip_scan_targets(self.ip)
+        elif self.url:
+            return self.generate_url_scan_targets()
         return set()
 
     def generate_default_scan_targets(self, target: str) -> set[ScanTarget]:
@@ -1188,6 +1202,14 @@ class ScanResult:
             return set()
 
         site = urlparse(self.url)
+
+        # Handle case where URL has no scheme (e.g., "example.com")
+        # urlparse treats it as path instead of hostname
+        if not site.netloc and site.path:
+            # Assume it's a hostname without scheme
+            hostname = site.path
+            return self.generate_default_scan_targets(hostname)
+
         if not site.hostname:
             return set()
         if not site.port:
@@ -1209,6 +1231,10 @@ class ScanResult:
 
         if elb_ports := self.generate_scan_targets_from_elb_listeners(ip):
             ports.update(elb_ports)
+
+        # If no ports found from security groups or ELB listeners, use default scan targets
+        if not ports:
+            ports = self.generate_default_scan_targets(ip)
 
         return ports
 
