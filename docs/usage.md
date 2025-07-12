@@ -16,7 +16,7 @@ You can confirm your GCP credential configuration by running `gcloud auth list`.
 
 ## Command line interface
 
-No arguments are required to run luminaut. The default is to look for a `luminaut.toml` file in the same directory and run available tools to start detecting resources.
+No arguments are required to run luminaut. If no configuration file is specified with `-c/--config`, luminaut will use default configuration settings and run available tools to start detecting resources.
 
 The default configuration options are shown in the Configuration section.
 
@@ -24,15 +24,17 @@ Luminaut help is available with the argument `--help`.
 
 ```bash
 $ luminaut --help                       
-usage: luminaut [-h] [--config CONFIG] [--log LOG] [--verbose]
+usage: luminaut [-h] [-c CONFIG] [--log LOG] [--verbose] [--version]
 
 Luminaut: Casting light on shadow cloud deployments. 
 
 options:
-  -h, --help       show this help message and exit
-  --config CONFIG  Configuration file. (default: luminaut.toml)
-  --log LOG        Log file. (default: luminaut.log)
-  --verbose        Verbose output in the log file. (default: False)
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Configuration file. (default: None)
+  --log LOG             Log file. (default: luminaut.log)
+  --verbose             Verbose output in the log file. (default: False)
+  --version             show program's version number and exit
 ```
 
 ## Examples
