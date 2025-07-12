@@ -84,16 +84,14 @@ class LuminautCore(unittest.TestCase):
         assert scan_findings == nmap_findings
 
     def test_nmap_supports_url_scanning(self):
-        """Test that run_nmap can handle URL-based scan results."""
-        # Test URL-based scanning (URLs have default ports so they work)
         self._test_nmap_target(self.luminaut, "url", "example.com")
 
-        # Test that scan result with neither IP nor URL returns empty findings
+    def test_nmap_results_are_empty_for_missing_targets(self):
         empty_scan_result = models.ScanResult(findings=[])
         nmap_findings = self.luminaut.run_nmap(empty_scan_result)
         self.assertEqual([], nmap_findings)
 
-        # Test that IP without security groups/ELB uses default scan targets
+    def test_nmap_uses_default_ports(self):
         ip_scan_result = models.ScanResult(ip="192.168.1.1", findings=[])
         self.luminaut.scanner.nmap = Mock()
         self.luminaut.run_nmap(ip_scan_result)
