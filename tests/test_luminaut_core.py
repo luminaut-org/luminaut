@@ -68,23 +68,16 @@ class LuminautCore(unittest.TestCase):
         nmap_findings = self.luminaut.run_nmap(scan_result_with_url)
         self.assertEqual(scan_findings, nmap_findings)
 
-    @staticmethod
-    def _test_nmap_target(
-        luminaut_instance: Luminaut, target_field: str, target_value: str
-    ) -> None:
-        """Helper to test nmap scanning for a specific target type."""
-        scan_result = models.ScanResult(**{target_field: target_value}, findings=[])
+    def test_nmap_supports_url_scanning(self):
+        scan_result = models.ScanResult(url="example.com", findings=[])
         scan_findings = [models.ScanFindings(tool="nmap")]
 
-        luminaut_instance.scanner.nmap = lambda target, ports=None: models.ScanResult(
-            **{target_field: target_value}, findings=scan_findings
+        self.luminaut.scanner.nmap = lambda target, ports=None: models.ScanResult(
+            url=target, findings=scan_findings
         )
 
-        nmap_findings = luminaut_instance.run_nmap(scan_result)
+        nmap_findings = self.luminaut.run_nmap(scan_result)
         assert scan_findings == nmap_findings
-
-    def test_nmap_supports_url_scanning(self):
-        self._test_nmap_target(self.luminaut, "url", "example.com")
 
     def test_nmap_results_are_empty_for_missing_targets(self):
         empty_scan_result = models.ScanResult(findings=[])
