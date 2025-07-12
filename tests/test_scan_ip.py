@@ -32,7 +32,7 @@ def test_nmap():
         mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
         nmap_results = Scanner(config=models.LuminautConfig()).nmap(ip_addr)
 
-    assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
+    mocked_nmap3.Nmap().nmap_version_detection.assert_called_once()
     assert ip_addr == nmap_results.ip
     assert "nmap" == nmap_results.findings[0].tool
     assert isinstance(nmap_results.findings[0].services[0], models.NmapPortServices)
@@ -66,7 +66,7 @@ def test_nmap_hostname():
         mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
         nmap_results = Scanner(config=models.LuminautConfig()).nmap(hostname)
 
-    assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
+    mocked_nmap3.Nmap().nmap_version_detection.assert_called_once()
     assert hostname == nmap_results.url  # Hostname should be in url field
     assert nmap_results.ip is None  # IP field should be None for hostname scans
     assert "nmap" == nmap_results.findings[0].tool
@@ -150,7 +150,7 @@ def test_nmap_with_url_scan_targets():
             hostname, ports=port_list
         )
 
-    assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
+    mocked_nmap3.Nmap().nmap_version_detection.assert_called_once()
     assert hostname == nmap_results.url  # Hostname should be in url field
     assert nmap_results.ip is None  # IP field should be None for hostname scans
     assert "nmap" == nmap_results.findings[0].tool
@@ -326,7 +326,7 @@ def test_nmap_port_state_filtering():
         nmap_results = Scanner(config=models.LuminautConfig()).nmap(ip_addr)
 
     # Verify the scan was executed
-    assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
+    mocked_nmap3.Nmap().nmap_version_detection.assert_called_once()
 
     # Verify only ports with allowed states are included
     services = nmap_results.findings[0].services
