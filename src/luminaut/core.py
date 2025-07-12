@@ -66,7 +66,7 @@ class Luminaut:
         target = list({scan_target.target for scan_target in scan_targets})
         if not target:
             logger.warning(
-                "No valid targets found for nmap scan on URL: %s",
+                "No valid targets found for nmap scan on target: %s",
                 scan_result.url or scan_result.ip,
             )
             return []
@@ -74,7 +74,7 @@ class Luminaut:
         target_ports = list({str(scan_target.port) for scan_target in scan_targets})
         if not target_ports:
             logger.warning(
-                "No valid ports found for nmap scan on URL: %s",
+                "No valid ports found for nmap scan on target: %s",
                 scan_result.url or scan_result.ip,
             )
             return []
