@@ -12,6 +12,7 @@ from luminaut.tools.gcp import Gcp
 from luminaut.tools.whatweb import Whatweb
 
 logger = logging.getLogger(__name__)
+SUPPORTED_NMAP_PORT_STATES = ["open", "closed", "unfiltered"]
 
 
 class Scanner:
@@ -71,8 +72,7 @@ class Scanner:
         for result_values in result.values():
             if "ports" in result_values:
                 for port in result_values["ports"]:
-                    # Only include ports with states: open, closed, or unfiltered
-                    if port.get("state") in ["open", "closed", "unfiltered"]:
+                    if port.get("state") in SUPPORTED_NMAP_PORT_STATES:
                         port_services.append(
                             models.NmapPortServices.from_nmap_port_data(port)
                         )
