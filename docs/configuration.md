@@ -15,13 +15,13 @@ The configuration file is a TOML file with the following structure and defaults:
 console = true  # Rich STDOUT console output
 
 html = false  # Save the console output to an HTML file. Disabled by default.
-html_file = "luminaut.html"  # Path is required if html is true
+html_file = "luminaut.html"  # Example path. Required if html is true. Default is null.
 
 json = false  # JSON lines output, written to STDOUT. Disabled by default.
-json_file = "luminaut.json"  # JSON lines output, written to a file. If omitted will write to stdout
+json_file = "luminaut.json"  # Example path. If omitted will write to stdout. Default is null.
 
 timeline = false  # Timeline output, written to a CSV file. Disabled by default.
-timeline_file = "luminaut_timeline.csv"  # Path is required if timeline is true
+timeline_file = "luminaut_timeline.csv"  # Example path. Required if timeline is true. Default is null.
 
 [tool.aws]
 enabled = true  # Enable the AWS tool, requires the configuration of AWS credentials.
@@ -72,6 +72,7 @@ compute_zones = []
 
 [tool.nmap]
 enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path. Enabled by default but will not run if nmap is not found on the path.
+timeout = 300  # Timeout in seconds for nmap scans. Default is null (no timeout).
 
 [tool.shodan]
 enabled = true  # Enable the shodan tool, requires the shodan API key to be set in the configuration. Enabled by default, but will not run without an API key.
@@ -79,6 +80,7 @@ api_key = ""  # Shodan API key. If this is populated, treat the configuration fi
 
 [tool.whatweb]
 enabled = true  # Enable the whatweb tool, requires the whatweb utility installed and on the system path. Enabled by default, but will not run if whatweb is not found on the path.
+timeout = 120  # Timeout in seconds for whatweb scans. Default is null (no timeout).
 ```
 
 The source of truth for the luminaut configuration is located in `luminaut.models.LuminautConfig`.
