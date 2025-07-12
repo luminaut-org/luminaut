@@ -71,9 +71,11 @@ class Scanner:
         for result_values in result.values():
             if "ports" in result_values:
                 for port in result_values["ports"]:
-                    port_services.append(
-                        models.NmapPortServices.from_nmap_port_data(port)
-                    )
+                    # Only include ports with states: open, closed, or unfiltered
+                    if port.get("state") in ["open", "closed", "unfiltered"]:
+                        port_services.append(
+                            models.NmapPortServices.from_nmap_port_data(port)
+                        )
         logger.info("Nmap found %s services on %s", len(port_services), target)
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)

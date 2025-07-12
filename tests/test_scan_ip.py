@@ -261,3 +261,78 @@ def test_scan_result_ip_without_aws_metadata_uses_default_targets():
     assert 443 in ports
     assert 8080 in ports
     assert 8443 in ports
+
+
+def test_nmap_port_state_filtering():
+    """Test that nmap only includes ports with states: open, closed, and unfiltered."""
+    ip_addr = "192.168.1.1"
+
+    # Mock nmap response with various port states
+    nmap_response = {
+        ip_addr: {
+            "ports": [
+                {
+                    "portid": "22",
+                    "protocol": models.Protocol.TCP,
+                    "reason": "syn-ack",
+                    "service": {"name": "ssh", "product": "OpenSSH", "version": "8.9"},
+                    "state": "open",  # Should be included
+                },
+                {
+                    "portid": "23",
+                    "protocol": models.Protocol.TCP,
+                    "reason": "reset",
+                    "service": {"name": "telnet", "product": "", "version": ""},
+                    "state": "closed",  # Should be included
+                },
+                {
+                    "portid": "80",
+                    "protocol": models.Protocol.TCP,
+                    "reason": "no-response",
+                    "service": {"name": "http", "product": "", "version": ""},
+                    "state": "filtered",  # Should be excluded
+                },
+                {
+                    "portid": "443",
+                    "protocol": models.Protocol.TCP,
+                    "reason": "no-response",
+                    "service": {
+                        "name": "https",
+                        "product": "nginx",
+                        "version": "1.20.1",
+                    },
+                    "state": "unfiltered",  # Should be included
+                },
+                {
+                    "portid": "8080",
+                    "protocol": models.Protocol.TCP,
+                    "reason": "host-unreach",
+                    "service": {"name": "http-proxy", "product": "", "version": ""},
+                    "state": "open|filtered",  # Should be excluded
+                },
+                {
+                    "portid": "3306",
+                    "protocol": models.Protocol.TCP,
+                    "reason": "reset",
+                    "service": {"name": "mysql", "product": "MySQL", "version": "8.0"},
+                    "state": "closed|filtered",  # Should be excluded
+                },
+            ]
+        }
+    }
+
+    with patch("luminaut.scanner.nmap3") as mocked_nmap3:
+        mocked_nmap3.Nmap().nmap_version_detection.return_value = nmap_response
+        nmap_results = Scanner(config=models.LuminautConfig()).nmap(ip_addr)
+
+    # Verify the scan was executed
+    assert mocked_nmap3.Nmap().nmap_version_detection.called_once()
+
+    # Verify only ports with allowed states are included
+    services = nmap_results.findings[0].services
+    assert len(services) == 3  # Only open, closed, and unfiltered ports
+
+    # Check specific ports and their states
+    states = {service.state for service in services}  # type: ignore
+    expected_states = {"open", "closed", "unfiltered"}
+    assert states == expected_states
