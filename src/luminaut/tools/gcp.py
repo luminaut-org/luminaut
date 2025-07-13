@@ -3,6 +3,7 @@ import logging
 
 import google.auth
 from google.cloud import compute_v1, run_v2
+from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from tqdm import tqdm
 
 from luminaut import models
@@ -19,6 +20,9 @@ class Gcp:
 
     def get_run_v2_services_client(self) -> run_v2.ServicesClient:
         return run_v2.ServicesClient()
+
+    def get_firewall_client(self) -> compute_v1.FirewallsClient:
+        return compute_v1.FirewallsClient()
 
     def get_projects(self) -> list[str]:
         if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
@@ -168,6 +172,29 @@ class Gcp:
                 "Failed to fetch GCP Run services for project %s in location %s: %s",
                 project,
                 location,
+                str(e),
+            )
+            return []
+
+    def fetch_firewall_rules(
+        self, project: str, network: str
+    ) -> list[models.GcpFirewallRule]:
+        """Fetch firewall rules for a given project and network."""
+        network_url = f"https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}"
+        filter_expression = f'network="{network_url}"'
+
+        request = gcp_compute_v1_types.ListFirewallsRequest(
+            project=project, filter=filter_expression
+        )
+        try:
+            client = self.get_firewall_client()
+            firewall_rules = client.list(request=request)
+            return [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP firewall rules for project %s network %s: %s",
+                project,
+                network,
                 str(e),
             )
             return []

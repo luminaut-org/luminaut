@@ -4,6 +4,7 @@ from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import Mock
 
+from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from google.cloud.run_v2 import types as run_v2_types
 from google.protobuf.timestamp_pb2 import Timestamp
 
@@ -303,3 +304,66 @@ class TestGCP(TestCase):
 
         service_no_ingress = models.GcpService.from_gcp(fake_service_with_no_ingress)
         self.assertFalse(service_no_ingress.allows_ingress())
+
+
+fake_firewall_rule = gcp_compute_v1_types.Firewall(
+    id="12345678901234567890",
+    name="allow-http-https",
+    direction="INGRESS",
+    priority=1000,
+    network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+    allowed=[gcp_compute_v1_types.Allowed(I_p_protocol="tcp", ports=["80", "443"])],
+    source_ranges=["0.0.0.0/0"],
+    creation_timestamp="2025-01-01T00:00:00.000-00:00",
+    disabled=False,
+)
+
+
+class TestGcpFirewalls(TestCase):
+    def setUp(self):
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        self.config = models.LuminautConfig.from_toml(config)
+
+    def mock_firewall_client(self, gcp: Gcp, firewall_list_response=None) -> Mock:
+        client = Mock()
+        client.list.return_value = firewall_list_response or []
+        gcp.get_firewall_client = Mock(return_value=client)
+        return client
+
+    def test_fetch_firewall_rules(self):
+        gcp = Gcp(self.config)
+        mock_client = self.mock_firewall_client(
+            gcp, firewall_list_response=[fake_firewall_rule]
+        )
+
+        firewall_rules = gcp.fetch_firewall_rules(
+            project="test-project", network="default"
+        )
+
+        expected_request = gcp_compute_v1_types.ListFirewallsRequest(
+            project="test-project",
+            filter='network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default"',
+        )
+        mock_client.list.assert_called_once_with(request=expected_request)
+
+        self.assertEqual(len(firewall_rules), 1)
+
+        rule = firewall_rules[0]
+        self.assertEqual(rule.resource_id, "12345678901234567890")
+        self.assertEqual(rule.name, "allow-http-https")
+        self.assertEqual(rule.direction, models.Direction.INGRESS)
+        self.assertEqual(rule.priority, 1000)
+        self.assertEqual(rule.action, "ALLOW")
+        self.assertEqual(rule.source_ranges, ["0.0.0.0/0"])
+        self.assertEqual(len(rule.allowed_protocols), 1)
+        self.assertEqual(rule.allowed_protocols[0]["IPProtocol"], "tcp")
+        self.assertEqual(rule.allowed_protocols[0]["ports"], ["80", "443"])
+        self.assertFalse(rule.disabled)
