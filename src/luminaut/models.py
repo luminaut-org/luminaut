@@ -503,8 +503,32 @@ class GcpFirewallRule:
         ):
             return False
 
-        # Check if the rule allows access from anywhere (0.0.0.0/0)
-        return not self.source_ranges or "0.0.0.0/0" in self.source_ranges
+        # If no source ranges specified, it allows all traffic (permissive)
+        if not self.source_ranges:
+            return True
+
+        # Check each source range to see if any allow external access
+        for source_range in self.source_ranges:
+            if self._is_external_source_range(source_range):
+                return True
+
+        return False
+
+    def _is_external_source_range(self, source_range: str) -> bool:
+        """Check if a source range allows external (non-private) access."""
+        try:
+            # Handle CIDR notation or single IP
+            if "/" in source_range:
+                network = ip_address(source_range.split("/")[0])
+            else:
+                network = ip_address(source_range)
+
+            # Check if it's a global (external) IP address
+            # is_global returns True for public IPs, False for private/reserved IPs
+            return network.is_global or network in QUAD_ZERO_ADDRESSES
+        except ValueError:
+            # If we can't parse the IP, assume it's permissive for safety
+            return True
 
     def generate_scan_targets(
         self, ip: str, default_ports: Iterable["ScanTarget"]
