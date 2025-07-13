@@ -502,6 +502,82 @@ class GcpFirewallRule:
             else [],
         )
 
+    def is_permissive(self) -> bool:
+        """Check if this firewall rule allows external access."""
+        # Only ALLOW rules that are enabled and INGRESS can be permissive
+        if (
+            self.action != "ALLOW"
+            or self.disabled
+            or self.direction != Direction.INGRESS
+        ):
+            return False
+
+        # Check if the rule allows access from anywhere (0.0.0.0/0)
+        return not self.source_ranges or "0.0.0.0/0" in self.source_ranges
+
+    def generate_scan_targets(
+        self, ip: str, default_ports: Iterable["ScanTarget"]
+    ) -> set["ScanTarget"]:
+        """Generate scan targets from this firewall rule."""
+        if not self.is_permissive():
+            return set()
+
+        ports = set()
+        for protocol_info in self.allowed_protocols:
+            ports.update(self._process_protocol(protocol_info, ip, default_ports))
+        return ports
+
+    def _process_protocol(
+        self,
+        protocol_info: dict[str, Any],
+        ip: str,
+        default_ports: Iterable["ScanTarget"],
+    ) -> set["ScanTarget"]:
+        """Process a single protocol configuration."""
+        ports = set()
+        protocol_name = protocol_info.get("IPProtocol", "").upper()
+        port_ranges = protocol_info.get("ports", [])
+
+        # Skip ICMP protocols
+        if protocol_name in ("ICMP", "ICMPV6"):
+            return ports
+
+        # If no specific ports are defined, use default ports
+        if not port_ranges:
+            if protocol_name in ("TCP", "UDP", "ALL"):
+                ports.update(default_ports)
+            return ports
+
+        # Process each port range
+        for port_range in port_ranges:
+            ports.update(self._parse_port_range(port_range, ip))
+        return ports
+
+    def _parse_port_range(self, port_range: str, ip: str) -> set["ScanTarget"]:
+        """Parse a port range string and return ScanTargets."""
+        ports = set()
+        if "-" in port_range:
+            # Handle port ranges like "80-443"
+            start_port, end_port = port_range.split("-", 1)
+            try:
+                start = int(start_port)
+                end = int(end_port)
+                # Use the ScanTarget class directly since it's defined later in this file
+                for port_num in range(start, end + 1):
+                    ports.add(ScanTarget(target=ip, port=port_num))
+            except ValueError:
+                # Invalid port range, skip
+                pass
+        else:
+            # Single port
+            try:
+                port = int(port_range)
+                ports.add(ScanTarget(target=ip, port=port))
+            except ValueError:
+                # Invalid port, skip
+                pass
+        return ports
+
 
 @dataclass
 class GcpInstanceFirewallRules:
@@ -1340,6 +1416,15 @@ class ScanResult:
                     sg_rules.extend(resource.rules)
         return sg_rules
 
+    def get_gcp_firewall_rules(self) -> list[GcpFirewallRule]:
+        """Get all GCP firewall rules from the scan findings."""
+        firewall_rules = []
+        for finding in self.findings:
+            for resource in finding.resources:
+                if isinstance(resource, GcpInstanceFirewallRules):
+                    firewall_rules.extend(resource.rules)
+        return firewall_rules
+
     def get_resources_by_type(self, resource_type: type[T]) -> list[T]:
         resources = []
         for finding in self.findings:
@@ -1399,17 +1484,24 @@ class ScanResult:
 
     def generate_ip_scan_targets(self, ip: str) -> set[ScanTarget]:
         ports = set()
+        default_targets = self.generate_default_scan_targets(ip)
+
         if sg_ports := self.generate_scan_targets_from_security_groups(
-            ip, self.generate_default_scan_targets(ip)
+            ip, default_targets
         ):
             ports.update(sg_ports)
+
+        if gcp_ports := self.generate_scan_targets_from_gcp_firewall_rules(
+            ip, default_targets
+        ):
+            ports.update(gcp_ports)
 
         if elb_ports := self.generate_scan_targets_from_elb_listeners(ip):
             ports.update(elb_ports)
 
-        # If no ports found from security groups or ELB listeners, use default scan targets
+        # If no ports found from security groups, GCP firewall rules, or ELB listeners, use default scan targets
         if not ports:
-            ports = self.generate_default_scan_targets(ip)
+            ports = default_targets
 
         return ports
 
@@ -1429,6 +1521,16 @@ class ScanResult:
                         for x in range(sg_rule.from_port, sg_rule.to_port + 1)
                     }
                 )
+        return ports
+
+    def generate_scan_targets_from_gcp_firewall_rules(
+        self, ip: str, default_ports: Iterable[ScanTarget]
+    ) -> set[ScanTarget]:
+        """Generate scan targets from GCP firewall rules."""
+        ports = set()
+        if firewall_rules := self.get_gcp_firewall_rules():
+            for fw_rule in firewall_rules:
+                ports.update(fw_rule.generate_scan_targets(ip, default_ports))
         return ports
 
     def generate_scan_targets_from_elb_listeners(self, ip: str) -> set[ScanTarget]:
