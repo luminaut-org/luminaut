@@ -428,6 +428,13 @@ class GcpFirewallRule:
 
 
 @dataclass
+class GcpInstanceFirewallRules:
+    """Collection of GCP firewall rules applicable to an instance"""
+
+    rules: list[GcpFirewallRule] = field(default_factory=list)
+
+
+@dataclass
 class Container:
     """A representation of a container"""
 
