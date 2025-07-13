@@ -325,6 +325,7 @@ class GcpInstance:
     zone: str | None = None
     status: str | None = None
     description: str | None = None
+    tags: list[str] = field(default_factory=list)
 
     def get_public_ips(self) -> list[str]:
         """Return a list of public IPs from the network interfaces."""
@@ -367,6 +368,9 @@ class GcpInstance:
             zone=instance.zone.split("/")[-1],
             status=instance.status,
             description=instance.description,
+            tags=list(instance.tags.items)
+            if hasattr(instance, "tags") and instance.tags.items
+            else [],
         )
 
 

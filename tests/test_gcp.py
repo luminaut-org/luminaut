@@ -25,6 +25,10 @@ class FakeGcpNetworkInterface:
     alias_ip_ranges = []
 
 
+class FakeGcpInstanceTags:
+    items = ["web-server", "production", "backend"]
+
+
 class FakeGcpInstance:
     id = "abc123"
     name = "test-instance"
@@ -33,6 +37,7 @@ class FakeGcpInstance:
     zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
     status = "RUNNING"
     description = "Test instance"
+    tags = FakeGcpInstanceTags()
 
 
 class FakeGcpInternalNetworkInterface:
@@ -44,6 +49,10 @@ class FakeGcpInternalNetworkInterface:
     alias_ip_ranges = []
 
 
+class FakeGcpInternalInstanceTags:
+    items = ["internal", "database"]
+
+
 class FakeGcpInternalInstance:
     id = "abc123"
     name = "test-instance"
@@ -52,6 +61,7 @@ class FakeGcpInternalInstance:
     zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
     status = "RUNNING"
     description = "Test instance"
+    tags = FakeGcpInternalInstanceTags()
 
 
 fake_container = run_v2_types.Container(
@@ -200,6 +210,7 @@ class TestGCP(TestCase):
         self.assertEqual(actual_nic.resource_id, expected_nic.resource_id)
         self.assertEqual(actual_nic.public_ip, expected_nic.public_ip)
         self.assertEqual(actual_instance.resource_id, expected_instance.resource_id)
+        self.assertEqual(actual_instance.tags, ["web-server", "production", "backend"])
 
     def test_enumerate_instances_without_public_ips(self):
         expected_nic = models.GcpNetworkInterface(
@@ -234,6 +245,7 @@ class TestGCP(TestCase):
         self.assertEqual(actual_nic.resource_id, expected_nic.resource_id)
         self.assertIsNone(actual_nic.public_ip)
         self.assertEqual(actual_nic.internal_ip, expected_nic.internal_ip)
+        self.assertEqual(instances[0].tags, ["internal", "database"])
 
     def test_explore_only_returns_instances_with_external_ips(self):
         gcp = Gcp(self.config)
@@ -434,3 +446,30 @@ class TestGcpInstanceNetworks(TestCase):
         # Should only return valid network, ignoring None values
         self.assertEqual(len(networks), 1)
         self.assertEqual(networks[0], "valid-network")
+
+    def test_instance_tags_edge_cases(self):
+        # Test instance with no tags
+        fake_no_tags = Mock()
+        fake_no_tags.items = []
+
+        instance_no_tags = models.GcpInstance(
+            resource_id="no-tags-instance", name="no-tags-instance", tags=[]
+        )
+
+        self.assertEqual(instance_no_tags.tags, [])
+
+        # Test from_gcp with empty tags
+        fake_instance = Mock()
+        fake_instance.id = "test-id"
+        fake_instance.name = "test-name"
+        fake_instance.network_interfaces = []
+        fake_instance.creation_timestamp = "2025-01-01T00:00:00.000-00:00"
+        fake_instance.zone = (
+            "https://www.googleapis.com/compute/v1/projects/test/zones/us-central1-a"
+        )
+        fake_instance.status = "RUNNING"
+        fake_instance.description = "Test"
+        fake_instance.tags = fake_no_tags
+
+        parsed_instance = models.GcpInstance.from_gcp(fake_instance)
+        self.assertEqual(parsed_instance.tags, [])
