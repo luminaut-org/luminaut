@@ -279,6 +279,9 @@ class LuminautConfig:
             luminaut_config.shodan = LuminautConfigToolShodan.from_dict(
                 tool_config.get("shodan", {})
             )
+            luminaut_config.whatweb = LuminautConfigTool.from_dict(
+                tool_config.get("whatweb", {})
+            )
         return luminaut_config
 
 

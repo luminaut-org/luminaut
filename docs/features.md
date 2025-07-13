@@ -17,6 +17,8 @@ toc: true
   - Optionally specify a time frame to limit the scan to a specific time period.
 - Skip scanning and reporting on resources based on the resource id or tag values
   - Supports skipping based on the resource id of the ENI.
+  - Supports tag-based filtering using key-value pairs.
+  - Only applies to AWS resources (ENIs), not GCP resources.
 
 # GCP
 
@@ -26,14 +28,28 @@ toc: true
 
 # Active scanning
 
-- [nmap](https://nmap.org/) to scan common ports and services against identified IP addresses.
-  - nmap will only scan ports associated with permissive firewall rules or a load balancer listener.
-- [whatweb](https://github.com/urbanadventurer/WhatWeb) to identify services running on ports associated with exposed security group ports.
-  - whatweb will only scan ports associated with permissive firewall rules or a load balancer listener.
+- [nmap](https://nmap.org/) to scan ports and services against identified IP addresses.
+  - nmap will scan ports associated with permissive firewall rules (allowing traffic from a public IP address) or load balancer listeners.
+  - If no permissive rules or listeners are found, nmap will scan default ports (such as 80, 443, 8080, etc.).
+- [whatweb](https://github.com/urbanadventurer/WhatWeb) to identify services running on exposed ports.
+  - whatweb will scan ports associated with permissive firewall rules (allowing traffic from a public IP address) or load balancer listeners.
+  - If no permissive rules or listeners are found, whatweb will scan default ports (such as 80, 443, 8080, etc.).
 
 # Passive sources
 
 - [shodan](https://www.shodan.io/) to gather information about exposed services and vulnerabilities.
+
+# Advanced Features
+
+## Security Rule Analysis
+- **Permissive Rule Detection**: Only considers security group rules allowing ingress from public IPs as permissive
+- **Protocol Filtering**: Excludes ICMP/ICMPv6 protocols from port scanning
+- **Port Range Expansion**: Automatically expands security group port ranges into individual scan targets
+
+## Concurrent Processing
+- **Async Architecture**: External tools (nmap, Shodan, whatweb) run concurrently for each discovered IP
+- **Parallel Cloud Scanning**: GCP projects, zones, and regions are scanned in parallel
+- **Performance Optimization**: Uses asyncio to maximize scanning efficiency for large environments
 
 # Reporting
 
