@@ -328,6 +328,7 @@ fake_firewall_rule = gcp_compute_v1_types.Firewall(
     source_ranges=["0.0.0.0/0"],
     creation_timestamp="2025-01-01T00:00:00.000-00:00",
     disabled=False,
+    target_tags=["web-server", "frontend"],
 )
 
 
@@ -379,6 +380,33 @@ class TestGcpFirewalls(TestCase):
         self.assertEqual(rule.allowed_protocols[0]["IPProtocol"], "tcp")
         self.assertEqual(rule.allowed_protocols[0]["ports"], ["80", "443"])
         self.assertFalse(rule.disabled)
+        self.assertEqual(rule.target_tags, ["web-server", "frontend"])
+
+    def test_firewall_rule_with_no_target_tags(self):
+        # Test firewall rule with no target tags
+        fake_rule_no_tags = gcp_compute_v1_types.Firewall(
+            id="987654321",
+            name="allow-all",
+            direction="INGRESS",
+            priority=2000,
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+            allowed=[gcp_compute_v1_types.Allowed(I_p_protocol="tcp", ports=["22"])],
+            source_ranges=["10.0.0.0/8"],
+            creation_timestamp="2025-01-01T00:00:00.000-00:00",
+            disabled=False,
+            target_tags=[],  # Empty tags
+        )
+
+        gcp = Gcp(self.config)
+        self.mock_firewall_client(gcp, firewall_list_response=[fake_rule_no_tags])
+
+        firewall_rules = gcp.fetch_firewall_rules(
+            project="test-project", network="default"
+        )
+
+        self.assertEqual(len(firewall_rules), 1)
+        rule = firewall_rules[0]
+        self.assertEqual(rule.target_tags, [])
 
 
 class TestGcpInstanceNetworks(TestCase):

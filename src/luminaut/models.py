@@ -389,6 +389,7 @@ class GcpFirewallRule:
     )  # protocol and ports
     creation_timestamp: datetime | None = None
     disabled: bool = False
+    target_tags: list[str] = field(default_factory=list)
 
     @classmethod
     def from_gcp(cls, firewall_rule: Any) -> Self:
@@ -420,6 +421,9 @@ class GcpFirewallRule:
             disabled=firewall_rule.disabled
             if hasattr(firewall_rule, "disabled")
             else False,
+            target_tags=list(firewall_rule.target_tags)
+            if hasattr(firewall_rule, "target_tags") and firewall_rule.target_tags
+            else [],
         )
 
 
