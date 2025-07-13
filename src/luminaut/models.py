@@ -425,7 +425,25 @@ class GcpFirewallRule:
         else:
             source_text = "[green]Any source[/green]"
 
-        # Build protocol and port information
+        protocol_text = self.build_protocol_text()
+
+        # Build action and status indicators
+        action_color = "green" if self.action == "ALLOW" else "red"
+        action_text = f"[{action_color}]{self.action}[/{action_color}]"
+
+        status_text = "[red](DISABLED)[/red]" if self.disabled else ""
+
+        # Combine everything
+        rich_text = f"  {action_text} {source_text} {protocol_text} Priority: {self.priority} {status_text}"
+
+        # Add target tags if present
+        if self.target_tags:
+            tags_text = ", ".join(self.target_tags)
+            rich_text += f" Target tags: [cyan]{tags_text}[/cyan]"
+
+        return rich_text + "\n"
+
+    def build_protocol_text(self) -> str:
         protocol_text = ""
         if self.allowed_protocols:
             protocol_parts = []
@@ -447,22 +465,7 @@ class GcpFirewallRule:
             protocol_text = ", ".join(protocol_parts)
         else:
             protocol_text = "[magenta]All protocols[/magenta]"
-
-        # Build action and status indicators
-        action_color = "green" if self.action == "ALLOW" else "red"
-        action_text = f"[{action_color}]{self.action}[/{action_color}]"
-
-        status_text = "[red](DISABLED)[/red]" if self.disabled else ""
-
-        # Combine everything
-        rich_text = f"  {action_text} {source_text} {protocol_text} Priority: {self.priority} {status_text}"
-
-        # Add target tags if present
-        if self.target_tags:
-            tags_text = ", ".join(self.target_tags)
-            rich_text += f" Target tags: [cyan]{tags_text}[/cyan]"
-
-        return rich_text + "\n"
+        return protocol_text
 
     @classmethod
     def from_gcp(cls, firewall_rule: Any) -> Self:
