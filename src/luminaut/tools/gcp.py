@@ -209,17 +209,13 @@ class Gcp:
     ) -> models.GcpInstanceFirewallRules:
         """Get firewall rules that apply to a given GCP instance."""
         applicable_rules = []
-
-        # For each network interface, fetch firewall rules
         for nic in instance.network_interfaces:
             project_name = nic.get_project_name()
             network_name = nic.get_network_name()
 
-            # Skip if we can't extract project or network name
             if not project_name or not network_name:
                 continue
 
-            # Fetch firewall rules for this network
             firewall_rules = self.fetch_firewall_rules(project_name, network_name)
 
             # Filter rules based on target tags
@@ -237,9 +233,5 @@ class Gcp:
         if not rule.target_tags:
             return True
 
-        # If rule has target tags, check if instance has any matching tags
-        instance_tags = set(instance.tags)
-        rule_target_tags = set(rule.target_tags)
-
         # Rule applies if there's any overlap between instance tags and rule target tags
-        return bool(instance_tags & rule_target_tags)
+        return bool(set(instance.tags) & set(rule.target_tags))
