@@ -360,10 +360,7 @@ class GcpInstance:
         """Return a list of distinct network names from all network interfaces."""
         networks = set()
         for nic in self.network_interfaces:
-            if nic.network:
-                # Extract network name from URL format:
-                # https://www.googleapis.com/compute/v1/projects/project/global/networks/network-name
-                network_name = nic.network.split("/")[-1]
+            if network_name := nic.get_network_name():
                 networks.add(network_name)
         return list(networks)
 
