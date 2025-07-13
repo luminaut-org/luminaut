@@ -19,6 +19,10 @@ enabled = false
 [tool.nmap]
 enabled = true
 timeout = 300
+
+[tool.whatweb]
+enabled = false
+timeout = 60
 """
 
 
@@ -38,6 +42,10 @@ class TestLuminautConfig(unittest.TestCase):
 
         self.assertTrue(loaded_config.nmap.enabled)
         self.assertEqual(loaded_config.nmap.timeout, 300)
+
+        # Test WhatWeb configuration parsing
+        self.assertFalse(loaded_config.whatweb.enabled)
+        self.assertEqual(loaded_config.whatweb.timeout, 60)
 
     def test_load_allowed_resources_by_tag(self):
         allowed_item = models.LuminautConfigAwsAllowedResource.from_dict(
