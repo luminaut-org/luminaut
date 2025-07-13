@@ -333,6 +333,17 @@ class GcpInstance:
     def has_public_ip(self) -> bool:
         return bool(self.get_public_ips())
 
+    def get_networks(self) -> list[str]:
+        """Return a list of distinct network names from all network interfaces."""
+        networks = set()
+        for nic in self.network_interfaces:
+            if nic.network:
+                # Extract network name from URL format:
+                # https://www.googleapis.com/compute/v1/projects/project/global/networks/network-name
+                network_name = nic.network.split("/")[-1]
+                networks.add(network_name)
+        return list(networks)
+
     def build_rich_text(self) -> str:
         rich_text = f"[dark_orange3]{self.name}[/dark_orange3] Id: {self.resource_id} ([green]{self.status}[/green]) Created: {self.creation_time or 'Unknown'}\n"
         if description := self.description:

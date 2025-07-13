@@ -367,3 +367,70 @@ class TestGcpFirewalls(TestCase):
         self.assertEqual(rule.allowed_protocols[0]["IPProtocol"], "tcp")
         self.assertEqual(rule.allowed_protocols[0]["ports"], ["80", "443"])
         self.assertFalse(rule.disabled)
+
+
+class TestGcpInstanceNetworks(TestCase):
+    def test_get_networks_deduplication_and_parsing(self):
+        # Test with multiple scenarios: single network, multiple networks, and duplicates
+        nic1 = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+            internal_ip="10.0.0.1",
+        )
+
+        nic2 = models.GcpNetworkInterface(
+            resource_id="nic1",
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/custom-vpc",
+            internal_ip="10.1.0.1",
+        )
+
+        nic3 = models.GcpNetworkInterface(
+            resource_id="nic2",
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",  # duplicate
+            internal_ip="10.0.0.2",
+        )
+
+        instance = models.GcpInstance(
+            resource_id="instance-123",
+            name="test-instance",
+            network_interfaces=[nic1, nic2, nic3],
+        )
+
+        networks = instance.get_networks()
+
+        # Should return 2 unique networks despite 3 interfaces
+        self.assertEqual(len(networks), 2)
+        self.assertIn("default", networks)
+        self.assertIn("custom-vpc", networks)
+
+    def test_get_networks_no_interfaces(self):
+        # Test instance with no network interfaces
+        instance = models.GcpInstance(
+            resource_id="empty-instance", name="empty-instance", network_interfaces=[]
+        )
+
+        networks = instance.get_networks()
+        self.assertEqual(len(networks), 0)
+
+    def test_get_networks_none_network_values(self):
+        # Test instance with None network values
+        nic_with_none_network = models.GcpNetworkInterface(
+            resource_id="nic0", network=None, internal_ip="10.0.0.1"
+        )
+
+        nic_with_valid_network = models.GcpNetworkInterface(
+            resource_id="nic1",
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/valid-network",
+            internal_ip="10.1.0.1",
+        )
+
+        instance = models.GcpInstance(
+            resource_id="mixed-instance",
+            name="mixed-instance",
+            network_interfaces=[nic_with_none_network, nic_with_valid_network],
+        )
+
+        networks = instance.get_networks()
+        # Should only return valid network, ignoring None values
+        self.assertEqual(len(networks), 1)
+        self.assertEqual(networks[0], "valid-network")
