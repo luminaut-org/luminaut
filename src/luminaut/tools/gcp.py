@@ -110,6 +110,11 @@ class Gcp:
                     emoji_name="cloud",
                     resources=[gcp_instance],
                 )
+
+                firewall_rules = self.get_applicable_firewall_rules(gcp_instance)
+                if firewall_rules:
+                    scan_finding.resources.append(firewall_rules)
+
                 scan_results.append(
                     models.ScanResult(
                         ip=public_ip,
@@ -198,3 +203,43 @@ class Gcp:
                 str(e),
             )
             return []
+
+    def get_applicable_firewall_rules(
+        self, instance: models.GcpInstance
+    ) -> models.GcpInstanceFirewallRules:
+        """Get firewall rules that apply to a given GCP instance."""
+        applicable_rules = []
+
+        # For each network interface, fetch firewall rules
+        for nic in instance.network_interfaces:
+            project_name = nic.get_project_name()
+            network_name = nic.get_network_name()
+
+            # Skip if we can't extract project or network name
+            if not project_name or not network_name:
+                continue
+
+            # Fetch firewall rules for this network
+            firewall_rules = self.fetch_firewall_rules(project_name, network_name)
+
+            # Filter rules based on target tags
+            for rule in firewall_rules:
+                if self._rule_applies_to_instance(rule, instance):
+                    applicable_rules.append(rule)
+
+        return models.GcpInstanceFirewallRules(rules=applicable_rules)
+
+    def _rule_applies_to_instance(
+        self, rule: models.GcpFirewallRule, instance: models.GcpInstance
+    ) -> bool:
+        """Check if a firewall rule applies to an instance based on target tags."""
+        # If rule has no target tags, it applies to all instances in the network
+        if not rule.target_tags:
+            return True
+
+        # If rule has target tags, check if instance has any matching tags
+        instance_tags = set(instance.tags)
+        rule_target_tags = set(rule.target_tags)
+
+        # Rule applies if there's any overlap between instance tags and rule target tags
+        return bool(instance_tags & rule_target_tags)

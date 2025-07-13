@@ -309,6 +309,28 @@ class GcpNetworkInterface:
             ],
         )
 
+    def get_project_name(self) -> str | None:
+        """Extract project name from network URL."""
+        if not self.network:
+            return None
+
+        # Network format: https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}
+        network_parts = self.network.split("/")
+        if len(network_parts) >= 7 and network_parts[5] == "projects":
+            return network_parts[6]
+        return None
+
+    def get_network_name(self) -> str | None:
+        """Extract network name from network URL."""
+        if not self.network:
+            return None
+
+        # Network format: https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}
+        network_parts = self.network.split("/")
+        if len(network_parts) >= 10 and network_parts[8] == "networks":
+            return network_parts[9]
+        return None
+
     def build_rich_text(self) -> str:
         rich_text = f"Public IP: [dark_orange3]{self.public_ip}[/dark_orange3] Private IP: [orange3]{self.internal_ip}[/orange3] from [cyan]{self.resource_id}[/cyan]\n"
         if self.alias_ip_ranges:
@@ -432,6 +454,10 @@ class GcpInstanceFirewallRules:
     """Collection of GCP firewall rules applicable to an instance"""
 
     rules: list[GcpFirewallRule] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        """Return True if there are any rules."""
+        return bool(self.rules)
 
 
 @dataclass
@@ -1152,6 +1178,7 @@ FindingResources = MutableSequence[
     | AwsLoadBalancer
     | AwsNetworkInterface
     | GcpInstance
+    | GcpInstanceFirewallRules
     | GcpService
     | GcpTask
     | SecurityGroup

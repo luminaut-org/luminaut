@@ -408,6 +408,236 @@ class TestGcpFirewalls(TestCase):
         rule = firewall_rules[0]
         self.assertEqual(rule.target_tags, [])
 
+    def test_get_applicable_firewall_rules(self):
+        # Test instance with tags that match firewall rules
+        instance = models.GcpInstance(
+            resource_id="test-instance",
+            name="test-instance",
+            network_interfaces=[
+                models.GcpNetworkInterface(
+                    resource_id="nic0",
+                    network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+                    internal_ip="10.0.0.1",
+                )
+            ],
+            tags=["web-server", "frontend"],
+        )
+
+        gcp = Gcp(self.config)
+        mock_client = self.mock_firewall_client(
+            gcp, firewall_list_response=[fake_firewall_rule]
+        )
+
+        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+
+        # Should call fetch_firewall_rules for the default network
+        expected_request = gcp_compute_v1_types.ListFirewallsRequest(
+            project="test-project",
+            filter='network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default"',
+        )
+        mock_client.list.assert_called_once_with(request=expected_request)
+
+        # Should return GcpInstanceFirewallRules with matching rule
+        self.assertIsInstance(firewall_rules, models.GcpInstanceFirewallRules)
+        self.assertEqual(len(firewall_rules.rules), 1)
+        self.assertEqual(firewall_rules.rules[0].name, "allow-http-https")
+
+    def test_get_applicable_firewall_rules_no_matching_tags(self):
+        # Test instance with tags that don't match firewall rules
+        instance = models.GcpInstance(
+            resource_id="test-instance",
+            name="test-instance",
+            network_interfaces=[
+                models.GcpNetworkInterface(
+                    resource_id="nic0",
+                    network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+                    internal_ip="10.0.0.1",
+                )
+            ],
+            tags=["database", "backend"],  # No overlap with rule's target_tags
+        )
+
+        gcp = Gcp(self.config)
+        self.mock_firewall_client(gcp, firewall_list_response=[fake_firewall_rule])
+
+        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+
+        # Should return empty rules since tags don't match
+        self.assertEqual(len(firewall_rules.rules), 0)
+
+    def test_get_applicable_firewall_rules_no_target_tags(self):
+        # Test firewall rule with no target tags (applies to all instances)
+        rule_no_tags = gcp_compute_v1_types.Firewall(
+            id="987654321",
+            name="allow-all",
+            direction="INGRESS",
+            priority=2000,
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+            allowed=[gcp_compute_v1_types.Allowed(I_p_protocol="tcp", ports=["22"])],
+            source_ranges=["10.0.0.0/8"],
+            creation_timestamp="2025-01-01T00:00:00.000-00:00",
+            disabled=False,
+            target_tags=[],  # No target tags = applies to all
+        )
+
+        instance = models.GcpInstance(
+            resource_id="test-instance",
+            name="test-instance",
+            network_interfaces=[
+                models.GcpNetworkInterface(
+                    resource_id="nic0",
+                    network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+                    internal_ip="10.0.0.1",
+                )
+            ],
+            tags=["database"],
+        )
+
+        gcp = Gcp(self.config)
+        self.mock_firewall_client(gcp, firewall_list_response=[rule_no_tags])
+
+        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+
+        # Should return the rule since it has no target tags
+        self.assertEqual(len(firewall_rules.rules), 1)
+        self.assertEqual(firewall_rules.rules[0].name, "allow-all")
+
+
+class TestGcpScanResultsIntegration(TestCase):
+    def setUp(self):
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            regions = ["us-central1"]
+            compute_zones = ["us-central1-a"]
+            """
+            ).encode("utf-8")
+        )
+        self.config = models.LuminautConfig.from_toml(config)
+
+    def mock_gcp_and_firewall_clients(
+        self, gcp: Gcp, instance_response=None, firewall_response=None
+    ) -> dict[str, Mock]:
+        clients = {}
+
+        # Mock compute client for instances
+        clients["compute_v1"] = Mock()
+        clients["compute_v1"].list.return_value = instance_response or []
+        gcp.get_compute_v1_client = Mock(return_value=clients["compute_v1"])
+
+        # Mock firewall client
+        clients["firewall"] = Mock()
+        clients["firewall"].list.return_value = firewall_response or []
+        gcp.get_firewall_client = Mock(return_value=clients["firewall"])
+
+        # Mock run client (not used in this test)
+        clients["run_v2"] = Mock()
+        clients["run_v2"].list_services.return_value = []
+        gcp.get_run_v2_services_client = Mock(return_value=clients["run_v2"])
+
+        return clients
+
+    def test_find_instances_includes_firewall_findings(self):
+        # Test that find_instances includes firewall findings in scan results
+        gcp = Gcp(self.config)
+        self.mock_gcp_and_firewall_clients(
+            gcp,
+            instance_response=[FakeGcpInstance()],
+            firewall_response=[fake_firewall_rule],
+        )
+
+        scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
+
+        # Should have one scan result for the instance with public IP
+        self.assertEqual(len(scan_results), 1)
+
+        scan_result = scan_results[0]
+        self.assertEqual(scan_result.ip, TestGcpAccessConfig.nat_i_p)
+
+        # Should have one finding with both instance and firewall resources
+        self.assertEqual(len(scan_result.findings), 1)
+
+        finding = scan_result.findings[0]
+        self.assertEqual(finding.tool, "GCP Instance")
+
+        # Should have two resources: instance + firewall rules
+        self.assertEqual(len(finding.resources), 2)
+
+        # Check instance resource
+        instance_resource = finding.resources[0]
+        self.assertIsInstance(instance_resource, models.GcpInstance)
+
+        # Check firewall rules resource
+        firewall_rules_resource = finding.resources[1]
+        self.assertIsInstance(firewall_rules_resource, models.GcpInstanceFirewallRules)
+        assert isinstance(firewall_rules_resource, models.GcpInstanceFirewallRules)
+        self.assertEqual(len(firewall_rules_resource.rules), 1)
+        self.assertEqual(firewall_rules_resource.rules[0].name, "allow-http-https")
+
+    def test_find_instances_with_no_firewall_rules(self):
+        # Test that find_instances handles instances with no applicable firewall rules
+        gcp = Gcp(self.config)
+        self.mock_gcp_and_firewall_clients(
+            gcp,
+            instance_response=[FakeGcpInstance()],
+            firewall_response=[],  # No firewall rules
+        )
+
+        scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
+
+        # Should still have scan result but with empty firewall rules
+        self.assertEqual(len(scan_results), 1)
+        scan_result = scan_results[0]
+
+        # Should have one finding (instance only, no firewall rules appended since they're empty)
+        self.assertEqual(len(scan_result.findings), 1)
+
+        finding = scan_result.findings[0]
+        self.assertEqual(finding.tool, "GCP Instance")
+
+        # Should only have the instance resource (no firewall rules since they're empty)
+        self.assertEqual(len(finding.resources), 1)
+        instance_resource = finding.resources[0]
+        self.assertIsInstance(instance_resource, models.GcpInstance)
+
+    def test_get_applicable_firewall_rules_no_networks(self):
+        # Test instance with no network interfaces
+        instance = models.GcpInstance(
+            resource_id="test-instance",
+            name="test-instance",
+            network_interfaces=[],  # No network interfaces
+            tags=["web-server"],
+        )
+
+        gcp = Gcp(self.config)
+        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+
+        # Should return empty rules since there are no networks
+        self.assertEqual(len(firewall_rules.rules), 0)
+
+    def test_gcp_instance_firewall_rules_bool_behavior(self):
+        # Test __bool__ method behavior for GcpInstanceFirewallRules
+
+        # Empty firewall rules should evaluate to False
+        empty_rules = models.GcpInstanceFirewallRules()
+        self.assertFalse(empty_rules)
+        self.assertFalse(bool(empty_rules))
+
+        # Firewall rules with content should evaluate to True
+        rule = models.GcpFirewallRule(
+            resource_id="test-rule",
+            name="test-rule",
+            direction=models.Direction.INGRESS,
+            priority=1000,
+            action="ALLOW",
+        )
+        rules_with_content = models.GcpInstanceFirewallRules(rules=[rule])
+        self.assertTrue(rules_with_content)
+        self.assertTrue(bool(rules_with_content))
+
 
 class TestGcpInstanceNetworks(TestCase):
     def test_get_networks_deduplication_and_parsing(self):
@@ -501,3 +731,93 @@ class TestGcpInstanceNetworks(TestCase):
 
         parsed_instance = models.GcpInstance.from_gcp(fake_instance)
         self.assertEqual(parsed_instance.tags, [])
+
+
+class TestGcpNetworkInterface(TestCase):
+    def test_get_project_valid_network_url(self):
+        # Test extracting project from valid network URL
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+            internal_ip="10.0.0.1",
+        )
+
+        project = nic.get_project_name()
+        self.assertEqual(project, "test-project")
+
+    def test_get_project_no_network(self):
+        # Test with no network URL
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network=None,
+            internal_ip="10.0.0.1",
+        )
+
+        project = nic.get_project_name()
+        self.assertIsNone(project)
+
+    def test_get_project_invalid_network_url(self):
+        # Test with malformed network URL
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network="invalid-url-format",
+            internal_ip="10.0.0.1",
+        )
+
+        project = nic.get_project_name()
+        self.assertIsNone(project)
+
+    def test_get_project_empty_network(self):
+        # Test with empty network string
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network="",
+            internal_ip="10.0.0.1",
+        )
+
+        project = nic.get_project_name()
+        self.assertIsNone(project)
+
+    def test_get_network_name_valid_network_url(self):
+        # Test extracting network name from valid network URL
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default",
+            internal_ip="10.0.0.1",
+        )
+
+        network_name = nic.get_network_name()
+        self.assertEqual(network_name, "default")
+
+    def test_get_network_name_no_network(self):
+        # Test with no network URL
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network=None,
+            internal_ip="10.0.0.1",
+        )
+
+        network_name = nic.get_network_name()
+        self.assertIsNone(network_name)
+
+    def test_get_network_name_invalid_network_url(self):
+        # Test with malformed network URL
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network="invalid-url-format",
+            internal_ip="10.0.0.1",
+        )
+
+        network_name = nic.get_network_name()
+        self.assertIsNone(network_name)
+
+    def test_get_network_name_empty_network(self):
+        # Test with empty network string
+        nic = models.GcpNetworkInterface(
+            resource_id="nic0",
+            network="",
+            internal_ip="10.0.0.1",
+        )
+
+        network_name = nic.get_network_name()
+        self.assertIsNone(network_name)
