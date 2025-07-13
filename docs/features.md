@@ -22,13 +22,14 @@ toc: true
 
 - Enumerate Compute Engine instances with public IPs.
 - Enumerate Cloud Run services with public URIs.
+- Identify permissive firewall rules that allow external access to instances.
 
 # Active scanning
 
 - [nmap](https://nmap.org/) to scan common ports and services against identified IP addresses.
-  - nmap will only scan ports associated with permissive security group rules or a load balancer listener.
+  - nmap will only scan ports associated with permissive firewall rules or a load balancer listener.
 - [whatweb](https://github.com/urbanadventurer/WhatWeb) to identify services running on ports associated with exposed security group ports.
-  - whatweb will only scan ports associated with permissive security group rules or a load balancer listener.
+  - whatweb will only scan ports associated with permissive firewall rules or a load balancer listener.
 
 # Passive sources
 

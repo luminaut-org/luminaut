@@ -37,7 +37,7 @@ options:
 
 ## Examples
 
-By default, Luminaut will run all available tools. It requires configuration of AWS or GCP roles with the necessary permissions, otherwise the first step of public IP detection will fail.
+By default, Luminaut will run all available tools. It requires configuration of AWS or GCP roles with the necessary permissions (see Configuration section for details), otherwise the first step of public IP detection will fail.
 
 ```bash
 luminaut

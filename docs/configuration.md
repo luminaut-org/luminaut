@@ -107,3 +107,14 @@ Luminaut requires the following minimum permissions to run:
   ]
 }
 ```
+
+### GCP IAM Permissions
+
+Luminaut requires a GCP role with permissions to read information about:
+- Compute Engine instances
+- VPC firewall rules  
+- Cloud Run services
+- List projects
+- List regions and zones
+
+The specific IAM permissions required will depend on your GCP project configuration. At minimum, the service account or user should have read access to these resources in the projects being scanned.
