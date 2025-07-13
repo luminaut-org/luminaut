@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 class Gcp:
     def __init__(self, config: models.LuminautConfig):
         self.config = config
+        # Cache for firewall rules by (project, network) tuple
+        self._firewall_rules_cache: dict[
+            tuple[str, str], list[models.GcpFirewallRule]
+        ] = {}
 
     def get_compute_v1_client(self) -> compute_v1.InstancesClient:
         return compute_v1.InstancesClient()
@@ -23,6 +27,11 @@ class Gcp:
 
     def get_firewall_client(self) -> compute_v1.FirewallsClient:
         return compute_v1.FirewallsClient()
+
+    def clear_firewall_rules_cache(self) -> None:
+        """Clear the firewall rules cache."""
+        self._firewall_rules_cache.clear()
+        logger.debug("Cleared firewall rules cache")
 
     def get_projects(self) -> list[str]:
         if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
@@ -185,6 +194,11 @@ class Gcp:
         self, project: str, network: str
     ) -> list[models.GcpFirewallRule]:
         """Fetch firewall rules for a given project and network."""
+        # Check cache first
+        cache_key = (project, network)
+        if cache_key in self._firewall_rules_cache:
+            return self._firewall_rules_cache[cache_key]
+
         network_url = f"https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}"
         filter_expression = f'network="{network_url}"'
 
@@ -194,7 +208,11 @@ class Gcp:
         try:
             client = self.get_firewall_client()
             firewall_rules = client.list(request=request)
-            return [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
+            rules = [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
+
+            # Cache the results
+            self._firewall_rules_cache[cache_key] = rules
+            return rules
         except Exception as e:
             logger.error(
                 "Failed to fetch GCP firewall rules for project %s network %s: %s",

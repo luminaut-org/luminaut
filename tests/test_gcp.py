@@ -821,3 +821,50 @@ class TestGcpNetworkInterface(TestCase):
 
         network_name = nic.get_network_name()
         self.assertIsNone(network_name)
+
+    def test_firewall_rules_caching(self):
+        # Test that firewall rules are cached properly
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        # Mock the firewall client
+        mock_client = Mock()
+        mock_firewall_rule = Mock()
+        mock_firewall_rule.id = "rule-123"
+        mock_firewall_rule.name = "allow-http"
+        mock_firewall_rule.direction = "INGRESS"
+        mock_firewall_rule.priority = 1000
+        mock_firewall_rule.allowed = [Mock()]
+        mock_firewall_rule.allowed[0].I_p_protocol = "tcp"
+        mock_firewall_rule.allowed[0].ports = ["80"]
+        mock_firewall_rule.source_ranges = ["0.0.0.0/0"]
+        mock_firewall_rule.creation_timestamp = "2025-01-01T00:00:00.000Z"
+        mock_firewall_rule.disabled = False
+        mock_firewall_rule.target_tags = []
+
+        mock_client.list.return_value = [mock_firewall_rule]
+        gcp.get_firewall_client = Mock(return_value=mock_client)
+
+        # First call should fetch from API
+        rules1 = gcp.fetch_firewall_rules("test-project", "default")
+        self.assertEqual(len(rules1), 1)
+        self.assertEqual(rules1[0].name, "allow-http")
+
+        # Verify API was called once
+        self.assertEqual(mock_client.list.call_count, 1)
+
+        # Second call should use cache
+        rules2 = gcp.fetch_firewall_rules("test-project", "default")
+        self.assertEqual(len(rules2), 1)
+        self.assertEqual(rules2[0].name, "allow-http")
+
+        # Verify API was still only called once (cached result used)
+        self.assertEqual(mock_client.list.call_count, 1)
+
+        # Clear cache and verify it works
+        gcp.clear_firewall_rules_cache()
+        rules3 = gcp.fetch_firewall_rules("test-project", "default")
+        self.assertEqual(len(rules3), 1)
+
+        # Verify API was called again after cache clear
+        self.assertEqual(mock_client.list.call_count, 2)
