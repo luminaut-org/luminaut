@@ -393,7 +393,7 @@ class GcpFirewallRule:
             else [],
             allowed_protocols=[
                 {
-                    "IPProtocol": protocol.i_p_protocol,
+                    "IPProtocol": protocol.I_p_protocol,
                     "ports": list(protocol.ports) if protocol.ports else [],
                 }
                 for protocol in (firewall_rule.allowed or [])
