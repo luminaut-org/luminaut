@@ -398,8 +398,6 @@ class GcpInstance:
 
 @dataclass
 class GcpFirewallRule:
-    """A representation of a GCP Firewall Rule for security assessment"""
-
     resource_id: str
     name: str
     direction: Direction
@@ -469,37 +467,41 @@ class GcpFirewallRule:
 
     @classmethod
     def from_gcp(cls, firewall_rule: Any) -> Self:
-        """Create a GcpFirewallRule from a GCP firewall rule object."""
+        direction = (
+            Direction.INGRESS
+            if firewall_rule.direction == "INGRESS"
+            else Direction.EGRESS
+        )
+        action = (
+            "ALLOW"
+            if hasattr(firewall_rule, "allowed") and firewall_rule.allowed
+            else "DENY"
+        )
+        source_ranges = list(getattr(firewall_rule, "source_ranges", []))
+        allowed_protocols = [
+            {
+                "IPProtocol": protocol.I_p_protocol,
+                "ports": list(protocol.ports) if protocol.ports else [],
+            }
+            for protocol in (firewall_rule.allowed or [])
+        ]
+        creation_timestamp = (
+            datetime.fromisoformat(firewall_rule.creation_timestamp)
+            if firewall_rule.creation_timestamp
+            else None
+        )
+
         return cls(
             resource_id=str(firewall_rule.id),
             name=firewall_rule.name,
-            direction=Direction.INGRESS
-            if firewall_rule.direction == "INGRESS"
-            else Direction.EGRESS,
+            direction=direction,
             priority=firewall_rule.priority,
-            action="ALLOW"
-            if hasattr(firewall_rule, "allowed") and firewall_rule.allowed
-            else "DENY",
-            source_ranges=list(firewall_rule.source_ranges)
-            if hasattr(firewall_rule, "source_ranges") and firewall_rule.source_ranges
-            else [],
-            allowed_protocols=[
-                {
-                    "IPProtocol": protocol.I_p_protocol,
-                    "ports": list(protocol.ports) if protocol.ports else [],
-                }
-                for protocol in (firewall_rule.allowed or [])
-            ],
-            creation_timestamp=datetime.fromisoformat(firewall_rule.creation_timestamp)
-            if hasattr(firewall_rule, "creation_timestamp")
-            and firewall_rule.creation_timestamp
-            else None,
-            disabled=firewall_rule.disabled
-            if hasattr(firewall_rule, "disabled")
-            else False,
-            target_tags=list(firewall_rule.target_tags)
-            if hasattr(firewall_rule, "target_tags") and firewall_rule.target_tags
-            else [],
+            action=action,
+            source_ranges=source_ranges,
+            allowed_protocols=allowed_protocols,
+            creation_timestamp=creation_timestamp,
+            disabled=getattr(firewall_rule, "disabled", False),
+            target_tags=list(getattr(firewall_rule, "target_tags", [])),
         )
 
     def is_permissive(self) -> bool:
