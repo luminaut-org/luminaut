@@ -28,10 +28,10 @@ toc: true
 # Active scanning
 
 - [nmap](https://nmap.org/) to scan ports and services against identified IP addresses.
-  - nmap will scan ports associated with permissive security group rules (allowing 0.0.0.0/0 or ::/0) or load balancer listeners.
+  - nmap will scan ports associated with permissive security group rules (allowing traffic from a public IP address) or load balancer listeners.
   - If no permissive rules or listeners are found, nmap will scan default ports (such as 80, 443, 8080, etc.).
 - [whatweb](https://github.com/urbanadventurer/WhatWeb) to identify services running on exposed ports.
-  - whatweb will scan ports associated with permissive security group rules (allowing 0.0.0.0/0 or ::/0) or load balancer listeners.
+  - whatweb will scan ports associated with permissive security group rules (allowing traffic from a public IP address) or load balancer listeners.
   - If no permissive rules or listeners are found, whatweb will scan default ports (such as 80, 443, 8080, etc.).
 
 # Passive sources
@@ -41,7 +41,7 @@ toc: true
 # Advanced Features
 
 ## Security Rule Analysis
-- **Permissive Rule Detection**: Only considers security group rules allowing 0.0.0.0/0 or ::/0 CIDR blocks as permissive
+- **Permissive Rule Detection**: Only considers security group rules allowing ingress from public IPs as permissive
 - **Protocol Filtering**: Excludes ICMP/ICMPv6 protocols from port scanning
 - **Port Range Expansion**: Automatically expands security group port ranges into individual scan targets
 
