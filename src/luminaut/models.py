@@ -413,6 +413,57 @@ class GcpFirewallRule:
     disabled: bool = False
     target_tags: list[str] = field(default_factory=list)
 
+    def build_rich_text(self) -> str:
+        """Build rich text representation of the firewall rule."""
+        # Format source ranges - show first few if many
+        if self.source_ranges:
+            if len(self.source_ranges) <= 3:
+                sources = ", ".join(self.source_ranges)
+            else:
+                sources = f"{', '.join(self.source_ranges[:3])} (+{len(self.source_ranges) - 3} more)"
+            source_text = f"[green]{sources}[/green]"
+        else:
+            source_text = "[green]Any source[/green]"
+
+        # Build protocol and port information
+        protocol_text = ""
+        if self.allowed_protocols:
+            protocol_parts = []
+            for protocol in self.allowed_protocols:
+                protocol_name = protocol.get("IPProtocol", "Unknown")
+                ports = protocol.get("ports", [])
+                if ports:
+                    if len(ports) == 1:
+                        port_text = f"[blue]{ports[0]}[/blue]"
+                    else:
+                        port_text = f"[blue]{', '.join(ports)}[/blue]"
+                    protocol_parts.append(
+                        f"[magenta]{protocol_name}[/magenta]/{port_text}"
+                    )
+                else:
+                    protocol_parts.append(
+                        f"[magenta]{protocol_name}[/magenta]/all ports"
+                    )
+            protocol_text = ", ".join(protocol_parts)
+        else:
+            protocol_text = "[magenta]All protocols[/magenta]"
+
+        # Build action and status indicators
+        action_color = "green" if self.action == "ALLOW" else "red"
+        action_text = f"[{action_color}]{self.action}[/{action_color}]"
+
+        status_text = "[red](DISABLED)[/red]" if self.disabled else ""
+
+        # Combine everything
+        rich_text = f"  {action_text} {source_text} {protocol_text} Priority: {self.priority} {status_text}"
+
+        # Add target tags if present
+        if self.target_tags:
+            tags_text = ", ".join(self.target_tags)
+            rich_text += f" Target tags: [cyan]{tags_text}[/cyan]"
+
+        return rich_text + "\n"
+
     @classmethod
     def from_gcp(cls, firewall_rule: Any) -> Self:
         """Create a GcpFirewallRule from a GCP firewall rule object."""
@@ -458,6 +509,25 @@ class GcpInstanceFirewallRules:
     def __bool__(self) -> bool:
         """Return True if there are any rules."""
         return bool(self.rules)
+
+    def build_rich_text(self) -> str:
+        """Build rich text representation of all firewall rules."""
+        if not self.rules:
+            return "[yellow]No firewall rules[/yellow]\n"
+
+        rich_text = f"[dark_orange3]GCP Firewall Rules[/dark_orange3] ({len(self.rules)} rules)\n"
+
+        # Group rules by direction for better organization
+        ingress_rules = [
+            rule for rule in self.rules if rule.direction == Direction.INGRESS
+        ]
+
+        if ingress_rules:
+            rich_text += "[bold]Ingress Rules:[/bold]\n"
+            for rule in sorted(ingress_rules, key=lambda r: r.priority):
+                rich_text += rule.build_rich_text()
+
+        return rich_text
 
 
 @dataclass
