@@ -208,7 +208,7 @@ class Gcp:
         self, instance: models.GcpInstance
     ) -> models.GcpFirewallRules:
         """Get firewall rules that apply to a given GCP instance."""
-        applicable_rules = []
+        applicable_rules = {}
         for nic in instance.network_interfaces:
             project_name = nic.get_project_name()
             network_name = nic.get_network_name()
@@ -220,10 +220,13 @@ class Gcp:
 
             # Filter rules based on target tags
             for rule in firewall_rules:
-                if self._rule_applies_to_instance(rule, instance):
-                    applicable_rules.append(rule)
+                if (
+                    rule.resource_id not in applicable_rules
+                    and self._rule_applies_to_instance(rule, instance)
+                ):
+                    applicable_rules[rule.resource_id] = rule
 
-        return models.GcpFirewallRules(rules=applicable_rules)
+        return models.GcpFirewallRules(rules=list(applicable_rules.values()))
 
     def _rule_applies_to_instance(
         self, rule: models.GcpFirewallRule, instance: models.GcpInstance
