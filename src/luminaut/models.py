@@ -442,28 +442,17 @@ class GcpFirewallRule:
         return rich_text + "\n"
 
     def build_protocol_text(self) -> str:
-        protocol_text = ""
-        if self.allowed_protocols:
-            protocol_parts = []
-            for protocol in self.allowed_protocols:
-                protocol_name = protocol.get("IPProtocol", "Unknown")
-                ports = protocol.get("ports", [])
-                if ports:
-                    if len(ports) == 1:
-                        port_text = f"[blue]{ports[0]}[/blue]"
-                    else:
-                        port_text = f"[blue]{', '.join(ports)}[/blue]"
-                    protocol_parts.append(
-                        f"[magenta]{protocol_name}[/magenta]/{port_text}"
-                    )
-                else:
-                    protocol_parts.append(
-                        f"[magenta]{protocol_name}[/magenta]/all ports"
-                    )
-            protocol_text = ", ".join(protocol_parts)
-        else:
-            protocol_text = "[magenta]All protocols[/magenta]"
-        return protocol_text
+        """Build rich text representation of protocols."""
+        if not self.allowed_protocols:
+            return "[magenta]All protocols[/magenta]"
+
+        protocol_parts = []
+        for protocol_info in self.allowed_protocols:
+            protocol_name, ports = self._extract_protocol_info(protocol_info)
+            formatted_protocol = self._format_protocol_display(protocol_name, ports)
+            protocol_parts.append(formatted_protocol)
+
+        return ", ".join(protocol_parts)
 
     @classmethod
     def from_gcp(cls, firewall_rule: Any) -> Self:
@@ -537,16 +526,15 @@ class GcpFirewallRule:
     ) -> set["ScanTarget"]:
         """Process a single protocol configuration."""
         ports = set()
-        protocol_name = protocol_info.get("IPProtocol", "").upper()
-        port_ranges = protocol_info.get("ports", [])
+        protocol_name, port_ranges = self._extract_protocol_info(protocol_info)
 
         # Skip ICMP protocols
-        if protocol_name in ("ICMP", "ICMPV6"):
+        if protocol_name.upper() in ("ICMP", "ICMPV6"):
             return ports
 
         # If no specific ports are defined, use default ports
         if not port_ranges:
-            if protocol_name in ("TCP", "UDP", "ALL"):
+            if protocol_name.upper() in ("TCP", "UDP", "ALL"):
                 ports.update(default_ports)
             return ports
 
@@ -554,6 +542,25 @@ class GcpFirewallRule:
         for port_range in port_ranges:
             ports.update(self._parse_port_range(port_range, ip))
         return ports
+
+    def _extract_protocol_info(
+        self, protocol_info: dict[str, Any]
+    ) -> tuple[str, list[str]]:
+        """Extract protocol name and ports from protocol info dict."""
+        protocol_name = protocol_info.get("IPProtocol", "Unknown")
+        ports = protocol_info.get("ports", [])
+        return protocol_name, ports
+
+    def _format_protocol_display(self, protocol_name: str, ports: list[str]) -> str:
+        """Format protocol name and ports for display."""
+        if ports:
+            if len(ports) == 1:
+                port_text = f"[blue]{ports[0]}[/blue]"
+            else:
+                port_text = f"[blue]{', '.join(ports)}[/blue]"
+            return f"[magenta]{protocol_name}[/magenta]/{port_text}"
+        else:
+            return f"[magenta]{protocol_name}[/magenta]/all ports"
 
     def _parse_port_range(self, port_range: str, ip: str) -> set["ScanTarget"]:
         """Parse a port range string and return ScanTargets."""
