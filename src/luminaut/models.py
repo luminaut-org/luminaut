@@ -83,6 +83,11 @@ class Direction(StrEnum):
     EGRESS = auto()
 
 
+class FirewallAction(StrEnum):
+    ALLOW = auto()
+    DENY = auto()
+
+
 class Protocol(StrEnum):
     TCP = auto()
     UDP = auto()
@@ -312,6 +317,28 @@ class GcpNetworkInterface:
             ],
         )
 
+    def get_project_name(self) -> str | None:
+        """Extract project name from network URL."""
+        if not self.network:
+            return None
+
+        # Network format: https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}
+        network_parts = self.network.split("/")
+        if len(network_parts) >= 7 and network_parts[5] == "projects":
+            return network_parts[6]
+        return None
+
+    def get_network_name(self) -> str | None:
+        """Extract network name from network URL."""
+        if not self.network:
+            return None
+
+        # Network format: https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}
+        network_parts = self.network.split("/")
+        if len(network_parts) >= 10 and network_parts[8] == "networks":
+            return network_parts[9]
+        return None
+
     def build_rich_text(self) -> str:
         rich_text = f"Public IP: [dark_orange3]{self.public_ip}[/dark_orange3] Private IP: [orange3]{self.internal_ip}[/orange3] from [cyan]{self.resource_id}[/cyan]\n"
         if self.alias_ip_ranges:
@@ -328,6 +355,7 @@ class GcpInstance:
     zone: str | None = None
     status: str | None = None
     description: str | None = None
+    tags: list[str] = field(default_factory=list)
 
     def get_public_ips(self) -> list[str]:
         """Return a list of public IPs from the network interfaces."""
@@ -335,6 +363,14 @@ class GcpInstance:
 
     def has_public_ip(self) -> bool:
         return bool(self.get_public_ips())
+
+    def get_networks(self) -> list[str]:
+        """Return a list of distinct network names from all network interfaces."""
+        networks = set()
+        for nic in self.network_interfaces:
+            if network_name := nic.get_network_name():
+                networks.add(network_name)
+        return list(networks)
 
     def build_rich_text(self) -> str:
         rich_text = f"[dark_orange3]{self.name}[/dark_orange3] Id: {self.resource_id} ([green]{self.status}[/green]) Created: {self.creation_time or 'Unknown'}\n"
@@ -359,7 +395,252 @@ class GcpInstance:
             zone=instance.zone.split("/")[-1],
             status=instance.status,
             description=instance.description,
+            tags=list(instance.tags.items)
+            if hasattr(instance, "tags") and instance.tags.items
+            else [],
         )
+
+
+@dataclass
+class GcpFirewallRule:
+    resource_id: str
+    name: str
+    direction: Direction
+    priority: int
+    action: FirewallAction
+    source_ranges: list[str] = field(default_factory=list)
+    allowed_protocols: list[dict[str, Any]] = field(
+        default_factory=list
+    )  # protocol and ports
+    creation_timestamp: datetime | None = None
+    disabled: bool = False
+    target_tags: list[str] = field(default_factory=list)
+
+    def build_rich_text(self) -> str:
+        """Build rich text representation of the firewall rule."""
+        # Format source ranges - show first few if many
+        if self.source_ranges:
+            if len(self.source_ranges) <= 3:
+                sources = ", ".join(self.source_ranges)
+            else:
+                sources = f"{', '.join(self.source_ranges[:3])} (+{len(self.source_ranges) - 3} more)"
+            source_text = f"[green]{sources}[/green]"
+        else:
+            source_text = "[green]Any source[/green]"
+
+        protocol_text = self.build_protocol_text()
+
+        # Build action and status indicators
+        action_color = "green" if self.action == FirewallAction.ALLOW else "red"
+        action_text = f"[{action_color}]{self.action}[/{action_color}]"
+
+        status_text = "[red](DISABLED)[/red]" if self.disabled else ""
+
+        # Combine everything
+        rich_text = f"  {action_text} {source_text} {protocol_text} Priority: {self.priority} {status_text}"
+
+        # Add target tags if present
+        if self.target_tags:
+            tags_text = ", ".join(self.target_tags)
+            rich_text += f" Target tags: [cyan]{tags_text}[/cyan]"
+
+        return rich_text + "\n"
+
+    def build_protocol_text(self) -> str:
+        """Build rich text representation of protocols."""
+        if not self.allowed_protocols:
+            return "[magenta]All protocols[/magenta]"
+
+        protocol_parts = []
+        for protocol_info in self.allowed_protocols:
+            protocol_name, ports = self._extract_protocol_info(protocol_info)
+            formatted_protocol = self._format_protocol_display(protocol_name, ports)
+            protocol_parts.append(formatted_protocol)
+
+        return ", ".join(protocol_parts)
+
+    @classmethod
+    def from_gcp(cls, firewall_rule: Any) -> Self:
+        direction = (
+            Direction.INGRESS
+            if firewall_rule.direction == "INGRESS"
+            else Direction.EGRESS
+        )
+        action = (
+            FirewallAction.ALLOW
+            if hasattr(firewall_rule, "allowed") and firewall_rule.allowed
+            else FirewallAction.DENY
+        )
+        source_ranges = list(getattr(firewall_rule, "source_ranges", []))
+        allowed_protocols = [
+            {
+                "IPProtocol": protocol.I_p_protocol,
+                "ports": list(protocol.ports) if protocol.ports else [],
+            }
+            for protocol in (firewall_rule.allowed or [])
+        ]
+        creation_timestamp = (
+            datetime.fromisoformat(firewall_rule.creation_timestamp)
+            if firewall_rule.creation_timestamp
+            else None
+        )
+
+        return cls(
+            resource_id=str(firewall_rule.id),
+            name=firewall_rule.name,
+            direction=direction,
+            priority=firewall_rule.priority,
+            action=action,
+            source_ranges=source_ranges,
+            allowed_protocols=allowed_protocols,
+            creation_timestamp=creation_timestamp,
+            disabled=getattr(firewall_rule, "disabled", False),
+            target_tags=list(getattr(firewall_rule, "target_tags", [])),
+        )
+
+    def is_permissive(self) -> bool:
+        """Check if this firewall rule allows external access."""
+        # Only ALLOW rules that are enabled and INGRESS can be permissive
+        if (
+            self.action != FirewallAction.ALLOW
+            or self.disabled
+            or self.direction != Direction.INGRESS
+        ):
+            return False
+
+        # If no source ranges specified, it allows all traffic (permissive)
+        if not self.source_ranges:
+            return True
+
+        # Check each source range to see if any allow external access
+        for source_range in self.source_ranges:
+            if self._is_external_source_range(source_range):
+                return True
+
+        return False
+
+    def _is_external_source_range(self, source_range: str) -> bool:
+        """Check if a source range allows external (non-private) access."""
+        try:
+            # Handle CIDR notation or single IP
+            if "/" in source_range:
+                network = ip_address(source_range.split("/")[0])
+            else:
+                network = ip_address(source_range)
+
+            # Check if it's a global (external) IP address
+            # is_global returns True for public IPs, False for private/reserved IPs
+            return network.is_global or network in QUAD_ZERO_ADDRESSES
+        except ValueError:
+            # If we can't parse the IP, assume it's permissive for safety
+            return True
+
+    def generate_scan_targets(
+        self, ip: str, default_ports: Iterable["ScanTarget"]
+    ) -> set["ScanTarget"]:
+        """Generate scan targets from this firewall rule."""
+        if not self.is_permissive():
+            return set()
+
+        ports = set()
+        for protocol_info in self.allowed_protocols:
+            ports.update(self._process_protocol(protocol_info, ip, default_ports))
+        return ports
+
+    def _process_protocol(
+        self,
+        protocol_info: dict[str, Any],
+        ip: str,
+        default_ports: Iterable["ScanTarget"],
+    ) -> set["ScanTarget"]:
+        """Process a single protocol configuration."""
+        ports = set()
+        protocol_name, port_ranges = self._extract_protocol_info(protocol_info)
+
+        # Skip ICMP protocols
+        if protocol_name.upper() in ("ICMP", "ICMPV6"):
+            return ports
+
+        # If no specific ports are defined, use default ports
+        if not port_ranges:
+            if protocol_name.upper() in ("TCP", "UDP", "ALL"):
+                ports.update(default_ports)
+            return ports
+
+        # Process each port range
+        for port_range in port_ranges:
+            ports.update(self._parse_port_range(port_range, ip))
+        return ports
+
+    def _extract_protocol_info(
+        self, protocol_info: dict[str, Any]
+    ) -> tuple[str, list[str]]:
+        """Extract protocol name and ports from protocol info dict."""
+        protocol_name = protocol_info.get("IPProtocol", "Unknown")
+        ports = protocol_info.get("ports", [])
+        return protocol_name, ports
+
+    def _format_protocol_display(self, protocol_name: str, ports: list[str]) -> str:
+        """Format protocol name and ports for display."""
+        if ports:
+            if len(ports) == 1:
+                port_text = f"[blue]{ports[0]}[/blue]"
+            else:
+                port_text = f"[blue]{', '.join(ports)}[/blue]"
+            return f"[magenta]{protocol_name}[/magenta]/{port_text}"
+        else:
+            return f"[magenta]{protocol_name}[/magenta]/all ports"
+
+    def _parse_port_range(self, port_range: str, ip: str) -> set["ScanTarget"]:
+        """Parse a port range string and return ScanTargets."""
+        ports = set()
+        if "-" in port_range:
+            # Handle port ranges like "80-443"
+            start_port, end_port = port_range.split("-", 1)
+            try:
+                start = int(start_port)
+                end = int(end_port)
+                # Use the ScanTarget class directly since it's defined later in this file
+                for port_num in range(start, end + 1):
+                    ports.add(ScanTarget(target=ip, port=port_num))
+            except ValueError:
+                # Invalid port range, skip
+                pass
+        else:
+            # Single port
+            try:
+                port = int(port_range)
+                ports.add(ScanTarget(target=ip, port=port))
+            except ValueError:
+                # Invalid port, skip
+                pass
+        return ports
+
+
+@dataclass
+class GcpFirewallRules:
+    """Collection of related GCP firewall rules"""
+
+    rules: list[GcpFirewallRule] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.rules)
+
+    def build_rich_text(self) -> str:
+        """Build rich text representation of all firewall rules."""
+        # Only show ingress rules
+        ingress_rules = [
+            rule for rule in self.rules if rule.direction == Direction.INGRESS
+        ]
+
+        if ingress_rules:
+            rich_text = f"[dark_orange3]GCP Firewall Rules[/dark_orange3] ({len(self.rules)} rules)\n"
+            rich_text += "[bold]Ingress Rules:[/bold]\n"
+            for rule in sorted(ingress_rules, key=lambda r: r.priority):
+                rich_text += rule.build_rich_text()
+            return rich_text
+        else:
+            return "[yellow]No ingress firewall rules[/yellow]\n"
 
 
 @dataclass
@@ -1080,6 +1361,7 @@ FindingResources = MutableSequence[
     | AwsLoadBalancer
     | AwsNetworkInterface
     | GcpInstance
+    | GcpFirewallRules
     | GcpService
     | GcpTask
     | SecurityGroup
@@ -1168,6 +1450,15 @@ class ScanResult:
                     sg_rules.extend(resource.rules)
         return sg_rules
 
+    def get_gcp_firewall_rules(self) -> list[GcpFirewallRule]:
+        """Get all GCP firewall rules from the scan findings."""
+        firewall_rules = []
+        for finding in self.findings:
+            for resource in finding.resources:
+                if isinstance(resource, GcpFirewallRules):
+                    firewall_rules.extend(resource.rules)
+        return firewall_rules
+
     def get_resources_by_type(self, resource_type: type[T]) -> list[T]:
         resources = []
         for finding in self.findings:
@@ -1227,17 +1518,24 @@ class ScanResult:
 
     def generate_ip_scan_targets(self, ip: str) -> set[ScanTarget]:
         ports = set()
+        default_targets = self.generate_default_scan_targets(ip)
+
         if sg_ports := self.generate_scan_targets_from_security_groups(
-            ip, self.generate_default_scan_targets(ip)
+            ip, default_targets
         ):
             ports.update(sg_ports)
+
+        if gcp_ports := self.generate_scan_targets_from_gcp_firewall_rules(
+            ip, default_targets
+        ):
+            ports.update(gcp_ports)
 
         if elb_ports := self.generate_scan_targets_from_elb_listeners(ip):
             ports.update(elb_ports)
 
-        # If no ports found from security groups or ELB listeners, use default scan targets
+        # If no ports found from security groups, GCP firewall rules, or ELB listeners, use default scan targets
         if not ports:
-            ports = self.generate_default_scan_targets(ip)
+            ports = default_targets
 
         return ports
 
@@ -1257,6 +1555,16 @@ class ScanResult:
                         for x in range(sg_rule.from_port, sg_rule.to_port + 1)
                     }
                 )
+        return ports
+
+    def generate_scan_targets_from_gcp_firewall_rules(
+        self, ip: str, default_ports: Iterable[ScanTarget]
+    ) -> set[ScanTarget]:
+        """Generate scan targets from GCP firewall rules."""
+        ports = set()
+        if firewall_rules := self.get_gcp_firewall_rules():
+            for fw_rule in firewall_rules:
+                ports.update(fw_rule.generate_scan_targets(ip, default_ports))
         return ports
 
     def generate_scan_targets_from_elb_listeners(self, ip: str) -> set[ScanTarget]:
