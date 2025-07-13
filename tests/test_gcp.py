@@ -374,7 +374,7 @@ class TestGcpFirewalls(TestCase):
         self.assertEqual(rule.name, "allow-http-https")
         self.assertEqual(rule.direction, models.Direction.INGRESS)
         self.assertEqual(rule.priority, 1000)
-        self.assertEqual(rule.action, "ALLOW")
+        self.assertEqual(rule.action, models.FirewallAction.ALLOW)
         self.assertEqual(rule.source_ranges, ["0.0.0.0/0"])
         self.assertEqual(len(rule.allowed_protocols), 1)
         self.assertEqual(rule.allowed_protocols[0]["IPProtocol"], "tcp")
@@ -632,7 +632,7 @@ class TestGcpScanResultsIntegration(TestCase):
             name="test-rule",
             direction=models.Direction.INGRESS,
             priority=1000,
-            action="ALLOW",
+            action=models.FirewallAction.ALLOW,
         )
         rules_with_content = models.GcpFirewallRules(rules=[rule])
         self.assertTrue(rules_with_content)

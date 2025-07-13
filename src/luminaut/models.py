@@ -83,6 +83,11 @@ class Direction(StrEnum):
     EGRESS = auto()
 
 
+class FirewallAction(StrEnum):
+    ALLOW = auto()
+    DENY = auto()
+
+
 class Protocol(StrEnum):
     TCP = auto()
     UDP = auto()
@@ -399,7 +404,7 @@ class GcpFirewallRule:
     name: str
     direction: Direction
     priority: int
-    action: str  # "ALLOW" or "DENY"
+    action: FirewallAction
     source_ranges: list[str] = field(default_factory=list)
     allowed_protocols: list[dict[str, Any]] = field(
         default_factory=list
@@ -459,9 +464,9 @@ class GcpFirewallRule:
             else Direction.EGRESS
         )
         action = (
-            "ALLOW"
+            FirewallAction.ALLOW
             if hasattr(firewall_rule, "allowed") and firewall_rule.allowed
-            else "DENY"
+            else FirewallAction.DENY
         )
         source_ranges = list(getattr(firewall_rule, "source_ranges", []))
         allowed_protocols = [
@@ -494,7 +499,7 @@ class GcpFirewallRule:
         """Check if this firewall rule allows external access."""
         # Only ALLOW rules that are enabled and INGRESS can be permissive
         if (
-            self.action != "ALLOW"
+            self.action != FirewallAction.ALLOW
             or self.disabled
             or self.direction != Direction.INGRESS
         ):

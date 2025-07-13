@@ -28,7 +28,7 @@ class TestModels(unittest.TestCase):
             name="allow-web-traffic",
             direction=models.Direction.INGRESS,
             priority=1000,
-            action="ALLOW",
+            action=models.FirewallAction.ALLOW,
             source_ranges=["0.0.0.0/0"],
             allowed_protocols=[
                 {"IPProtocol": "tcp", "ports": ["80", "443"]},
@@ -69,7 +69,7 @@ class TestModels(unittest.TestCase):
             name="disabled-rule",
             direction=models.Direction.INGRESS,
             priority=1000,
-            action="ALLOW",
+            action=models.FirewallAction.ALLOW,
             source_ranges=["0.0.0.0/0"],
             allowed_protocols=[{"IPProtocol": "tcp", "ports": ["22"]}],
             disabled=True,  # This rule is disabled
@@ -99,7 +99,7 @@ class TestModels(unittest.TestCase):
             name="deny-rule",
             direction=models.Direction.INGRESS,
             priority=1000,
-            action="DENY",  # This is a DENY rule
+            action=models.FirewallAction.DENY,  # This is a DENY rule
             source_ranges=["0.0.0.0/0"],
             allowed_protocols=[{"IPProtocol": "tcp", "ports": ["22"]}],
             disabled=False,
