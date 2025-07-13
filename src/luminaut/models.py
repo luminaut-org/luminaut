@@ -581,32 +581,28 @@ class GcpFirewallRule:
 
 @dataclass
 class GcpInstanceFirewallRules:
-    """Collection of GCP firewall rules applicable to an instance"""
+    """Collection of related GCP firewall rules"""
 
     rules: list[GcpFirewallRule] = field(default_factory=list)
 
     def __bool__(self) -> bool:
-        """Return True if there are any rules."""
         return bool(self.rules)
 
     def build_rich_text(self) -> str:
         """Build rich text representation of all firewall rules."""
-        if not self.rules:
-            return "[yellow]No firewall rules[/yellow]\n"
-
-        rich_text = f"[dark_orange3]GCP Firewall Rules[/dark_orange3] ({len(self.rules)} rules)\n"
-
-        # Group rules by direction for better organization
+        # Only show ingress rules
         ingress_rules = [
             rule for rule in self.rules if rule.direction == Direction.INGRESS
         ]
 
         if ingress_rules:
+            rich_text = f"[dark_orange3]GCP Firewall Rules[/dark_orange3] ({len(self.rules)} rules)\n"
             rich_text += "[bold]Ingress Rules:[/bold]\n"
             for rule in sorted(ingress_rules, key=lambda r: r.priority):
                 rich_text += rule.build_rich_text()
-
-        return rich_text
+            return rich_text
+        else:
+            return "[yellow]No ingress firewall rules[/yellow]\n"
 
 
 @dataclass
