@@ -431,7 +431,7 @@ class GcpFirewallRule:
         protocol_text = self.build_protocol_text()
 
         # Build action and status indicators
-        action_color = "green" if self.action == "ALLOW" else "red"
+        action_color = "green" if self.action == FirewallAction.ALLOW else "red"
         action_text = f"[{action_color}]{self.action}[/{action_color}]"
 
         status_text = "[red](DISABLED)[/red]" if self.disabled else ""
