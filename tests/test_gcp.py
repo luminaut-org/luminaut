@@ -438,7 +438,7 @@ class TestGcpFirewalls(TestCase):
         mock_client.list.assert_called_once_with(request=expected_request)
 
         # Should return GcpInstanceFirewallRules with matching rule
-        self.assertIsInstance(firewall_rules, models.GcpInstanceFirewallRules)
+        self.assertIsInstance(firewall_rules, models.GcpFirewallRules)
         self.assertEqual(len(firewall_rules.rules), 1)
         self.assertEqual(firewall_rules.rules[0].name, "allow-http-https")
 
@@ -572,8 +572,8 @@ class TestGcpScanResultsIntegration(TestCase):
 
         # Check firewall rules resource
         firewall_rules_resource = finding.resources[1]
-        self.assertIsInstance(firewall_rules_resource, models.GcpInstanceFirewallRules)
-        assert isinstance(firewall_rules_resource, models.GcpInstanceFirewallRules)
+        self.assertIsInstance(firewall_rules_resource, models.GcpFirewallRules)
+        assert isinstance(firewall_rules_resource, models.GcpFirewallRules)
         self.assertEqual(len(firewall_rules_resource.rules), 1)
         self.assertEqual(firewall_rules_resource.rules[0].name, "allow-http-https")
 
@@ -622,7 +622,7 @@ class TestGcpScanResultsIntegration(TestCase):
         # Test __bool__ method behavior for GcpInstanceFirewallRules
 
         # Empty firewall rules should evaluate to False
-        empty_rules = models.GcpInstanceFirewallRules()
+        empty_rules = models.GcpFirewallRules()
         self.assertFalse(empty_rules)
         self.assertFalse(bool(empty_rules))
 
@@ -634,7 +634,7 @@ class TestGcpScanResultsIntegration(TestCase):
             priority=1000,
             action="ALLOW",
         )
-        rules_with_content = models.GcpInstanceFirewallRules(rules=[rule])
+        rules_with_content = models.GcpFirewallRules(rules=[rule])
         self.assertTrue(rules_with_content)
         self.assertTrue(bool(rules_with_content))
 

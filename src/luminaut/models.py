@@ -580,7 +580,7 @@ class GcpFirewallRule:
 
 
 @dataclass
-class GcpInstanceFirewallRules:
+class GcpFirewallRules:
     """Collection of related GCP firewall rules"""
 
     rules: list[GcpFirewallRule] = field(default_factory=list)
@@ -1323,7 +1323,7 @@ FindingResources = MutableSequence[
     | AwsLoadBalancer
     | AwsNetworkInterface
     | GcpInstance
-    | GcpInstanceFirewallRules
+    | GcpFirewallRules
     | GcpService
     | GcpTask
     | SecurityGroup
@@ -1417,7 +1417,7 @@ class ScanResult:
         firewall_rules = []
         for finding in self.findings:
             for resource in finding.resources:
-                if isinstance(resource, GcpInstanceFirewallRules):
+                if isinstance(resource, GcpFirewallRules):
                     firewall_rules.extend(resource.rules)
         return firewall_rules
 

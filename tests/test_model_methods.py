@@ -41,7 +41,7 @@ class TestModels(unittest.TestCase):
         self.assertTrue(firewall_rule.is_permissive())
 
         # Create firewall rules collection
-        firewall_rules = models.GcpInstanceFirewallRules(rules=[firewall_rule])
+        firewall_rules = models.GcpFirewallRules(rules=[firewall_rule])
 
         # Create scan findings with the firewall rules
         scan_findings = models.ScanFindings(tool="gcp", resources=[firewall_rules])
@@ -78,7 +78,7 @@ class TestModels(unittest.TestCase):
         # Test that the rule is not considered permissive when disabled
         self.assertFalse(firewall_rule.is_permissive())
 
-        firewall_rules = models.GcpInstanceFirewallRules(rules=[firewall_rule])
+        firewall_rules = models.GcpFirewallRules(rules=[firewall_rule])
         scan_result = models.ScanResult(
             ip="10.0.0.1",
             findings=[models.ScanFindings(tool="gcp", resources=[firewall_rules])],
@@ -108,7 +108,7 @@ class TestModels(unittest.TestCase):
         # Test that the rule is not considered permissive when it's a DENY rule
         self.assertFalse(firewall_rule.is_permissive())
 
-        firewall_rules = models.GcpInstanceFirewallRules(rules=[firewall_rule])
+        firewall_rules = models.GcpFirewallRules(rules=[firewall_rule])
         scan_result = models.ScanResult(
             ip="10.0.0.1",
             findings=[models.ScanFindings(tool="gcp", resources=[firewall_rules])],
