@@ -179,8 +179,13 @@ class TestGcpAuditLogsService(unittest.TestCase):
                     },
                 }
 
+                # Create name-to-resource-ID mapping
+                name_to_resource_id = {"test-instance": "123456789"}
+
                 # Parse the entry
-                timeline_event = audit_service._parse_audit_log_entry(mock_entry)
+                timeline_event = audit_service._parse_audit_log_entry(
+                    mock_entry, name_to_resource_id
+                )
 
                 # Verify common fields
                 self.assertIsInstance(timeline_event, models.TimelineEvent)
@@ -191,7 +196,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
                 self.assertEqual(
                     timeline_event.event_type, test_case["expected_event_type"]
                 )
-                self.assertEqual(timeline_event.resource_id, "test-instance")
+                self.assertEqual(timeline_event.resource_id, "123456789")
                 self.assertEqual(
                     timeline_event.resource_type, models.ResourceType.GCP_Instance
                 )
@@ -202,12 +207,9 @@ class TestGcpAuditLogsService(unittest.TestCase):
                 for expected_content in test_case["expected_message_content"]:
                     self.assertIn(expected_content, timeline_event.message.lower())
 
-    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_extract_resource_name_from_path(self, mock_logging_client):
+    def test_extract_resource_name_from_path(self):
         """Test extraction of resource name from GCP resource path."""
-        mock_client = MagicMock()
-        mock_logging_client.return_value = mock_client
-
+        # Create service without triggering client initialization
         audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
 
         # Test instance resource path

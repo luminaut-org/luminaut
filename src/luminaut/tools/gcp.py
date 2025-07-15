@@ -60,7 +60,8 @@ class Gcp:
                 "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
                 project,
             )
-            all_regions = compute_v1.RegionsClient().list(project=project)
+            regions_client = compute_v1.RegionsClient()
+            all_regions = regions_client.list(project=project)
             return [region.name for region in all_regions]
         except Exception as e:
             logger.error(
@@ -78,7 +79,8 @@ class Gcp:
                 "No GCP compute zones specified in the configuration. Using all available zones for the project %s.",
                 project,
             )
-            all_zones = compute_v1.ZonesClient().list(project=project)
+            zones_client = compute_v1.ZonesClient()
+            all_zones = zones_client.list(project=project)
             return [zone.name for zone in all_zones]
         except Exception as e:
             logger.error(
@@ -143,7 +145,7 @@ class Gcp:
                 instance_events = [
                     event
                     for event in audit_log_events
-                    if event.resource_id == gcp_instance.name
+                    if event.resource_id == gcp_instance.resource_id
                 ]
                 if instance_events:
                     scan_finding.events.extend(instance_events)

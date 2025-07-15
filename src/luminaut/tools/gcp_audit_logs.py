@@ -92,6 +92,11 @@ class GcpAuditLogs:
             logger.debug("No instances provided for audit log query")
             return []
 
+        # Create a mapping from instance names to resource IDs for exact matching
+        name_to_resource_id = {
+            instance.name: instance.resource_id for instance in instances
+        }
+
         # Build the filter for audit log queries
         filter_str = self._build_audit_log_filter(instances)
         if not filter_str:
@@ -111,7 +116,9 @@ class GcpAuditLogs:
             # Parse the entries into timeline events
             timeline_events = []
             for entry in log_entries:
-                if timeline_event := self._parse_audit_log_entry(entry):
+                if timeline_event := self._parse_audit_log_entry(
+                    entry, name_to_resource_id
+                ):
                     timeline_events.append(timeline_event)
 
             logger.info(f"Found {len(timeline_events)} audit log events for instances")
@@ -170,11 +177,14 @@ class GcpAuditLogs:
 
         return " AND ".join(base_filter)
 
-    def _parse_audit_log_entry(self, entry: Any) -> models.TimelineEvent | None:
+    def _parse_audit_log_entry(
+        self, entry: Any, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
         """Parse a GCP audit log entry into a TimelineEvent.
 
         Args:
             entry: Audit log entry from Cloud Logging API.
+            name_to_resource_id: Mapping from instance names to resource IDs.
 
         Returns:
             TimelineEvent if the entry represents a supported instance event,
@@ -195,6 +205,9 @@ class GcpAuditLogs:
             resource_name = entry.payload.get("resourceName", "")
             instance_name = self._extract_resource_name(resource_name)
 
+            # Get the actual resource ID from the mapping
+            resource_id = name_to_resource_id.get(instance_name, instance_name)
+
             # Extract authentication info for the message
             auth_info = entry.payload.get("authenticationInfo", {})
             principal_email = auth_info.get("principalEmail", "unknown")
@@ -208,7 +221,7 @@ class GcpAuditLogs:
                 timestamp=entry.timestamp.astimezone(UTC),
                 source=self.SOURCE_NAME,
                 event_type=event_config["event_type"],
-                resource_id=instance_name,
+                resource_id=resource_id,
                 resource_type=models.ResourceType.GCP_Instance,
                 message=message,
                 details={
@@ -216,6 +229,7 @@ class GcpAuditLogs:
                     "resourceName": resource_name,
                     "principalEmail": principal_email,
                     "project": self.project,
+                    "instanceName": instance_name,
                 },
             )
 

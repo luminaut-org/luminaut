@@ -2,7 +2,7 @@ import datetime
 from io import BytesIO
 from textwrap import dedent
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from google.cloud.run_v2 import types as run_v2_types
@@ -640,18 +640,15 @@ class TestGcpScanResultsIntegration(TestCase):
 
     def test_find_instances_with_audit_logs_enabled(self):
         """Test that audit logs are queried when enabled and events are added to scan findings."""
-        from datetime import UTC, datetime
-        from unittest.mock import MagicMock, patch
-
         # Enable audit logs in config
         self.config.gcp.audit_logs.enabled = True
 
         # Create a mock timeline event
         mock_timeline_event = models.TimelineEvent(
-            timestamp=datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC),
+            timestamp=datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
             source="GCP Audit Logs",
             event_type=models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
-            resource_id="test-instance",
+            resource_id=FakeGcpInstance.id,
             resource_type=models.ResourceType.GCP_Instance,
             message="Instance created by test@example.com",
         )
@@ -692,8 +689,6 @@ class TestGcpScanResultsIntegration(TestCase):
 
     def test_find_instances_with_audit_logs_disabled(self):
         """Test that audit logs are not queried when disabled."""
-        from unittest.mock import patch
-
         # Disable audit logs in config
         self.config.gcp.audit_logs.enabled = False
 
