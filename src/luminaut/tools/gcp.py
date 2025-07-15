@@ -7,6 +7,7 @@ from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from tqdm import tqdm
 
 from luminaut import models
+from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,21 @@ class Gcp:
 
     def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
         scan_results = []
-        for gcp_instance in self.fetch_instances(project, zone):
+        instances = self.fetch_instances(project, zone)
+
+        # Query audit logs for all discovered instances if enabled
+        audit_log_events = []
+        if self.config.gcp.audit_logs.enabled and instances:
+            try:
+                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
+                audit_log_events = audit_service.query_instance_events(instances)
+                logger.info(
+                    f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{zone}"
+                )
+            except Exception as e:
+                logger.error(f"Error querying audit logs for project {project}: {e}")
+
+        for gcp_instance in instances:
             for public_ip in gcp_instance.get_public_ips():
                 scan_finding = models.ScanFindings(
                     tool="GCP Instance",
@@ -123,6 +138,15 @@ class Gcp:
                 firewall_rules = self.get_applicable_firewall_rules(gcp_instance)
                 if firewall_rules:
                     scan_finding.resources.append(firewall_rules)
+
+                # Add audit log events for this specific instance
+                instance_events = [
+                    event
+                    for event in audit_log_events
+                    if event.resource_id == gcp_instance.name
+                ]
+                if instance_events:
+                    scan_finding.events.extend(instance_events)
 
                 scan_results.append(
                     models.ScanResult(
