@@ -171,7 +171,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
                 # Mock audit log entry
                 mock_entry = MagicMock()
                 mock_entry.timestamp = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
-                mock_entry.proto_payload = {
+                mock_entry.payload = {
                     "methodName": test_case["method_name"],
                     "resourceName": "projects/test-project/zones/us-central1-a/instances/test-instance",
                     "authenticationInfo": {

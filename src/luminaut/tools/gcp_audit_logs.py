@@ -181,24 +181,22 @@ class GcpAuditLogs:
             None otherwise.
         """
         try:
-            # Extract the proto payload
-            proto_payload = entry.proto_payload
-            if not proto_payload:
+            if not entry.payload:
                 return None
 
             # Get method name to determine event type
-            method_name = proto_payload.get("methodName", "")
+            method_name = entry.payload.get("methodName", "")
             if method_name not in self.SUPPORTED_INSTANCE_EVENTS:
                 return None
 
             event_config = self.SUPPORTED_INSTANCE_EVENTS[method_name]
 
             # Extract resource name and instance name
-            resource_name = proto_payload.get("resourceName", "")
+            resource_name = entry.payload.get("resourceName", "")
             instance_name = self._extract_resource_name(resource_name)
 
             # Extract authentication info for the message
-            auth_info = proto_payload.get("authenticationInfo", {})
+            auth_info = entry.payload.get("authenticationInfo", {})
             principal_email = auth_info.get("principalEmail", "unknown")
 
             # Build the event message
