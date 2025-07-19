@@ -182,7 +182,26 @@ class Gcp:
 
     def find_services(self, project: str, location: str) -> list[models.ScanResult]:
         scan_results = []
-        for service in self.fetch_run_services(project, location):
+        services = self.fetch_run_services(project, location)
+
+        # Query audit logs for all discovered services if enabled
+        audit_log_events = []
+        if self.config.gcp.audit_logs.enabled and services:
+            try:
+                logger.info(
+                    f"Querying GCP audit logs for {len(services)} Cloud Run services in project {project}/{location}"
+                )
+                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
+                audit_log_events = audit_service.query_service_events(services)
+                logger.info(
+                    f"Found {len(audit_log_events)} audit log events for {len(services)} services in {project}/{location}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error querying service audit logs for project {project}: {e}"
+                )
+
+        for service in services:
             if not service.allows_ingress():
                 logger.debug(
                     "Skipping GCP Run Service %s as it does not have external ingress",
@@ -194,6 +213,16 @@ class Gcp:
                 emoji_name="cloud",
                 resources=[service],
             )
+
+            # Add audit log events for this specific service
+            service_events = [
+                event
+                for event in audit_log_events
+                if event.resource_id == service.resource_id
+            ]
+            if service_events:
+                scan_finding.events.extend(service_events)
+
             scan_results.append(
                 models.ScanResult(
                     url=service.uri,

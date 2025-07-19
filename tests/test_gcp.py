@@ -716,6 +716,159 @@ class TestGcpScanResultsIntegration(TestCase):
             scan_finding = scan_result.findings[0]
             self.assertEqual(len(scan_finding.events), 0)
 
+    def test_find_services_with_audit_logs_enabled(self):
+        """Test that Cloud Run service audit logs are queried when enabled and events are added to scan findings."""
+        # Enable audit logs in config
+        self.config.gcp.audit_logs.enabled = True
+
+        # Create a mock timeline event for a Cloud Run service
+        mock_timeline_event = models.TimelineEvent(
+            timestamp=datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
+            source="GCP Audit Logs",
+            event_type=models.TimelineEventType.SERVICE_CREATED,
+            resource_id="projects/test-project/locations/us-central1/services/test-service",
+            resource_type=models.ResourceType.GCP_Service,
+            message="Service created by test@example.com",
+        )
+
+        gcp = Gcp(self.config)
+
+        # Mock run client to return a Cloud Run service
+        mock_run_client = Mock()
+        mock_service = Mock()
+        mock_service.name = "test-service"
+        mock_service.uri = "https://test-service-xyz.a.run.app"
+
+        # Mock the from_gcp method to return our test service
+        mock_gcp_service = models.GcpService(
+            resource_id="projects/test-project/locations/us-central1/services/test-service",
+            name="test-service",
+            uri="https://test-service-xyz.a.run.app",
+        )
+
+        with (
+            patch.object(models.GcpService, "from_gcp", return_value=mock_gcp_service),
+            patch.object(mock_gcp_service, "allows_ingress", return_value=True),
+        ):
+            mock_run_client.list_services.return_value = [mock_service]
+            gcp.get_run_v2_services_client = Mock(return_value=mock_run_client)
+
+            # Mock the audit logs service
+            with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
+                mock_audit_service = MagicMock()
+                mock_audit_logs_class.return_value = mock_audit_service
+                mock_audit_service.query_service_events.return_value = [
+                    mock_timeline_event
+                ]
+
+                # Call find_services
+                scan_results = gcp.find_services("test-project", "us-central1")
+
+                # Verify audit logs service was called
+                mock_audit_logs_class.assert_called_once_with(
+                    "test-project", self.config.gcp.audit_logs
+                )
+                mock_audit_service.query_service_events.assert_called_once()
+
+                # Verify scan results contain the audit log event
+                self.assertEqual(len(scan_results), 1)
+                scan_result = scan_results[0]
+                self.assertEqual(len(scan_result.findings), 1)
+
+                scan_finding = scan_result.findings[0]
+                self.assertEqual(len(scan_finding.events), 1)
+                self.assertEqual(scan_finding.events[0], mock_timeline_event)
+                self.assertEqual(scan_finding.tool, "GCP Run Service")
+
+    def test_find_services_with_audit_logs_disabled(self):
+        """Test that Cloud Run service audit logs are not queried when disabled."""
+        # Disable audit logs in config
+        self.config.gcp.audit_logs.enabled = False
+
+        gcp = Gcp(self.config)
+
+        # Mock run client to return a Cloud Run service
+        mock_run_client = Mock()
+        mock_service = Mock()
+        mock_service.name = "test-service"
+        mock_service.uri = "https://test-service-xyz.a.run.app"
+
+        # Mock the from_gcp method to return our test service
+        mock_gcp_service = models.GcpService(
+            resource_id="projects/test-project/locations/us-central1/services/test-service",
+            name="test-service",
+            uri="https://test-service-xyz.a.run.app",
+        )
+
+        with (
+            patch.object(models.GcpService, "from_gcp", return_value=mock_gcp_service),
+            patch.object(mock_gcp_service, "allows_ingress", return_value=True),
+        ):
+            mock_run_client.list_services.return_value = [mock_service]
+            gcp.get_run_v2_services_client = Mock(return_value=mock_run_client)
+
+            # Mock the audit logs service - it should not be called
+            with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
+                # Call find_services
+                scan_results = gcp.find_services("test-project", "us-central1")
+
+                # Verify audit logs service was NOT called
+                mock_audit_logs_class.assert_not_called()
+
+                # Verify scan results don't contain audit log events
+                self.assertEqual(len(scan_results), 1)
+                scan_result = scan_results[0]
+                self.assertEqual(len(scan_result.findings), 1)
+
+                scan_finding = scan_result.findings[0]
+                self.assertEqual(len(scan_finding.events), 0)
+                self.assertEqual(scan_finding.tool, "GCP Run Service")
+
+    def test_find_services_with_no_ingress_skips_audit_logs(self):
+        """Test that services without external ingress are skipped and audit logs are still processed."""
+        # Enable audit logs in config
+        self.config.gcp.audit_logs.enabled = True
+
+        gcp = Gcp(self.config)
+
+        # Mock run client to return a Cloud Run service without ingress
+        mock_run_client = Mock()
+        mock_service = Mock()
+        mock_service.name = "internal-service"
+        mock_service.uri = "https://internal-service-xyz.a.run.app"
+
+        # Mock the from_gcp method to return our test service
+        mock_gcp_service = models.GcpService(
+            resource_id="projects/test-project/locations/us-central1/services/internal-service",
+            name="internal-service",
+            uri="https://internal-service-xyz.a.run.app",
+        )
+
+        with (
+            patch.object(models.GcpService, "from_gcp", return_value=mock_gcp_service),
+            patch.object(mock_gcp_service, "allows_ingress", return_value=False),
+        ):
+            mock_run_client.list_services.return_value = [mock_service]
+            gcp.get_run_v2_services_client = Mock(return_value=mock_run_client)
+
+            # Mock the audit logs service
+            with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
+                mock_audit_service = MagicMock()
+                mock_audit_logs_class.return_value = mock_audit_service
+                mock_audit_service.query_service_events.return_value = []
+
+                # Call find_services
+                scan_results = gcp.find_services("test-project", "us-central1")
+
+                # Verify audit logs service was still called (for all services discovered)
+                mock_audit_logs_class.assert_called_once_with(
+                    "test-project", self.config.gcp.audit_logs
+                )
+                mock_audit_service.query_service_events.assert_called_once()
+
+                # But no scan results should be returned since service has no ingress
+                self.assertEqual(len(scan_results), 0)
+
 
 class TestGcpInstanceNetworks(TestCase):
     def test_get_networks_deduplication_and_parsing(self):
