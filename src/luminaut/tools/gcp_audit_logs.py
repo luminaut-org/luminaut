@@ -61,6 +61,10 @@ class GcpAuditLogs:
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
             "message": "Instance suspended",
         },
+        "beta.compute.instances.resume": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+            "message": "Instance resumed",
+        },
     }
 
     def __init__(self, project: str, config: models.LuminautConfigToolGcpAuditLogs):

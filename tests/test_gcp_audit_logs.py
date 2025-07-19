@@ -170,6 +170,12 @@ class TestGcpAuditLogsService(unittest.TestCase):
                 "expected_event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
                 "expected_message_content": ["suspended", "user@example.com"],
             },
+            {
+                "method_name": "beta.compute.instances.resume",
+                "principal_email": "user@example.com",
+                "expected_event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+                "expected_message_content": ["resumed", "user@example.com"],
+            },
         ]
 
         for test_case in test_cases:
