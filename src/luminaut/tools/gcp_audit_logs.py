@@ -30,7 +30,8 @@ class GcpAuditLogs:
     # Constants for audit log filtering and parsing
     SOURCE_NAME = "GCP Audit Logs"
     LOG_NAME_TEMPLATE = "projects/{project}/logs/cloudaudit.googleapis.com%2Factivity"
-    SERVICE_NAME = "compute.googleapis.com"
+    SERVICE_NAME_COMPUTE = "compute.googleapis.com"
+    SERVICE_NAME_RUN = "run.googleapis.com"
     RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -64,6 +65,26 @@ class GcpAuditLogs:
         "beta.compute.instances.resume": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
             "message": "Instance resumed",
+        },
+    }
+
+    # Mapping of GCP audit log method names to timeline event types and messages for Cloud Run
+    SUPPORTED_CLOUD_RUN_EVENTS = {
+        "google.cloud.run.v1.Services.CreateService": {
+            "event_type": models.TimelineEventType.SERVICE_CREATED,
+            "message": "Service created",
+        },
+        "google.cloud.run.v1.Services.DeleteService": {
+            "event_type": models.TimelineEventType.SERVICE_DELETED,
+            "message": "Service deleted",
+        },
+        "google.cloud.run.v1.Services.ReplaceService": {
+            "event_type": models.TimelineEventType.SERVICE_UPDATED,
+            "message": "Service updated",
+        },
+        "google.cloud.run.v1.Revisions.DeleteRevision": {
+            "event_type": models.TimelineEventType.SERVICE_DEFINITION_REVISION_DELETED,
+            "message": "Service revision deleted",
         },
     }
 
@@ -144,7 +165,7 @@ class GcpAuditLogs:
         # Base filter for GCP Compute Engine audit logs
         base_filter = [
             f'logName:"{self.LOG_NAME_TEMPLATE.format(project=self.project)}"',
-            f'protoPayload.serviceName="{self.SERVICE_NAME}"',
+            f'protoPayload.serviceName="{self.SERVICE_NAME_COMPUTE}"',
         ]
 
         # Add method name filters
@@ -253,6 +274,198 @@ class GcpAuditLogs:
         except Exception as e:
             logger.warning(f"Error parsing audit log entry: {e}")
             return None
+
+    def query_service_events(
+        self, services: list[models.GcpService]
+    ) -> list[models.TimelineEvent]:
+        """Query audit logs for Cloud Run service lifecycle events.
+
+        Args:
+            services: List of GCP Cloud Run services to query audit logs for.
+
+        Returns:
+            List of timeline events found in audit logs for the given services.
+            Returns empty list if audit logs are disabled, no services provided,
+            or if an error occurs during querying.
+        """
+        if not self.config.enabled:
+            logger.debug("GCP audit logs are disabled, skipping query")
+            return []
+
+        if not services:
+            logger.debug("No services provided for audit log query")
+            return []
+
+        # Create a mapping from service names to resource IDs for exact matching
+        name_to_resource_id = {
+            service.name: service.resource_id for service in services
+        }
+
+        # Build the filter for audit log queries
+        filter_str = self._build_service_audit_log_filter(services)
+        if not filter_str:
+            logger.debug("No valid filter could be built for service audit log query")
+            return []
+
+        try:
+            # Query the audit logs
+            log_entries = self.client.list_entries(
+                filter_=filter_str, order_by=gcp_logging.ASCENDING
+            )
+
+            # Parse the entries into timeline events
+            timeline_events = []
+            for entry in log_entries:
+                if timeline_event := self._parse_service_audit_log_entry(
+                    entry, name_to_resource_id
+                ):
+                    timeline_events.append(timeline_event)
+            return timeline_events
+
+        except Exception as e:
+            logger.error(
+                f"Error querying GCP audit logs for Cloud Run services in project {self.project}: {e}"
+            )
+            return []
+
+    def _build_service_audit_log_filter(self, services: list[models.GcpService]) -> str:
+        """Build the filter string for querying Cloud Run service audit logs.
+
+        Args:
+            services: List of GCP services to build filters for.
+
+        Returns:
+            Filter string compatible with Cloud Logging API.
+        """
+        # Base filter for GCP Cloud Run audit logs
+        base_filter = [
+            f'logName:"{self.LOG_NAME_TEMPLATE.format(project=self.project)}"',
+            f'protoPayload.serviceName="{self.SERVICE_NAME_RUN}"',
+        ]
+
+        # Add method name filters
+        method_names = list(self.SUPPORTED_CLOUD_RUN_EVENTS.keys())
+        quoted_methods = [f'"{method}"' for method in method_names]
+        method_filter = f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
+        base_filter.append(method_filter)
+
+        # Add resource name filters for specific services
+        if services:
+            service_resources = []
+            for service in services:
+                # Cloud Run service resource name format: projects/{project}/locations/{region}/services/{service}
+                service_resources.append(f'"{service.resource_id}"')
+
+            resource_filter = (
+                f"protoPayload.resourceName=({' OR '.join(service_resources)})"
+            )
+            base_filter.append(resource_filter)
+
+        # Add time range filters if configured, with default 30-day lookback
+        start_time = self.config.start_time
+        end_time = self.config.end_time
+
+        # If no time range is specified, default to last 30 days
+        if not start_time and not end_time:
+            end_time = datetime.now(UTC)
+            start_time = end_time - timedelta(days=30)
+
+        if start_time:
+            start_time_str = start_time.strftime(self.TIMESTAMP_FORMAT)
+            base_filter.append(f'timestamp>="{start_time_str}"')
+
+        if end_time:
+            end_time_str = end_time.strftime(self.TIMESTAMP_FORMAT)
+            base_filter.append(f'timestamp<="{end_time_str}"')
+
+        return " AND ".join(base_filter)
+
+    def _parse_service_audit_log_entry(
+        self, entry: Any, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        """Parse a GCP audit log entry into a TimelineEvent for Cloud Run services.
+
+        Args:
+            entry: Audit log entry from Cloud Logging API.
+            name_to_resource_id: Mapping from service names to resource IDs.
+
+        Returns:
+            TimelineEvent if the entry represents a supported service event,
+            None otherwise.
+        """
+        try:
+            if not entry.payload:
+                return None
+
+            # Get method name to determine event type
+            method_name = entry.payload.get("methodName", "")
+            if method_name not in self.SUPPORTED_CLOUD_RUN_EVENTS:
+                return None
+
+            event_config = self.SUPPORTED_CLOUD_RUN_EVENTS[method_name]
+
+            # Extract resource name and service name
+            resource_name = entry.payload.get("resourceName", "")
+            service_name = self._extract_service_name(resource_name)
+
+            # Get the actual resource ID from the mapping
+            resource_id = (
+                name_to_resource_id.get(service_name, resource_name) or resource_name
+            )
+
+            # Extract authentication info for the message
+            auth_info = entry.payload.get("authenticationInfo", {})
+            principal_email = auth_info.get("principalEmail", "unknown")
+
+            # Build the event message
+            base_message = event_config["message"]
+            message = f"{base_message} by {principal_email}"
+
+            if entry.timestamp.tzinfo is None:
+                timestamp = entry.timestamp.replace(tzinfo=UTC)
+            else:
+                timestamp = entry.timestamp.astimezone(UTC)
+
+            # Create the timeline event
+            timeline_event = models.TimelineEvent(
+                timestamp=timestamp,
+                source=self.SOURCE_NAME,
+                event_type=event_config["event_type"],
+                resource_id=resource_id,
+                resource_type=models.ResourceType.GCP_Service,
+                message=message,
+                details={
+                    "methodName": method_name,
+                    "resourceName": resource_name,
+                    "principalEmail": principal_email,
+                    "project": self.project,
+                    "serviceName": service_name,
+                },
+            )
+
+            return timeline_event
+
+        except Exception as e:
+            logger.warning(f"Error parsing service audit log entry: {e}")
+            return None
+
+    def _extract_service_name(self, resource_path: str) -> str:
+        """Extract the service name from a GCP Cloud Run resource path.
+
+        Args:
+            resource_path: Full GCP resource path (e.g., projects/{project}/locations/{region}/services/{name}).
+
+        Returns:
+            The service name or the original path if parsing fails.
+        """
+        try:
+            # Resource path format: projects/{project}/locations/{region}/services/{service-name}
+            parts = resource_path.split("/")
+            if len(parts) >= 6 and parts[4] == "services":
+                return parts[5]
+            return resource_path
+        except (IndexError, AttributeError):
+            return resource_path
 
     def _extract_resource_name(self, resource_path: str) -> str:
         """Extract the resource name from a GCP resource path.

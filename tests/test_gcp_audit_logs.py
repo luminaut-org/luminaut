@@ -295,5 +295,198 @@ class TestGcpAuditLogsService(unittest.TestCase):
         self.assertEqual(events, [])
 
 
+class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
+    """Test GCP Audit Logs service functionality for Cloud Run services."""
+
+    def setUp(self):
+        """Set up test configuration and mock objects."""
+        self.config = models.LuminautConfig()
+        self.config.gcp.audit_logs.enabled = True
+        self.config.gcp.audit_logs.start_time = datetime(
+            2024, 1, 1, 0, 0, 0, tzinfo=UTC
+        )
+        self.config.gcp.audit_logs.end_time = datetime(2024, 1, 2, 0, 0, 0, tzinfo=UTC)
+
+        # Create mock Cloud Run service
+        self.mock_service = models.GcpService(
+            resource_id="projects/test-project/locations/us-central1/services/test-service",
+            name="test-service",
+            uri="https://test-service-123456789-uc.a.run.app",
+        )
+
+    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
+    def test_query_service_events_filters(self, mock_logging_client):
+        """Test that service audit log filters are properly constructed."""
+        mock_client = MagicMock()
+        mock_logging_client.return_value = mock_client
+        mock_client.list_entries.return_value = []
+
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+        events = audit_service.query_service_events([self.mock_service])
+
+        # Verify the client was called with correct filter
+        mock_client.list_entries.assert_called_once()
+        call_args = mock_client.list_entries.call_args
+        filter_str = call_args[1]["filter_"]
+
+        # Check that Cloud Run service name is used
+        self.assertIn('protoPayload.serviceName="run.googleapis.com"', filter_str)
+
+        # Check that Cloud Run method names are included
+        self.assertIn("google.cloud.run.v1.Services.CreateService", filter_str)
+        self.assertIn("google.cloud.run.v1.Services.DeleteService", filter_str)
+        self.assertIn("google.cloud.run.v1.Services.ReplaceService", filter_str)
+        self.assertIn("google.cloud.run.v1.Revisions.DeleteRevision", filter_str)
+
+        # Check that service resource ID is included
+        self.assertIn(
+            '"projects/test-project/locations/us-central1/services/test-service"',
+            filter_str,
+        )
+
+        # Should return empty list when no log entries
+        self.assertEqual(events, [])
+
+    def test_parse_service_audit_log_entries_all_events(self):
+        """Test parsing of all supported Cloud Run service audit log entries."""
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+        name_to_resource_id = {"test-service": self.mock_service.resource_id}
+
+        test_cases = [
+            {
+                "method_name": "google.cloud.run.v1.Services.CreateService",
+                "expected_event_type": models.TimelineEventType.SERVICE_CREATED,
+                "expected_message_content": ["service", "created"],
+            },
+            {
+                "method_name": "google.cloud.run.v1.Services.DeleteService",
+                "expected_event_type": models.TimelineEventType.SERVICE_DELETED,
+                "expected_message_content": ["service", "deleted"],
+            },
+            {
+                "method_name": "google.cloud.run.v1.Services.ReplaceService",
+                "expected_event_type": models.TimelineEventType.SERVICE_UPDATED,
+                "expected_message_content": ["service", "updated"],
+            },
+            {
+                "method_name": "google.cloud.run.v1.Revisions.DeleteRevision",
+                "expected_event_type": models.TimelineEventType.SERVICE_DEFINITION_REVISION_DELETED,
+                "expected_message_content": ["service", "revision", "deleted"],
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(method_name=test_case["method_name"]):
+                # Create mock audit log entry
+                mock_entry = MagicMock()
+                mock_entry.timestamp = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+                mock_entry.payload = {
+                    "methodName": test_case["method_name"],
+                    "resourceName": "projects/test-project/locations/us-central1/services/test-service",
+                    "authenticationInfo": {"principalEmail": "user@example.com"},
+                }
+
+                timeline_event = audit_service._parse_service_audit_log_entry(
+                    mock_entry, name_to_resource_id
+                )
+
+                # Verify common fields
+                self.assertIsInstance(timeline_event, models.TimelineEvent)
+                if timeline_event is None:
+                    self.fail("Parsed timeline event should not be None")
+
+                self.assertEqual(
+                    timeline_event.event_type, test_case["expected_event_type"]
+                )
+                self.assertEqual(
+                    timeline_event.resource_id, self.mock_service.resource_id
+                )
+                self.assertEqual(
+                    timeline_event.resource_type, models.ResourceType.GCP_Service
+                )
+                self.assertEqual(timeline_event.timestamp, mock_entry.timestamp)
+                self.assertEqual(timeline_event.source, "GCP Audit Logs")
+
+                # Verify message content contains expected strings
+                for expected_content in test_case["expected_message_content"]:
+                    self.assertIn(expected_content, timeline_event.message.lower())
+
+                # Verify details
+                self.assertEqual(
+                    timeline_event.details["methodName"], test_case["method_name"]
+                )
+                self.assertEqual(timeline_event.details["serviceName"], "test-service")
+                self.assertEqual(
+                    timeline_event.details["principalEmail"], "user@example.com"
+                )
+
+    def test_extract_service_name_from_path(self):
+        """Test extraction of service name from GCP Cloud Run resource path."""
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+
+        # Test Cloud Run service resource path
+        resource_path = (
+            "projects/test-project/locations/us-central1/services/test-service"
+        )
+        service_name = audit_service._extract_service_name(resource_path)
+        self.assertEqual(service_name, "test-service")
+
+        # Test invalid resource path
+        invalid_path = "invalid/path"
+        service_name = audit_service._extract_service_name(invalid_path)
+        self.assertEqual(
+            service_name, invalid_path
+        )  # Should return original if can't parse
+
+        # Test partial path
+        partial_path = "projects/test-project/locations/us-central1"
+        service_name = audit_service._extract_service_name(partial_path)
+        self.assertEqual(
+            service_name, partial_path
+        )  # Should return original if can't parse
+
+    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
+    def test_disabled_service_audit_logs(self, mock_logging_client):
+        """Test that service audit logs respect disabled configuration."""
+        config = models.LuminautConfig()
+        config.gcp.audit_logs.enabled = False
+
+        audit_service = GcpAuditLogs("test-project", config.gcp.audit_logs)
+
+        # Should return empty list when disabled
+        events = audit_service.query_service_events([self.mock_service])
+        self.assertEqual(events, [])
+
+        # Should not have called the logging client
+        mock_logging_client.assert_not_called()
+
+    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
+    def test_query_service_events_no_services(self, mock_logging_client):
+        """Test querying service events with empty service list."""
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+
+        # Should return empty list when no services provided
+        events = audit_service.query_service_events([])
+        self.assertEqual(events, [])
+
+        # Should not have called the logging client
+        mock_logging_client.assert_not_called()
+
+    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
+    def test_service_audit_logs_exception_handling(self, mock_logging_client):
+        """Test that service audit log exceptions are handled gracefully."""
+        mock_client = MagicMock()
+        mock_logging_client.return_value = mock_client
+
+        # Simulate an exception during log querying
+        mock_client.list_entries.side_effect = Exception("API Error")
+
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+
+        # Should handle exception gracefully and return empty list
+        events = audit_service.query_service_events([self.mock_service])
+        self.assertEqual(events, [])
+
+
 if __name__ == "__main__":
     unittest.main()
