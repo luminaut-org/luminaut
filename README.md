@@ -17,11 +17,11 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 
 Luminaut is a utility to scope cloud environment exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.
 
-Starting from the public IP addresses of AWS Elastic Network Interfaces (ENIs), Luminaut gathers information about the associated EC2 instances, load balancers, security groups, and related events. The framework also includes active scanning tools like nmap and whatweb, to identify services running on exposed ports, and passive sources like Shodan.
+Starting from the public IP addresses of AWS Elastic Network Interfaces (ENIs), GCP Compute Engine instances, and public URIs of GCP Cloud Run services, Luminaut gathers information about the associated resources, security configurations, and related events. The framework includes active scanning tools like nmap and whatweb, to identify services running on exposed ports, and passive sources like Shodan.
 
 By combining cloud configuration data with external sources, Luminaut provides context to guide the next steps of an investigation.
 
-While focused on AWS, Luminaut can be extended to support other cloud providers and services. The framework is designed to be modular, allowing for the addition of new tools and services as needed.
+Luminaut supports both AWS and GCP environments, with modular architecture allowing for the addition of new cloud providers, tools, and services as needed.
 
 ![Luminaut execution](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_execution.png)
 ![Luminaut result - IP address 1](https://raw.githubusercontent.com/luminaut-org/luminaut/refs/heads/main/.github/images/luminaut_result_ip_1.png)
@@ -43,6 +43,15 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 - Skip scanning and reporting on resources based on the resource id or tag values
   - Supports skipping based on the resource id of the ENI.
 
+### GCP
+
+- Enumerate Compute Engine instances with public IPs.
+- Enumerate Cloud Run services with public URIs.
+- Identify permissive firewall rules that allow external access to instances.
+- Query GCP audit logs for instance and service lifecycle events to answer who, what, and when.
+  - Supports querying for activity related to discovered Compute Engine instances and Cloud Run services.
+  - Optionally specify a time frame to limit the scan to a specific time period.
+
 ### Active scanning
 
 - [nmap](https://nmap.org/) to scan common ports and services against identified IP addresses.
@@ -58,7 +67,7 @@ While focused on AWS, Luminaut can be extended to support other cloud providers 
 
 - Console output with rich formatting, displaying key information.
 - HTML capture of console output to preserve prior executions.
-- CSV Timeline of events from CloudTrail and other sources.
+- CSV Timeline of events from CloudTrail, GCP audit logs, and other sources.
 - JSON lines output with full event information for parsing and integration with other tools.
 
 ## Installation
