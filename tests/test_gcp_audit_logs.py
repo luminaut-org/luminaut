@@ -338,9 +338,9 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         self.assertIn("google.cloud.run.v1.Services.ReplaceService", filter_str)
         self.assertIn("google.cloud.run.v1.Revisions.DeleteRevision", filter_str)
 
-        # Check that service resource ID is included
+        # Check that service resource name is included (using correct audit log format)
         self.assertIn(
-            '"projects/test-project/locations/us-central1/services/test-service"',
+            '"namespaces/test-project/services/test-service"',
             filter_str,
         )
 
@@ -382,7 +382,7 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
                 mock_entry.timestamp = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
                 mock_entry.payload = {
                     "methodName": test_case["method_name"],
-                    "resourceName": "projects/test-project/locations/us-central1/services/test-service",
+                    "resourceName": "namespaces/test-project/services/test-service",
                     "authenticationInfo": {"principalEmail": "user@example.com"},
                 }
 
@@ -424,11 +424,23 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         """Test extraction of service name from GCP Cloud Run resource path."""
         audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
 
-        # Test Cloud Run service resource path
-        resource_path = (
+        # Test Cloud Run audit log resource path format
+        audit_log_resource_path = "namespaces/test-project/services/test-service"
+        service_name = audit_service._extract_service_name(audit_log_resource_path)
+        self.assertEqual(service_name, "test-service")
+
+        # Test with more complex service name
+        complex_resource_path = (
+            "namespaces/my-gcp-project-123/services/my-api-service-v2"
+        )
+        service_name = audit_service._extract_service_name(complex_resource_path)
+        self.assertEqual(service_name, "my-api-service-v2")
+
+        # Test API resource format for backward compatibility
+        api_format_path = (
             "projects/test-project/locations/us-central1/services/test-service"
         )
-        service_name = audit_service._extract_service_name(resource_path)
+        service_name = audit_service._extract_service_name(api_format_path)
         self.assertEqual(service_name, "test-service")
 
         # Test invalid resource path
@@ -439,7 +451,7 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         )  # Should return original if can't parse
 
         # Test partial path
-        partial_path = "projects/test-project/locations/us-central1"
+        partial_path = "namespaces/test-project"
         service_name = audit_service._extract_service_name(partial_path)
         self.assertEqual(
             service_name, partial_path
@@ -486,6 +498,29 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         # Should handle exception gracefully and return empty list
         events = audit_service.query_service_events([self.mock_service])
         self.assertEqual(events, [])
+
+    def test_audit_log_filter_uses_correct_resource_name_format(self):
+        """Test that audit log filters use the correct namespaces/project/services/name format."""
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+
+        # Create a service with the resource_id format that comes from the API
+        service = models.GcpService(
+            resource_id="projects/test-project/locations/us-central1/services/test-service",
+            name="test-service",
+            uri="https://test-service-xyz.a.run.app",
+        )
+
+        # Build the filter
+        filter_str = audit_service._build_service_audit_log_filter([service])
+
+        # Verify the filter uses the correct audit log resource name format
+        self.assertIn("run.googleapis.com", filter_str)
+
+        self.assertIn("namespaces/test-project/services/test-service", filter_str)
+        self.assertNotIn(
+            "projects/test-project/locations/us-central1/services/test-service",
+            filter_str,
+        )
 
 
 if __name__ == "__main__":

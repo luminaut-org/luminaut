@@ -353,8 +353,14 @@ class GcpAuditLogs:
         if services:
             service_resources = []
             for service in services:
-                # Cloud Run service resource name format: projects/{project}/locations/{region}/services/{service}
-                service_resources.append(f'"{service.resource_id}"')
+                # Convert API resource format to audit log resource format
+                # API format: projects/{project}/locations/{region}/services/{service-name}
+                # Audit log format: namespaces/{project}/services/{service-name}
+                service_name = self._extract_service_name(service.resource_id)
+                audit_log_resource_name = (
+                    f"namespaces/{self.project}/services/{service_name}"
+                )
+                service_resources.append(f'"{audit_log_resource_name}"')
 
             resource_filter = (
                 f"protoPayload.resourceName=({' OR '.join(service_resources)})"
@@ -453,16 +459,24 @@ class GcpAuditLogs:
         """Extract the service name from a GCP Cloud Run resource path.
 
         Args:
-            resource_path: Full GCP resource path (e.g., projects/{project}/locations/{region}/services/{name}).
+            resource_path: Full GCP resource path. Can be either:
+                - namespaces/{project}/services/{name} (actual audit log format)
+                - projects/{project}/locations/{region}/services/{name} (API resource format)
 
         Returns:
             The service name or the original path if parsing fails.
         """
         try:
-            # Resource path format: projects/{project}/locations/{region}/services/{service-name}
             parts = resource_path.split("/")
+
+            # Handle actual audit log format: namespaces/{project}/services/{service-name}
+            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
+                return parts[3]
+
+            # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
             if len(parts) >= 6 and parts[4] == "services":
                 return parts[5]
+
             return resource_path
         except (IndexError, AttributeError):
             return resource_path
