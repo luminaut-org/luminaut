@@ -102,6 +102,7 @@ class ResourceType(StrEnum):
     EC2_SecurityGroup = "AWS::EC2::SecurityGroup"
     ELB_LoadBalancer = "AWS::ElasticLoadBalancingV2::LoadBalancer"
     GCP_Instance = "GCP::Compute::Instance"
+    GCP_Service = "GCP::Run::Service"
 
 
 class SecurityGroupRuleTargetType(StrEnum):
@@ -1350,6 +1351,11 @@ class TimelineEventType(StrEnum):
     SECURITY_GROUP_ASSOCIATION_CHANGE = "Security group changed"
     SECURITY_GROUP_RULE_CHANGE = "Security group rule changed"
     RESOURCE_CREATED = "Resource created"
+    SERVICE_CREATED = "Service created"
+    SERVICE_DELETED = "Service deleted"
+    SERVICE_UPDATED = "Service updated"
+    SERVICE_DEFINITION_REVISION_CREATED = "Service definition revision created"
+    SERVICE_DEFINITION_REVISION_DELETED = "Service definition revision deleted"
 
 
 @dataclass
