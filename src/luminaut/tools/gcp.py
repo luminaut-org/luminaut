@@ -123,6 +123,9 @@ class Gcp:
         audit_log_events = []
         if self.config.gcp.audit_logs.enabled and instances:
             try:
+                logger.info(
+                    f"Querying GCP audit logs for {len(instances)} instances in project {project}/{zone}"
+                )
                 audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
                 audit_log_events = audit_service.query_instance_events(instances)
                 logger.info(

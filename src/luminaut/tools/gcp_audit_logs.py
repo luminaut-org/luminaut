@@ -112,10 +112,6 @@ class GcpAuditLogs:
             return []
 
         try:
-            logger.info(
-                f"Querying GCP audit logs for {len(instances)} instances in project {self.project}"
-            )
-
             # Query the audit logs
             log_entries = self.client.list_entries(
                 filter_=filter_str, order_by=gcp_logging.ASCENDING
@@ -128,8 +124,6 @@ class GcpAuditLogs:
                     entry, name_to_resource_id
                 ):
                     timeline_events.append(timeline_event)
-
-            logger.info(f"Found {len(timeline_events)} audit log events for instances")
             return timeline_events
 
         except Exception as e:
