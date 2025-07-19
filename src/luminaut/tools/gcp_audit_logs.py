@@ -228,7 +228,7 @@ class GcpAuditLogs:
 
             # Create the timeline event
             timeline_event = models.TimelineEvent(
-                timestamp=entry.timestamp.astimezone(UTC),
+                timestamp=entry.timestamp.replace(tzinfo=UTC) if entry.timestamp.tzinfo is None else entry.timestamp.astimezone(UTC),
                 source=self.SOURCE_NAME,
                 event_type=event_config["event_type"],
                 resource_id=resource_id,
