@@ -294,7 +294,7 @@ class TestGCP(TestCase):
         service = services[0]
         self.assertEqual(service.name, fake_service.name)
         self.assertEqual(service.uri, fake_service.uri)
-        self.assertEqual(service.resource_id, fake_service.uid)
+        self.assertEqual(service.resource_id, fake_service.name)
         self.assertEqual(service.created_by, fake_service.creator)
         self.assertEqual(service.creation_time, some_date)
         self.assertEqual(service.last_modified_by, fake_service.last_modifier)
