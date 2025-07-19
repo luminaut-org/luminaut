@@ -41,7 +41,7 @@ class GcpAuditLogs:
 
     # Mapping of GCP audit log method names to timeline event types and messages
     SUPPORTED_INSTANCE_EVENTS = {
-        "v1.compute.instances.insert": {
+        "beta.compute.instances.insert": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
             "message": "Instance created",
         },
@@ -56,6 +56,10 @@ class GcpAuditLogs:
         "v1.compute.instances.stop": {
             "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
             "message": "Instance stopped",
+        },
+        "beta.compute.instances.suspend": {
+            "event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+            "message": "Instance suspended",
         },
     }
 

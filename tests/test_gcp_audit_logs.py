@@ -141,7 +141,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
         # Test cases for all supported instance events
         test_cases = [
             {
-                "method_name": "v1.compute.instances.insert",
+                "method_name": "beta.compute.instances.insert",
                 "principal_email": "test@example.com",
                 "expected_event_type": models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
                 "expected_message_content": ["created", "test@example.com"],
@@ -163,6 +163,12 @@ class TestGcpAuditLogsService(unittest.TestCase):
                 "principal_email": "user@example.com",
                 "expected_event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
                 "expected_message_content": ["stopped", "user@example.com"],
+            },
+            {
+                "method_name": "beta.compute.instances.suspend",
+                "principal_email": "user@example.com",
+                "expected_event_type": models.TimelineEventType.COMPUTE_INSTANCE_STATE_CHANGE,
+                "expected_message_content": ["suspended", "user@example.com"],
             },
         ]
 
