@@ -25,6 +25,11 @@ toc: true
 - Enumerate Compute Engine instances with public IPs.
 - Enumerate Cloud Run services with public URIs.
 - Identify permissive firewall rules that allow external access to instances.
+- Query GCP audit logs for instance lifecycle events to answer who, what, and when.
+  - Supports querying for activity related to discovered Compute Engine instances.
+  - Tracks instance creation, deletion, start, stop, suspend, and resume events.
+  - Optionally specify a time frame to limit the scan to a specific time period.
+  - Enriches scan results with timeline events showing instance state changes.
 
 # Active scanning
 
@@ -55,5 +60,5 @@ toc: true
 
 - Console output with rich formatting, displaying key information.
 - HTML capture of console output to preserve prior executions.
-- CSV Timeline of events from CloudTrail and other sources.
+- CSV Timeline of events from CloudTrail, GCP audit logs, and other sources.
 - JSON lines output with full event information for parsing and integration with other tools.

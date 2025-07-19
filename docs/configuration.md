@@ -70,6 +70,15 @@ regions = []
 # The GCP compute zones to scan. Defaults to all zones available for the GCP project if none are supplied.
 compute_zones = []
 
+[tool.gcp.audit_logs]
+enabled = true  # Enables the collection of GCP audit log events related to discovered compute instances.
+
+# The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time
+# You can specify either the start, end, both, or None to influence the time period of the scan as desired.
+
+# start_time = 2025-01-01T00:00:00Z  # The start time for the GCP audit logs scan. Defaults to no start time
+# end_time = 2025-01-02T00:00:00Z  # The end time for the GCP audit logs scan. Defaults to no end time
+
 [tool.nmap]
 enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path. Enabled by default but will not run if nmap is not found on the path.
 timeout = 300  # Timeout in seconds for nmap scans. Default is null (no timeout).
@@ -118,5 +127,8 @@ Luminaut requires a GCP role with permissions to read information about:
 - Cloud Run services
 - List projects
 - List regions and zones
+- Cloud Audit Logs (when audit logs feature is enabled)
 
 The specific IAM permissions required will depend on your GCP project configuration. At minimum, the service account or user should have read access to these resources in the projects being scanned.
+
+For audit logs functionality, the `logging.logEntries.list` permission is required. This permission is typically included in predefined roles such as `roles/logging.viewer`.
