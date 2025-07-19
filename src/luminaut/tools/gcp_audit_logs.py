@@ -226,9 +226,14 @@ class GcpAuditLogs:
             base_message = event_config["message"]
             message = f"{base_message} by {principal_email}"
 
+            if entry.timestamp.tzinfo is None:
+                timestamp = entry.timestamp.replace(tzinfo=UTC)
+            else:
+                timestamp = entry.timestamp.astimezone(UTC)
+
             # Create the timeline event
             timeline_event = models.TimelineEvent(
-                timestamp=entry.timestamp.replace(tzinfo=UTC) if entry.timestamp.tzinfo is None else entry.timestamp.astimezone(UTC),
+                timestamp=timestamp,
                 source=self.SOURCE_NAME,
                 event_type=event_config["event_type"],
                 resource_id=resource_id,
