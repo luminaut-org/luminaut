@@ -17,7 +17,7 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 
 Luminaut is a utility to scope cloud environment exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.
 
-Starting from the public IP addresses of AWS Elastic Network Interfaces (ENIs), GCP Compute Engine instances, and public URIs of GCP Cloud Run services, Luminaut gathers information about the associated resources, security configurations, and related events. The framework includes active scanning tools like nmap and whatweb, to identify services running on exposed ports, and passive sources like Shodan.
+Starting from the public IP addresses of AWS Elastic Network Interfaces (ENIs) and GCP Compute Engine instances, plus public URIs of GCP Cloud Run services, Luminaut gathers information about the associated resources, security configurations, and related events. The framework includes active scanning tools like nmap and whatweb, to identify services running on exposed ports, and passive sources like Shodan.
 
 By combining cloud configuration data with external sources, Luminaut provides context to guide the next steps of an investigation.
 
