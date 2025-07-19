@@ -1,5 +1,5 @@
 import unittest
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -249,6 +249,49 @@ class TestGcpAuditLogsService(unittest.TestCase):
 
         # But querying should return empty list
         events = audit_service.query_instance_events([self.mock_instance])
+        self.assertEqual(events, [])
+
+    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
+    @patch("luminaut.tools.gcp_audit_logs.datetime")
+    def test_default_time_range_when_none_specified(
+        self, mock_datetime, mock_logging_client
+    ):
+        """Test that a default 30-day time range is applied when no time range is specified."""
+        # Mock current time
+        mock_now = datetime(2024, 2, 1, 12, 0, 0, tzinfo=UTC)
+        mock_datetime.now.return_value = mock_now
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+        mock_client = MagicMock()
+        mock_logging_client.return_value = mock_client
+        mock_client.list_entries.return_value = []
+
+        # Create config with no time range specified
+        config = models.LuminautConfig()
+        config.gcp.audit_logs.enabled = True
+        # Explicitly set both to None to test default behavior
+        config.gcp.audit_logs.start_time = None
+        config.gcp.audit_logs.end_time = None
+
+        audit_service = GcpAuditLogs("test-project", config.gcp.audit_logs)
+
+        # Call query_instance_events
+        events = audit_service.query_instance_events([self.mock_instance])
+
+        # Verify the client was called with the default time range
+        mock_client.list_entries.assert_called_once()
+        call_args = mock_client.list_entries.call_args
+        filter_str = call_args[1]["filter_"]
+
+        # Should include both start and end timestamps for 30-day window
+        expected_start = mock_now - timedelta(days=30)
+        expected_start_str = expected_start.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        expected_end_str = mock_now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+        self.assertIn(f'timestamp>="{expected_start_str}"', filter_str)
+        self.assertIn(f'timestamp<="{expected_end_str}"', filter_str)
+
+        # Should return empty list when no log entries
         self.assertEqual(events, [])
 
 

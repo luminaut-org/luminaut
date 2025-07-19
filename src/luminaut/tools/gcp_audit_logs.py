@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from google.cloud import logging as gcp_logging
@@ -168,13 +168,21 @@ class GcpAuditLogs:
             )
             base_filter.append(resource_filter)
 
-        # Add time range filters if configured
-        if self.config.start_time:
-            start_time_str = self.config.start_time.strftime(self.TIMESTAMP_FORMAT)
+        # Add time range filters if configured, with default 30-day lookback
+        start_time = self.config.start_time
+        end_time = self.config.end_time
+
+        # If no time range is specified, default to last 30 days
+        if not start_time and not end_time:
+            end_time = datetime.now(UTC)
+            start_time = end_time - timedelta(days=30)
+
+        if start_time:
+            start_time_str = start_time.strftime(self.TIMESTAMP_FORMAT)
             base_filter.append(f'timestamp>="{start_time_str}"')
 
-        if self.config.end_time:
-            end_time_str = self.config.end_time.strftime(self.TIMESTAMP_FORMAT)
+        if end_time:
+            end_time_str = end_time.strftime(self.TIMESTAMP_FORMAT)
             base_filter.append(f'timestamp<="{end_time_str}"')
 
         return " AND ".join(base_filter)

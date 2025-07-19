@@ -75,9 +75,10 @@ enabled = true  # Enables the collection of GCP audit log events related to disc
 
 # The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time
 # You can specify either the start, end, both, or None to influence the time period of the scan as desired.
+# If no time range is specified, defaults to the last 30 days.
 
-# start_time = 2025-01-01T00:00:00Z  # The start time for the GCP audit logs scan. Defaults to no start time
-# end_time = 2025-01-02T00:00:00Z  # The end time for the GCP audit logs scan. Defaults to no end time
+# start_time = 2025-01-01T00:00:00Z  # The start time for the GCP audit logs scan. Defaults to 30 days ago if no time range specified
+# end_time = 2025-01-02T00:00:00Z  # The end time for the GCP audit logs scan. Defaults to current time if no time range specified
 
 [tool.nmap]
 enabled = true  # Enable the nmap tool, requires the nmap utility installed and on the system path. Enabled by default but will not run if nmap is not found on the path.
