@@ -97,7 +97,7 @@ class GcpAuditLogs:
     def client(self) -> gcp_logging.Client:
         """Lazy initialization of the GCP logging client."""
         if self._client is None:
-            self._client = gcp_logging.Client()
+            self._client = gcp_logging.Client(project=self.project)
         return self._client
 
     def query_instance_events(
