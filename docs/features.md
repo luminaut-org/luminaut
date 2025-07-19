@@ -25,11 +25,12 @@ toc: true
 - Enumerate Compute Engine instances with public IPs.
 - Enumerate Cloud Run services with public URIs.
 - Identify permissive firewall rules that allow external access to instances.
-- Query GCP audit logs for instance lifecycle events to answer who, what, and when.
-  - Supports querying for activity related to discovered Compute Engine instances.
-  - Tracks instance creation, deletion, start, stop, suspend, and resume events.
+- Query GCP audit logs for instance and service lifecycle events to answer who, what, and when.
+  - Supports querying for activity related to discovered Compute Engine instances and Cloud Run services.
+  - **Instance events**: Tracks creation, deletion, start, stop, suspend, and resume events.
+  - **Service events**: Tracks service creation, deletion, updates, and revision changes.
   - Optionally specify a time frame to limit the scan to a specific time period.
-  - Enriches scan results with timeline events showing instance state changes.
+  - Enriches scan results with timeline events showing resource state changes and lifecycle management.
 
 # Active scanning
 
