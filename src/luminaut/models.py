@@ -101,6 +101,7 @@ class ResourceType(StrEnum):
     EC2_NetworkInterface = "AWS::EC2::NetworkInterface"
     EC2_SecurityGroup = "AWS::EC2::SecurityGroup"
     ELB_LoadBalancer = "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    GCP_Instance = "GCP::Compute::Instance"
 
 
 class SecurityGroupRuleTargetType(StrEnum):
@@ -205,10 +206,40 @@ class LuminautConfigToolAws(LuminautConfigTool):
 
 
 @dataclass
+class LuminautConfigToolGcpAuditLogs(LuminautConfigTool):
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> Self:
+        audit_logs_config = super().from_dict(config)
+        if start_time := config.get("start_time"):
+            # Parse ISO format datetime string to datetime object
+            if isinstance(start_time, str):
+                audit_logs_config.start_time = datetime.fromisoformat(
+                    start_time.replace("Z", "+00:00")
+                )
+            else:
+                audit_logs_config.start_time = start_time
+        if end_time := config.get("end_time"):
+            # Parse ISO format datetime string to datetime object
+            if isinstance(end_time, str):
+                audit_logs_config.end_time = datetime.fromisoformat(
+                    end_time.replace("Z", "+00:00")
+                )
+            else:
+                audit_logs_config.end_time = end_time
+        return audit_logs_config
+
+
+@dataclass
 class LuminautConfigToolGcp(LuminautConfigTool):
     projects: list[str] = field(default_factory=list)
     regions: list[str] = field(default_factory=list)
     compute_zones: list[str] = field(default_factory=list)
+    audit_logs: LuminautConfigToolGcpAuditLogs = field(
+        default_factory=lambda: LuminautConfigToolGcpAuditLogs(enabled=True)
+    )
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
@@ -216,6 +247,10 @@ class LuminautConfigToolGcp(LuminautConfigTool):
         gcp_config.projects = config.get("projects", [])
         gcp_config.regions = config.get("regions", [])
         gcp_config.compute_zones = config.get("compute_zones", [])
+        if audit_logs_dict := config.get("audit_logs"):
+            gcp_config.audit_logs = LuminautConfigToolGcpAuditLogs.from_dict(
+                audit_logs_dict
+            )
         return gcp_config
 
 

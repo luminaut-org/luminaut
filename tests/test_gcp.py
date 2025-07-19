@@ -2,7 +2,7 @@ import datetime
 from io import BytesIO
 from textwrap import dedent
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from google.cloud.run_v2 import types as run_v2_types
@@ -637,6 +637,84 @@ class TestGcpScanResultsIntegration(TestCase):
         rules_with_content = models.GcpFirewallRules(rules=[rule])
         self.assertTrue(rules_with_content)
         self.assertTrue(bool(rules_with_content))
+
+    def test_find_instances_with_audit_logs_enabled(self):
+        """Test that audit logs are queried when enabled and events are added to scan findings."""
+        # Enable audit logs in config
+        self.config.gcp.audit_logs.enabled = True
+
+        # Create a mock timeline event
+        mock_timeline_event = models.TimelineEvent(
+            timestamp=datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
+            source="GCP Audit Logs",
+            event_type=models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
+            resource_id=FakeGcpInstance.id,
+            resource_type=models.ResourceType.GCP_Instance,
+            message="Instance created by test@example.com",
+        )
+
+        gcp = Gcp(self.config)
+
+        # Mock the compute client
+        self.mock_gcp_and_firewall_clients(
+            gcp,
+            instance_response=[FakeGcpInstance()],
+        )
+
+        # Mock the audit logs service
+        with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
+            mock_audit_service = MagicMock()
+            mock_audit_logs_class.return_value = mock_audit_service
+            mock_audit_service.query_instance_events.return_value = [
+                mock_timeline_event
+            ]
+
+            # Call find_instances
+            scan_results = gcp.find_instances("test-project", "us-central1-a")
+
+            # Verify audit logs service was called
+            mock_audit_logs_class.assert_called_once_with(
+                "test-project", self.config.gcp.audit_logs
+            )
+            mock_audit_service.query_instance_events.assert_called_once()
+
+            # Verify scan results contain the audit log event
+            self.assertEqual(len(scan_results), 1)
+            scan_result = scan_results[0]
+            self.assertEqual(len(scan_result.findings), 1)
+
+            scan_finding = scan_result.findings[0]
+            self.assertEqual(len(scan_finding.events), 1)
+            self.assertEqual(scan_finding.events[0], mock_timeline_event)
+
+    def test_find_instances_with_audit_logs_disabled(self):
+        """Test that audit logs are not queried when disabled."""
+        # Disable audit logs in config
+        self.config.gcp.audit_logs.enabled = False
+
+        gcp = Gcp(self.config)
+
+        # Mock the compute client
+        self.mock_gcp_and_firewall_clients(
+            gcp,
+            instance_response=[FakeGcpInstance()],
+        )
+
+        # Mock the audit logs service - it should not be called
+        with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
+            # Call find_instances
+            scan_results = gcp.find_instances("test-project", "us-central1-a")
+
+            # Verify audit logs service was NOT called
+            mock_audit_logs_class.assert_not_called()
+
+            # Verify scan results don't contain audit log events
+            self.assertEqual(len(scan_results), 1)
+            scan_result = scan_results[0]
+            self.assertEqual(len(scan_result.findings), 1)
+
+            scan_finding = scan_result.findings[0]
+            self.assertEqual(len(scan_finding.events), 0)
 
 
 class TestGcpInstanceNetworks(TestCase):

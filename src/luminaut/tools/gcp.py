@@ -5,8 +5,10 @@ import google.auth
 from google.cloud import compute_v1, run_v2
 from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from luminaut import models
+from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,8 @@ class Gcp:
                 "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
                 project,
             )
-            all_regions = compute_v1.RegionsClient().list(project=project)
+            regions_client = compute_v1.RegionsClient()
+            all_regions = regions_client.list(project=project)
             return [region.name for region in all_regions]
         except Exception as e:
             logger.error(
@@ -77,7 +80,8 @@ class Gcp:
                 "No GCP compute zones specified in the configuration. Using all available zones for the project %s.",
                 project,
             )
-            all_zones = compute_v1.ZonesClient().list(project=project)
+            zones_client = compute_v1.ZonesClient()
+            all_zones = zones_client.list(project=project)
             return [zone.name for zone in all_zones]
         except Exception as e:
             logger.error(
@@ -102,17 +106,35 @@ class Gcp:
                 tasks.append(asyncio.to_thread(self.find_services, project, region))
 
         scan_results = []
-        for coro in tqdm(
-            asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
-        ):
-            r = await coro
-            scan_results.extend(r)
+        with logging_redirect_tqdm():
+            for coro in tqdm(
+                asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
+            ):
+                r = await coro
+                scan_results.extend(r)
         logger.info("Completed scanning GCP")
         return scan_results
 
     def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
         scan_results = []
-        for gcp_instance in self.fetch_instances(project, zone):
+        instances = self.fetch_instances(project, zone)
+
+        # Query audit logs for all discovered instances if enabled
+        audit_log_events = []
+        if self.config.gcp.audit_logs.enabled and instances:
+            try:
+                logger.info(
+                    f"Querying GCP audit logs for {len(instances)} instances in project {project}/{zone}"
+                )
+                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
+                audit_log_events = audit_service.query_instance_events(instances)
+                logger.info(
+                    f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{zone}"
+                )
+            except Exception as e:
+                logger.error(f"Error querying audit logs for project {project}: {e}")
+
+        for gcp_instance in instances:
             for public_ip in gcp_instance.get_public_ips():
                 scan_finding = models.ScanFindings(
                     tool="GCP Instance",
@@ -123,6 +145,15 @@ class Gcp:
                 firewall_rules = self.get_applicable_firewall_rules(gcp_instance)
                 if firewall_rules:
                     scan_finding.resources.append(firewall_rules)
+
+                # Add audit log events for this specific instance
+                instance_events = [
+                    event
+                    for event in audit_log_events
+                    if event.resource_id == gcp_instance.resource_id
+                ]
+                if instance_events:
+                    scan_finding.events.extend(instance_events)
 
                 scan_results.append(
                     models.ScanResult(
