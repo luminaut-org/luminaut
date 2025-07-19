@@ -8,6 +8,7 @@ logger = logging.getLogger()
 logger.getChild("boto3").setLevel(logging.ERROR)
 logger.getChild("botocore").setLevel(logging.ERROR)
 logger.getChild("urllib3.connectionpool").setLevel(logging.ERROR)
+logger.getChild("urllib3.util.retry").setLevel(logging.ERROR)
 
 
 luminaut_art = r"""
