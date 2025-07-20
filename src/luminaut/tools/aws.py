@@ -579,8 +579,7 @@ class CloudTrailEventMessageFormatter:
         from_port = items.get("fromPort")
         to_port = items.get("toPort")
         port_range = f"{from_port}-{to_port}" if from_port != to_port else from_port
-        rule_summary = f"{target}:{port_range} over {items.get('ipProtocol')}"
-        return rule_summary
+        return f"{target}:{port_range} over {items.get('ipProtocol')}"
 
     @staticmethod
     def format_eni_attribute_modification(event: dict[str, Any]) -> str:

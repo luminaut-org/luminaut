@@ -629,8 +629,7 @@ class GcpFirewallRule:
             else:
                 port_text = f"[blue]{', '.join(ports)}[/blue]"
             return f"[magenta]{protocol_name}[/magenta]/{port_text}"
-        else:
-            return f"[magenta]{protocol_name}[/magenta]/all ports"
+        return f"[magenta]{protocol_name}[/magenta]/all ports"
 
     def _parse_port_range(self, port_range: str, ip: str) -> set["ScanTarget"]:
         """Parse a port range string and return ScanTargets."""
@@ -682,8 +681,8 @@ class GcpFirewallRules:
             for rule in sorted(ingress_rules, key=lambda r: r.priority):
                 rich_text += rule.build_rich_text()
             return rich_text
-        else:
-            return "[yellow]No ingress firewall rules[/yellow]\n"
+
+        return "[yellow]No ingress firewall rules[/yellow]\n"
 
 
 @dataclass
@@ -1540,7 +1539,7 @@ class ScanResult:
     def generate_scan_targets(self) -> set[ScanTarget]:
         if self.ip:
             return self.generate_ip_scan_targets(self.ip)
-        elif self.url:
+        if self.url:
             return self.generate_url_scan_targets()
         return set()
 
@@ -1612,7 +1611,7 @@ class ScanResult:
             for sg_rule in security_group_rules:
                 if sg_rule.protocol in (Protocol.ICMP, Protocol.ICMPv6):
                     continue
-                elif sg_rule.protocol == Protocol.ALL:
+                if sg_rule.protocol == Protocol.ALL:
                     ports.update(default_ports)
                 ports.update(
                     {

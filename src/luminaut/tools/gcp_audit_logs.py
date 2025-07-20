@@ -549,8 +549,7 @@ class AuditLogParseTools:
     def normalize_timestamp(timestamp: datetime) -> datetime:
         if timestamp.tzinfo is None:
             return timestamp.replace(tzinfo=UTC)
-        else:
-            return timestamp.astimezone(UTC)
+        return timestamp.astimezone(UTC)
 
     @staticmethod
     def build_message(base_message: str, principal_email: str) -> str:

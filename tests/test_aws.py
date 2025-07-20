@@ -77,7 +77,7 @@ class AwsTool(unittest.TestCase):
         ) -> tuple[list[models.AwsConfigItem], list[models.TimelineEvent]]:
             if resource_type == models.ResourceType.EC2_NetworkInterface:
                 return [self.sample_config_eni], []
-            elif resource_type == models.ResourceType.EC2_Instance:
+            if resource_type == models.ResourceType.EC2_Instance:
                 return [self.sample_config_ec2], []
             raise NotImplementedError(
                 f"This test does not support this resource type: {resource_type}"
