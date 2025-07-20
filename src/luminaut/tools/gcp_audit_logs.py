@@ -415,9 +415,14 @@ class GcpAuditLogs:
             service_name = self._extract_service_name(resource_name)
 
             # Get the actual resource ID from the mapping
-            resource_id = (
-                name_to_resource_id.get(service_name, resource_name) or resource_name
-            )
+            resource_id = name_to_resource_id.get(service_name)
+            if not resource_id:
+                logger.warning(
+                    "Service resource ID not found for resource: %s and service: %s",
+                    resource_name,
+                    service_name,
+                )
+                return None
 
             # Extract authentication info for the message
             auth_info = entry.payload.get("authenticationInfo", {})
