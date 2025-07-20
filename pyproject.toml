@@ -66,6 +66,8 @@ select = [
     "B",
     # isort
     "I",
+    # mccabe complexity
+    "C90",
 ]
 
 [tool.pytest.ini_options]

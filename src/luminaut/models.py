@@ -1203,13 +1203,7 @@ class ShodanService:
             # Add newline after title line
             rich_text += "\n"
 
-        http_information = ""
-        if self.http_server:
-            http_information += f"HTTP Server: {self.http_server}"
-        if self.http_title:
-            if http_information:
-                http_information += " "
-            http_information += f"HTTP Title: {self.http_title}"
+        http_information = self._build_html_info_rich_text()
 
         if http_information:
             rich_text += "  " + http_information + "\n"
@@ -1222,6 +1216,16 @@ class ShodanService:
                 rich_text += f"  {len(self.opt_vulnerabilities)} total vulnerabilities found. See JSON for full report.\n"
 
         return rich_text
+
+    def _build_html_info_rich_text(self):
+        http_information = ""
+        if self.http_server:
+            http_information += f"HTTP Server: {self.http_server}"
+        if self.http_title:
+            if http_information:
+                http_information += " "
+            http_information += f"HTTP Title: {self.http_title}"
+        return http_information
 
     @classmethod
     def from_shodan_host(cls, service: Mapping[str, Any]) -> Self:
