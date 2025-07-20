@@ -74,6 +74,7 @@ select = [
     "T20",  # Print found
     "Q",  # Quotes
     "RET",  # Returns
+    "SIM",  # Simplification
 ]
 
 [tool.ruff.lint.flake8-annotations]

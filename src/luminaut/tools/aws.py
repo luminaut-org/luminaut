@@ -70,11 +70,12 @@ class Aws:
                 )
                 findings.append(self.explore_config_history(eni))
 
-            if self.config.aws.cloudtrail.enabled:
-                if cloudtrail_finding := self.add_cloudtrail(
+            if self.config.aws.cloudtrail.enabled and (
+                cloudtrail_finding := self.add_cloudtrail(
                     eni, security_group_finding, region, elb_findings=elb_attachment
-                ):
-                    findings.append(cloudtrail_finding)
+                )
+            ):
+                findings.append(cloudtrail_finding)
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
@@ -165,14 +166,14 @@ class Aws:
         )
 
     def skip_resource(self, resource: models.FindingResource) -> bool:
-        if tags := getattr(resource, "tags", {}):
-            if self._should_skip_by_tags(tags):
-                return True
+        if (tags := getattr(resource, "tags", {})) and self._should_skip_by_tags(tags):
+            return True
 
-        if hasattr(resource, "resource_id") and hasattr(resource, "resource_type"):
-            if self._should_skip_by_id(resource):
-                return True
-        return False
+        return (
+            hasattr(resource, "resource_id")
+            and hasattr(resource, "resource_type")
+            and self._should_skip_by_id(resource)
+        )
 
     def _should_skip_by_id(self, resource: models.FindingResource) -> bool:
         should_skip = False
@@ -193,9 +194,10 @@ class Aws:
                 allowed_tag_name,
                 allowed_tag_value,
             ) in allowed_resource.tags.items():
-                if resource_tag_value := tags.get(allowed_tag_name):
-                    if resource_tag_value == allowed_tag_value:
-                        return True
+                if (
+                    resource_tag_value := tags.get(allowed_tag_name)
+                ) and resource_tag_value == allowed_tag_value:
+                    return True
         return False
 
     def setup_client_region(self, region: str) -> None:
@@ -307,11 +309,12 @@ class Aws:
             if not (
                 isinstance(prior_configuration, str)
                 or isinstance(new_configuration, str)
-            ):
-                if diff_to_prior := models.generate_config_diff(
+            ) and (
+                diff_to_prior := models.generate_config_diff(
                     prior_configuration, new_configuration
-                ):
-                    config_entry.diff_to_prior = diff_to_prior
+                )
+            ):
+                config_entry.diff_to_prior = diff_to_prior
 
     def populate_permissive_ingress_security_group_rules(
         self, security_group: models.SecurityGroup
@@ -753,9 +756,12 @@ class CloudTrail:
             if username := event.get("Username"):
                 message += f" by {username}"
 
-            if event_details and (formatter := event_context.get("formatter")):
-                if formatted_message := formatter(event_details):
-                    message += formatted_message
+            if (
+                event_details
+                and (formatter := event_context.get("formatter"))
+                and (formatted_message := formatter(event_details))
+            ):
+                message += formatted_message
 
             events.append(
                 models.TimelineEvent(
