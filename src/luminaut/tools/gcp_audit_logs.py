@@ -398,15 +398,17 @@ class ComputeInstanceEventParser:
         self, entry: Any, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
         try:
-            if not entry.payload:
+            method_name = AuditLogParseTools.get_method_name(entry)
+            event_config = AuditLogParseTools.get_event_config(
+                method_name, self.supported_events
+            )
+            if not entry.payload or not event_config:
                 return None
-            method_name = entry.payload.get("methodName", "")
-            if method_name not in self.supported_events:
-                return None
-            event_config = self.supported_events[method_name]
-            resource_name = entry.payload.get("resourceName", "")
+            resource_name = AuditLogParseTools.get_resource_name(entry)
             instance_name = self.extract_resource_name(resource_name)
-            resource_id = name_to_resource_id.get(instance_name)
+            resource_id = AuditLogParseTools.get_resource_id(
+                name_to_resource_id, instance_name
+            )
             if resource_id is None:
                 logger.warning(
                     "Instance resource ID not found for resource: %s and instance: %s",
@@ -414,14 +416,11 @@ class ComputeInstanceEventParser:
                     instance_name,
                 )
                 return None
-            auth_info = entry.payload.get("authenticationInfo", {})
-            principal_email = auth_info.get("principalEmail", "unknown")
-            base_message = event_config["message"]
-            message = f"{base_message} by {principal_email}"
-            if entry.timestamp.tzinfo is None:
-                timestamp = entry.timestamp.replace(tzinfo=UTC)
-            else:
-                timestamp = entry.timestamp.astimezone(UTC)
+            principal_email = AuditLogParseTools.get_principal_email(entry)
+            message = AuditLogParseTools.build_message(
+                event_config["message"], principal_email
+            )
+            timestamp = AuditLogParseTools.normalize_timestamp(entry)
             return models.TimelineEvent(
                 timestamp=timestamp,
                 source=self.source_name,
@@ -459,15 +458,17 @@ class CloudRunServiceEventParser:
         self, entry: Any, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
         try:
-            if not entry.payload:
+            method_name = AuditLogParseTools.get_method_name(entry)
+            event_config = AuditLogParseTools.get_event_config(
+                method_name, self.supported_events
+            )
+            if not entry.payload or not event_config:
                 return None
-            method_name = entry.payload.get("methodName", "")
-            if method_name not in self.supported_events:
-                return None
-            event_config = self.supported_events[method_name]
-            resource_name = entry.payload.get("resourceName", "")
+            resource_name = AuditLogParseTools.get_resource_name(entry)
             service_name = self.extract_service_name(resource_name)
-            resource_id = name_to_resource_id.get(service_name)
+            resource_id = AuditLogParseTools.get_resource_id(
+                name_to_resource_id, service_name
+            )
             if not isinstance(resource_id, str):
                 logger.warning(
                     "Service resource ID not found for resource: %s and service: %s",
@@ -475,14 +476,11 @@ class CloudRunServiceEventParser:
                     service_name,
                 )
                 return None
-            auth_info = entry.payload.get("authenticationInfo", {})
-            principal_email = auth_info.get("principalEmail", "unknown")
-            base_message = event_config["message"]
-            message = f"{base_message} by {principal_email}"
-            if entry.timestamp.tzinfo is None:
-                timestamp = entry.timestamp.replace(tzinfo=UTC)
-            else:
-                timestamp = entry.timestamp.astimezone(UTC)
+            principal_email = AuditLogParseTools.get_principal_email(entry)
+            message = AuditLogParseTools.build_message(
+                event_config["message"], principal_email
+            )
+            timestamp = AuditLogParseTools.normalize_timestamp(entry)
             return models.TimelineEvent(
                 timestamp=timestamp,
                 source=self.source_name,
@@ -501,3 +499,45 @@ class CloudRunServiceEventParser:
         except Exception as e:
             logger.warning(f"Error parsing service audit log entry: {e}")
             return None
+
+
+class AuditLogParseTools:
+    @staticmethod
+    def get_method_name(entry: Any) -> str:
+        return entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+
+    @staticmethod
+    def get_event_config(
+        method_name: str, supported_events: dict[str, dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        return supported_events.get(method_name)
+
+    @staticmethod
+    def get_resource_name(entry: Any) -> str:
+        return (
+            entry.payload.get("resourceName", "") if hasattr(entry, "payload") else ""
+        )
+
+    @staticmethod
+    def get_resource_id(name_to_resource_id: dict[str, str], name: str) -> str | None:
+        return name_to_resource_id.get(name)
+
+    @staticmethod
+    def get_principal_email(entry: Any) -> str:
+        auth_info = (
+            entry.payload.get("authenticationInfo", {})
+            if hasattr(entry, "payload")
+            else {}
+        )
+        return auth_info.get("principalEmail", "unknown")
+
+    @staticmethod
+    def normalize_timestamp(entry: Any) -> datetime:
+        if entry.timestamp.tzinfo is None:
+            return entry.timestamp.replace(tzinfo=UTC)
+        else:
+            return entry.timestamp.astimezone(UTC)
+
+    @staticmethod
+    def build_message(base_message: str, principal_email: str) -> str:
+        return f"{base_message} by {principal_email}"
