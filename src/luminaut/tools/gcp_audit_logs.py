@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -114,14 +114,11 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no instances provided,
             or if an error occurs during querying.
         """
-        name_to_resource_id = {
-            instance.name: instance.resource_id for instance in instances
-        }
         return self._query_audit_events(
             instances,
             self._build_instance_audit_log_filter,
             self._parse_instance_audit_log_entry,
-            name_to_resource_id,
+            self._build_resource_name_id_mapping(instances),
         )
 
     def query_service_events(
@@ -137,15 +134,25 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no services provided,
             or if an error occurs during querying.
         """
-        name_to_resource_id = {
-            service.name: service.resource_id for service in services
-        }
         return self._query_audit_events(
             services,
             self._build_service_audit_log_filter,
             self._parse_service_audit_log_entry,
-            name_to_resource_id,
+            self._build_resource_name_id_mapping(services),
         )
+
+    def _build_resource_name_id_mapping(
+        self, resources: Sequence[models.GcpInstance | models.GcpService]
+    ) -> dict[str, str]:
+        """Build a mapping from resource names to their IDs.
+
+        Args:
+            resources: List of GCP instances or services.
+
+        Returns:
+            Mapping of resource names to their IDs.
+        """
+        return {resource.name: resource.resource_id for resource in resources}
 
     def _build_instance_audit_log_filter(
         self, instances: list[models.GcpInstance]
