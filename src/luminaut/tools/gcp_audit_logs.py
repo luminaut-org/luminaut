@@ -369,11 +369,11 @@ class GcpAuditLogs:
             log_entries = self.client.list_entries(
                 filter_=filter_str, order_by=gcp_logging.ASCENDING
             )
-            timeline_events = []
-            for entry in log_entries:
-                if timeline_event := entry_parser(entry, name_to_resource_id):
-                    timeline_events.append(timeline_event)
-            return timeline_events
+            return [
+                timeline_event
+                for entry in log_entries
+                if (timeline_event := entry_parser(entry, name_to_resource_id))
+            ]
         except Exception as e:
             logger.error(
                 f"Error querying GCP audit logs for project {self.project}: {e}"

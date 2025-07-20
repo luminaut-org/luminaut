@@ -75,6 +75,8 @@ select = [
     "Q",  # Quotes
     "RET",  # Returns
     "SIM",  # Simplification
+    "PTH",  # Pathlib
+    "PERF",  # Performance
 ]
 
 [tool.ruff.lint.flake8-annotations]

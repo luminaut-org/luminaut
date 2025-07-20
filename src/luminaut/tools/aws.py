@@ -598,9 +598,13 @@ class CloudTrailEventMessageFormatter:
         security_groups = []
         summary = ""
         if groups_set := request_parameters.get("groupSet", {}):
-            for security_group in groups_set.get("items", []):
-                if security_group.get("groupId"):
-                    security_groups.append(security_group["groupId"])
+            security_groups.extend(
+                [
+                    security_group["groupId"]
+                    for security_group in groups_set.get("items", [])
+                    if security_group.get("groupId")
+                ]
+            )
         if security_groups:
             summary += ", ".join(security_groups)
         return summary

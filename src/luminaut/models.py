@@ -938,9 +938,7 @@ class AwsLoadBalancer:
 
     def build_rich_text(self) -> str:
         headline = f"[dark_orange3]{self.resource_id}[/dark_orange3] {self.scheme} ({self.state}) Created: {self.created_time}\n"
-        listener_details = []
-        for listener in self.listeners:
-            listener_details.append(listener.build_rich_text())
+        listener_details = [listener.build_rich_text() for listener in self.listeners]
 
         if listener_details:
             return headline + "  Listeners: " + ", ".join(listener_details) + "\n"
@@ -1501,9 +1499,11 @@ class ScanResult:
     def get_eni_resources(self) -> list[AwsNetworkInterface]:
         eni_resources = []
         for finding in self.findings:
-            for resource in finding.resources:
-                if isinstance(resource, AwsNetworkInterface):
-                    eni_resources.append(resource)
+            eni_resources.extend(
+                resource
+                for resource in finding.resources
+                if isinstance(resource, AwsNetworkInterface)
+            )
         return eni_resources
 
     def get_security_group_rules(self) -> list[SecurityGroupRule]:
@@ -1526,9 +1526,11 @@ class ScanResult:
     def get_resources_by_type(self, resource_type: type[T]) -> list[T]:
         resources = []
         for finding in self.findings:
-            for resource in finding.resources:
-                if isinstance(resource, resource_type):
-                    resources.append(resource)
+            resources.extend(
+                resource
+                for resource in finding.resources
+                if isinstance(resource, resource_type)
+            )
         return resources
 
     def generate_ip_port_targets(self) -> list[str]:
