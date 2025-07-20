@@ -145,6 +145,18 @@ class GcpAuditLogs:
         self.project = project
         self.config = config
         self._client: gcp_logging.Client | None = None
+        self._compute_parser = ComputeInstanceEventParser(
+            self.SUPPORTED_INSTANCE_EVENTS,
+            self._extract_resource_name,
+            self.SOURCE_NAME,
+            self.project,
+        )
+        self._cloudrun_parser = CloudRunServiceEventParser(
+            self.SUPPORTED_CLOUD_RUN_EVENTS,
+            self._extract_service_name,
+            self.SOURCE_NAME,
+            self.project,
+        )
 
     @property
     def client(self) -> gcp_logging.Client:
@@ -486,3 +498,125 @@ class GcpAuditLogs:
                 f"Error querying GCP audit logs for project {self.project}: {e}"
             )
             return []
+
+
+class ComputeInstanceEventParser:
+    def __init__(
+        self,
+        supported_events: dict[str, dict[str, Any]],
+        extract_resource_name: Callable,
+        source_name: str,
+        project: str,
+    ):
+        self.supported_events = supported_events
+        self.extract_resource_name = extract_resource_name
+        self.source_name = source_name
+        self.project = project
+
+    def parse(
+        self, entry: Any, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        try:
+            if not entry.payload:
+                return None
+            method_name = entry.payload.get("methodName", "")
+            if method_name not in self.supported_events:
+                return None
+            event_config = self.supported_events[method_name]
+            resource_name = entry.payload.get("resourceName", "")
+            instance_name = self.extract_resource_name(resource_name)
+            resource_id = name_to_resource_id.get(instance_name)
+            if resource_id is None:
+                logger.warning(
+                    "Instance resource ID not found for resource: %s and instance: %s",
+                    resource_name,
+                    instance_name,
+                )
+                return None
+            auth_info = entry.payload.get("authenticationInfo", {})
+            principal_email = auth_info.get("principalEmail", "unknown")
+            base_message = event_config["message"]
+            message = f"{base_message} by {principal_email}"
+            if entry.timestamp.tzinfo is None:
+                timestamp = entry.timestamp.replace(tzinfo=UTC)
+            else:
+                timestamp = entry.timestamp.astimezone(UTC)
+            return models.TimelineEvent(
+                timestamp=timestamp,
+                source=self.source_name,
+                event_type=event_config["event_type"],
+                resource_id=resource_id,
+                resource_type=models.ResourceType.GCP_Instance,
+                message=message,
+                details={
+                    "methodName": method_name,
+                    "resourceName": resource_name,
+                    "principalEmail": principal_email,
+                    "project": self.project,
+                    "instanceName": instance_name,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Error parsing audit log entry: {e}")
+            return None
+
+
+class CloudRunServiceEventParser:
+    def __init__(
+        self,
+        supported_events: dict[str, dict[str, Any]],
+        extract_service_name: Callable,
+        source_name: str,
+        project: str,
+    ):
+        self.supported_events = supported_events
+        self.extract_service_name = extract_service_name
+        self.source_name = source_name
+        self.project = project
+
+    def parse(
+        self, entry: Any, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        try:
+            if not entry.payload:
+                return None
+            method_name = entry.payload.get("methodName", "")
+            if method_name not in self.supported_events:
+                return None
+            event_config = self.supported_events[method_name]
+            resource_name = entry.payload.get("resourceName", "")
+            service_name = self.extract_service_name(resource_name)
+            resource_id = name_to_resource_id.get(service_name)
+            if not isinstance(resource_id, str):
+                logger.warning(
+                    "Service resource ID not found for resource: %s and service: %s",
+                    resource_name,
+                    service_name,
+                )
+                return None
+            auth_info = entry.payload.get("authenticationInfo", {})
+            principal_email = auth_info.get("principalEmail", "unknown")
+            base_message = event_config["message"]
+            message = f"{base_message} by {principal_email}"
+            if entry.timestamp.tzinfo is None:
+                timestamp = entry.timestamp.replace(tzinfo=UTC)
+            else:
+                timestamp = entry.timestamp.astimezone(UTC)
+            return models.TimelineEvent(
+                timestamp=timestamp,
+                source=self.source_name,
+                event_type=event_config["event_type"],
+                resource_id=resource_id,
+                resource_type=models.ResourceType.GCP_Service,
+                message=message,
+                details={
+                    "methodName": method_name,
+                    "resourceName": resource_name,
+                    "principalEmail": principal_email,
+                    "project": self.project,
+                    "serviceName": service_name,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Error parsing service audit log entry: {e}")
+            return None
