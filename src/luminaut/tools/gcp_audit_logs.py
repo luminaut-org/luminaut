@@ -127,8 +127,8 @@ class GcpAuditLogs:
         }
         return self._query_audit_events(
             instances,
-            self._build_audit_log_filter,
-            self._parse_audit_log_entry,
+            self._build_instance_audit_log_filter,
+            self._parse_instance_audit_log_entry,
             name_to_resource_id,
         )
 
@@ -163,7 +163,9 @@ class GcpAuditLogs:
             name_to_resource_id,
         )
 
-    def _build_audit_log_filter(self, instances: list[models.GcpInstance]) -> str:
+    def _build_instance_audit_log_filter(
+        self, instances: list[models.GcpInstance]
+    ) -> str:
         """Build the filter string for querying audit logs.
 
         Args:
@@ -218,7 +220,7 @@ class GcpAuditLogs:
 
         return " AND ".join(base_filter)
 
-    def _parse_audit_log_entry(
+    def _parse_instance_audit_log_entry(
         self, entry: Any, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
         """Parse a GCP audit log entry into a TimelineEvent.

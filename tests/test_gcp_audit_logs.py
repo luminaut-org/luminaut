@@ -195,7 +195,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
                 name_to_resource_id = {"test-instance": "123456789"}
 
                 # Parse the entry
-                timeline_event = audit_service._parse_audit_log_entry(
+                timeline_event = audit_service._parse_instance_audit_log_entry(
                     mock_entry, name_to_resource_id
                 )
 
