@@ -26,7 +26,7 @@ class Whatweb:
 
         command = self.build_command(target)
         timeout = self.config.whatweb.timeout if self.config else None
-        subprocess.run(
+        subprocess.run(  # noqa: S603
             command,
             check=True,
             timeout=timeout,

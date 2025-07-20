@@ -17,7 +17,7 @@ from rich.emoji import Emoji
 
 T = TypeVar("T")
 IPAddress = IPv4Address | IPv6Address
-QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
+QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))  # noqa: S104
 
 
 def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]:

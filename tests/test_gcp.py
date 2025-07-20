@@ -586,9 +586,11 @@ class TestGcpScanResultsIntegration(TestCase):
         # Check firewall rules resource
         firewall_rules_resource = finding.resources[1]
         self.assertIsInstance(firewall_rules_resource, models.GcpFirewallRules)
-        assert isinstance(firewall_rules_resource, models.GcpFirewallRules)
-        self.assertEqual(len(firewall_rules_resource.rules), 1)
-        self.assertEqual(firewall_rules_resource.rules[0].name, "allow-http-https")
+        self.assertIsInstance(firewall_rules_resource, models.GcpFirewallRules)
+        if isinstance(firewall_rules_resource, models.GcpFirewallRules):
+            # Though covered by the above assertion, this is to inform the type checker
+            self.assertEqual(len(firewall_rules_resource.rules), 1)
+            self.assertEqual(firewall_rules_resource.rules[0].name, "allow-http-https")
 
     def test_find_instances_with_no_firewall_rules(self):
         # Test that find_instances handles instances with no applicable firewall rules

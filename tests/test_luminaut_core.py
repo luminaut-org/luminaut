@@ -77,7 +77,7 @@ class LuminautCore(unittest.TestCase):
         )
 
         nmap_findings = self.luminaut.run_nmap(scan_result)
-        assert scan_findings == nmap_findings
+        self.assertEqual(scan_findings, nmap_findings)
 
     def test_nmap_results_are_empty_for_missing_targets(self):
         empty_scan_result = models.ScanResult(findings=[])

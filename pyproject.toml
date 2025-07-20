@@ -64,6 +64,7 @@ select = [
     "I",  # isort
     "C90",  # mccabe complexity
     "ANN",  # Type annotations
+    "S",  # Bandit
 ]
 
 [tool.ruff.lint.flake8-annotations]
