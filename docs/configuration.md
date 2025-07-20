@@ -122,14 +122,19 @@ Luminaut requires the following minimum permissions to run:
 
 ### GCP IAM Permissions
 
-Luminaut requires a GCP role with permissions to read information about:
-- Compute Engine instances
-- VPC firewall rules  
-- Cloud Run services
-- List projects
-- List regions and zones
-- Cloud Audit Logs (when audit logs feature is enabled)
+Luminaut requires the following minimum permissions to run:
 
-The specific IAM permissions required will depend on your GCP project configuration. At minimum, the service account or user should have read access to these resources in the projects being scanned.
+```yaml
+title: "Luminaut Minimal"
+description: "Minimal permissions required for Luminaut"
+stage: "GA"
+includedPermissions:
+  - compute.instances.list
+  - compute.zones.list
+  - compute.regions.list
+  - compute.firewalls.list
+  - run.services.list
+  - logging.logEntries.list
+```
 
-For audit logs functionality, the `logging.logEntries.list` permission is required. This permission is typically included in predefined roles such as `roles/logging.viewer`.
+**Note:** The `logging.logEntries.list` permission is only required when the audit logs feature is enabled in the configuration.
