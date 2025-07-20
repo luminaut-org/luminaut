@@ -414,8 +414,9 @@ class GcpInstance:
             rich_text += f"  Description: {description}\n"
         for nic in self.network_interfaces:
             # Indent each network interface line
-            rich_text += "\n".join(
-                ["  " + line for line in nic.build_rich_text().splitlines()]
+            rich_text += (
+                "\n".join(["  " + line for line in nic.build_rich_text().splitlines()])
+                + "\n"
             )
         return rich_text
 
