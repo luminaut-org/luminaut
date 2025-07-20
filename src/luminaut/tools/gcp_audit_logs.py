@@ -153,6 +153,32 @@ class GcpAuditLogs:
         """
         return {resource.name: resource.resource_id for resource in resources}
 
+    def _build_time_filter(
+        self, start_time: datetime | None, end_time: datetime | None
+    ) -> str:
+        """Build the time filter string for querying audit logs.
+
+        Args:
+            start_time: Start time for the time range filter.
+            end_time: End time for the time range filter.
+
+        Returns:
+            Time filter string compatible with Cloud Logging API.
+        """
+        # If no time range is specified, default to last 30 days
+        if not start_time and not end_time:
+            end_time = datetime.now(UTC)
+            start_time = end_time - timedelta(days=30)
+
+        filters = []
+        if start_time:
+            start_time_str = start_time.strftime(self.TIMESTAMP_FORMAT)
+            filters.append(f'timestamp>="{start_time_str}"')
+        if end_time:
+            end_time_str = end_time.strftime(self.TIMESTAMP_FORMAT)
+            filters.append(f'timestamp<="{end_time_str}"')
+        return " AND ".join(filters)
+
     def _build_instance_audit_log_filter(
         self, instances: list[models.GcpInstance]
     ) -> str:
@@ -190,22 +216,9 @@ class GcpAuditLogs:
             )
             base_filter.append(resource_filter)
 
-        # Add time range filters if configured, with default 30-day lookback
-        start_time = self.config.start_time
-        end_time = self.config.end_time
-
-        # If no time range is specified, default to last 30 days
-        if not start_time and not end_time:
-            end_time = datetime.now(UTC)
-            start_time = end_time - timedelta(days=30)
-
-        if start_time:
-            start_time_str = start_time.strftime(self.TIMESTAMP_FORMAT)
-            base_filter.append(f'timestamp>="{start_time_str}"')
-
-        if end_time:
-            end_time_str = end_time.strftime(self.TIMESTAMP_FORMAT)
-            base_filter.append(f'timestamp<="{end_time_str}"')
+        base_filter.append(
+            self._build_time_filter(self.config.start_time, self.config.end_time)
+        )
 
         return " AND ".join(base_filter)
 
@@ -326,22 +339,9 @@ class GcpAuditLogs:
             )
             base_filter.append(resource_filter)
 
-        # Add time range filters if configured, with default 30-day lookback
-        start_time = self.config.start_time
-        end_time = self.config.end_time
-
-        # If no time range is specified, default to last 30 days
-        if not start_time and not end_time:
-            end_time = datetime.now(UTC)
-            start_time = end_time - timedelta(days=30)
-
-        if start_time:
-            start_time_str = start_time.strftime(self.TIMESTAMP_FORMAT)
-            base_filter.append(f'timestamp>="{start_time_str}"')
-
-        if end_time:
-            end_time_str = end_time.strftime(self.TIMESTAMP_FORMAT)
-            base_filter.append(f'timestamp<="{end_time_str}"')
+        base_filter.append(
+            self._build_time_filter(self.config.start_time, self.config.end_time)
+        )
 
         return " AND ".join(base_filter)
 
