@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -121,37 +122,46 @@ class GcpAuditLogs:
             logger.debug("No instances provided for audit log query")
             return []
 
-        # Create a mapping from instance names to resource IDs for exact matching
         name_to_resource_id = {
             instance.name: instance.resource_id for instance in instances
         }
+        return self._query_audit_events(
+            instances,
+            self._build_audit_log_filter,
+            self._parse_audit_log_entry,
+            name_to_resource_id,
+        )
 
-        # Build the filter for audit log queries
-        filter_str = self._build_audit_log_filter(instances)
-        if not filter_str:
-            logger.debug("No valid filter could be built for audit log query")
+    def query_service_events(
+        self, services: list[models.GcpService]
+    ) -> list[models.TimelineEvent]:
+        """Query audit logs for Cloud Run service lifecycle events.
+
+        Args:
+            services: List of GCP Cloud Run services to query audit logs for.
+
+        Returns:
+            List of timeline events found in audit logs for the given services.
+            Returns empty list if audit logs are disabled, no services provided,
+            or if an error occurs during querying.
+        """
+        if not self.config.enabled:
+            logger.debug("GCP audit logs are disabled, skipping query")
             return []
 
-        try:
-            # Query the audit logs
-            log_entries = self.client.list_entries(
-                filter_=filter_str, order_by=gcp_logging.ASCENDING
-            )
-
-            # Parse the entries into timeline events
-            timeline_events = []
-            for entry in log_entries:
-                if timeline_event := self._parse_audit_log_entry(
-                    entry, name_to_resource_id
-                ):
-                    timeline_events.append(timeline_event)
-            return timeline_events
-
-        except Exception as e:
-            logger.error(
-                f"Error querying GCP audit logs for project {self.project}: {e}"
-            )
+        if not services:
+            logger.debug("No services provided for audit log query")
             return []
+
+        name_to_resource_id = {
+            service.name: service.resource_id for service in services
+        }
+        return self._query_audit_events(
+            services,
+            self._build_service_audit_log_filter,
+            self._parse_service_audit_log_entry,
+            name_to_resource_id,
+        )
 
     def _build_audit_log_filter(self, instances: list[models.GcpInstance]) -> str:
         """Build the filter string for querying audit logs.
@@ -274,59 +284,6 @@ class GcpAuditLogs:
         except Exception as e:
             logger.warning(f"Error parsing audit log entry: {e}")
             return None
-
-    def query_service_events(
-        self, services: list[models.GcpService]
-    ) -> list[models.TimelineEvent]:
-        """Query audit logs for Cloud Run service lifecycle events.
-
-        Args:
-            services: List of GCP Cloud Run services to query audit logs for.
-
-        Returns:
-            List of timeline events found in audit logs for the given services.
-            Returns empty list if audit logs are disabled, no services provided,
-            or if an error occurs during querying.
-        """
-        if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
-            return []
-
-        if not services:
-            logger.debug("No services provided for audit log query")
-            return []
-
-        # Create a mapping from service names to resource IDs for exact matching
-        name_to_resource_id = {
-            service.name: service.resource_id for service in services
-        }
-
-        # Build the filter for audit log queries
-        filter_str = self._build_service_audit_log_filter(services)
-        if not filter_str:
-            logger.debug("No valid filter could be built for service audit log query")
-            return []
-
-        try:
-            # Query the audit logs
-            log_entries = self.client.list_entries(
-                filter_=filter_str, order_by=gcp_logging.ASCENDING
-            )
-
-            # Parse the entries into timeline events
-            timeline_events = []
-            for entry in log_entries:
-                if timeline_event := self._parse_service_audit_log_entry(
-                    entry, name_to_resource_id
-                ):
-                    timeline_events.append(timeline_event)
-            return timeline_events
-
-        except Exception as e:
-            logger.error(
-                f"Error querying GCP audit logs for Cloud Run services in project {self.project}: {e}"
-            )
-            return []
 
     def _build_service_audit_log_filter(self, services: list[models.GcpService]) -> str:
         """Build the filter string for querying Cloud Run service audit logs.
@@ -508,3 +465,48 @@ class GcpAuditLogs:
             return resource_path
         except (IndexError, AttributeError):
             return resource_path
+
+    def _query_audit_events(
+        self,
+        resources: list[Any],
+        filter_builder: Callable,
+        entry_parser: Callable,
+        name_to_resource_id: dict[str, str],
+    ) -> list[models.TimelineEvent]:
+        """
+        Query GCP audit logs for the given resources using a provided filter builder and entry parser.
+
+        Args:
+            items: List of resource objects (instances or services) to query audit logs for.
+            filter_builder: Callable that builds the filter string for the audit log query based on the items.
+            entry_parser: Callable that parses each audit log entry into a TimelineEvent.
+            name_to_resource_id: Mapping from resource names to resource IDs for resolving resource references.
+
+        Returns:
+            List of TimelineEvent objects parsed from the audit logs for the given resources.
+            Returns an empty list if audit logs are disabled, no items are provided, or if an error occurs during querying.
+        """
+        if not self.config.enabled:
+            logger.debug("GCP audit logs are disabled, skipping query")
+            return []
+        if not resources:
+            logger.debug("No resources provided for audit log query")
+            return []
+        filter_str = filter_builder(resources)
+        if not filter_str:
+            logger.debug("No valid filter could be built for audit log query")
+            return []
+        try:
+            log_entries = self.client.list_entries(
+                filter_=filter_str, order_by=gcp_logging.ASCENDING
+            )
+            timeline_events = []
+            for entry in log_entries:
+                if timeline_event := entry_parser(entry, name_to_resource_id):
+                    timeline_events.append(timeline_event)
+            return timeline_events
+        except Exception as e:
+            logger.error(
+                f"Error querying GCP audit logs for project {self.project}: {e}"
+            )
+            return []
