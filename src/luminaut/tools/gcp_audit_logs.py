@@ -114,14 +114,6 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no instances provided,
             or if an error occurs during querying.
         """
-        if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
-            return []
-
-        if not instances:
-            logger.debug("No instances provided for audit log query")
-            return []
-
         name_to_resource_id = {
             instance.name: instance.resource_id for instance in instances
         }
@@ -145,14 +137,6 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no services provided,
             or if an error occurs during querying.
         """
-        if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
-            return []
-
-        if not services:
-            logger.debug("No services provided for audit log query")
-            return []
-
         name_to_resource_id = {
             service.name: service.resource_id for service in services
         }
