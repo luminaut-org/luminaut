@@ -38,7 +38,7 @@ class AwsTool(unittest.TestCase):
             public_ip="10.0.0.1",
             private_ip="10.0.0.1",
             attachment_id="eni-attach-1234567890abcdef0",
-            attachment_time=datetime.today(),
+            attachment_time=datetime.now(tz=UTC),
             attachment_status="attached",
             availability_zone="us-west-2a",
             status="available",
@@ -52,7 +52,7 @@ class AwsTool(unittest.TestCase):
             account="123456789012",
             region="us-west-2",
             arn="arn",
-            config_capture_time=datetime.today(),
+            config_capture_time=datetime.now(tz=UTC),
             config_status="OK",
             configuration="",
             tags={},
@@ -64,7 +64,7 @@ class AwsTool(unittest.TestCase):
             account="123456789012",
             region="us-west-2",
             arn="arn",
-            config_capture_time=datetime.today(),
+            config_capture_time=datetime.now(tz=UTC),
             config_status="OK",
             configuration="",
             tags={},
@@ -329,7 +329,7 @@ class TestCloudTrail(unittest.TestCase):
     def test_lookup_ec2_instance(self):
         cloudtrail_event = {
             "EventName": "RunInstances",
-            "EventTime": datetime.now(),
+            "EventTime": datetime.now(tz=UTC),
             "foo": "bar",
         }
         cloudtrail = CloudTrail(region="us-east-1")

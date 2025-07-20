@@ -262,7 +262,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
         # Mock current time
         mock_now = datetime(2024, 2, 1, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = mock_now
-        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)  # noqa: DTZ001
 
         mock_client = MagicMock()
         mock_logging_client.return_value = mock_client
