@@ -58,18 +58,12 @@ package = true
 
 [tool.ruff.lint]
 select = [
-    # Pyflakes
-    "F",
-    # pyupgrade
-    "UP",
-    # flake8-bugbear
-    "B",
-    # isort
-    "I",
-    # mccabe complexity
-    "C90",
-    # Type annotations
-    "ANN",
+    "F",  # pyflakes
+    "UP",  # pyupgrade
+    "B",  # bugbear
+    "I",  # isort
+    "C90",  # mccabe complexity
+    "ANN",  # Type annotations
 ]
 
 [tool.ruff.lint.flake8-annotations]
