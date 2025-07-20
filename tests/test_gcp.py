@@ -10,6 +10,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from luminaut import models
 from luminaut.tools.gcp import Gcp
+from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 
 
 class TestGcpAccessConfig:
@@ -87,7 +88,7 @@ fake_service = run_v2_types.Service(
 )
 
 fake_service_with_no_ingress = run_v2_types.Service(
-    name="/projects/test-project/locations/us-central1/services/test-service-ingress-none",
+    name="projects/test-project/locations/us-central1/services/test-service-ingress-none",
     uid="12345678-1234-1234-1234-123456789013",
     uri="https://test-service-12345678-uc.a.run.app",
     creator="foo",
@@ -292,7 +293,9 @@ class TestGCP(TestCase):
         self.assertEqual(len(services), 1)
 
         service = services[0]
-        self.assertEqual(service.name, fake_service.name.split("/")[-1])
+        self.assertEqual(
+            service.name, GcpAuditLogs._extract_service_name(fake_service.name)
+        )
         self.assertEqual(service.uri, fake_service.uri)
         self.assertEqual(service.resource_id, fake_service.name)
         self.assertEqual(service.created_by, fake_service.creator)

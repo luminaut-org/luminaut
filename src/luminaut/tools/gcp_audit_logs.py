@@ -460,7 +460,8 @@ class GcpAuditLogs:
             logger.warning(f"Error parsing service audit log entry: {e}")
             return None
 
-    def _extract_service_name(self, resource_path: str) -> str:
+    @staticmethod
+    def _extract_service_name(resource_path: str) -> str:
         """Extract the service name from a GCP Cloud Run resource path.
 
         Args:
@@ -486,7 +487,8 @@ class GcpAuditLogs:
         except (IndexError, AttributeError):
             return resource_path
 
-    def _extract_resource_name(self, resource_path: str) -> str:
+    @classmethod
+    def _extract_resource_name(cls, resource_path: str) -> str:
         """Extract the resource name from a GCP resource path.
 
         Args:
@@ -499,10 +501,10 @@ class GcpAuditLogs:
             # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
             parts = resource_path.split("/")
             if (
-                len(parts) >= self.RESOURCE_PATH_PARTS_COUNT
-                and parts[self.RESOURCE_PATH_INSTANCES_INDEX] == "instances"
+                len(parts) >= cls.RESOURCE_PATH_PARTS_COUNT
+                and parts[cls.RESOURCE_PATH_INSTANCES_INDEX] == "instances"
             ):
-                return parts[self.RESOURCE_PATH_NAME_INDEX]
+                return parts[cls.RESOURCE_PATH_NAME_INDEX]
             return resource_path
         except (IndexError, AttributeError):
             return resource_path
