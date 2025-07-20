@@ -134,7 +134,6 @@ includedPermissions:
   - compute.regions.list
   - compute.firewalls.list
   - run.services.list
+  # Listing logEntries is required by the audit log feature
   - logging.logEntries.list
 ```
-
-**Note:** The `logging.logEntries.list` permission is only required when the audit logs feature is enabled in the configuration.
