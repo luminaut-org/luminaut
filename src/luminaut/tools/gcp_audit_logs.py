@@ -469,13 +469,13 @@ class GcpAuditLogs:
         try:
             parts = resource_path.split("/")
 
-            # Handle actual audit log format: namespaces/{project}/services/{service-name}
-            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
-                return parts[3]
-
             # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
             if len(parts) >= 6 and parts[4] == "services":
                 return parts[5]
+
+            # Handle actual audit log format: namespaces/{project}/services/{service-name}
+            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
+                return parts[3]
 
             return resource_path
         except (IndexError, AttributeError):
