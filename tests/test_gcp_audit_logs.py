@@ -122,10 +122,10 @@ class TestGcpAuditLogsService(unittest.TestCase):
         )
         self.assertIn('protoPayload.serviceName="compute.googleapis.com"', filter_str)
         self.assertIn("protoPayload.methodName:", filter_str)
-        self.assertIn("compute.instances.insert", filter_str)
-        self.assertIn("compute.instances.delete", filter_str)
-        self.assertIn("compute.instances.start", filter_str)
-        self.assertIn("compute.instances.stop", filter_str)
+        self.assertIn("beta.compute.instances.insert", filter_str)
+        self.assertIn("v1.compute.instances.delete", filter_str)
+        self.assertIn("v1.compute.instances.start", filter_str)
+        self.assertIn("v1.compute.instances.stop", filter_str)
 
         # Should return empty list when no log entries
         self.assertEqual(events, [])

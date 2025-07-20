@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -171,10 +171,9 @@ class GcpAuditLogs:
         ]
 
         # Add method name filters
-        method_names = list(self.SUPPORTED_INSTANCE_EVENTS.keys())
-        quoted_methods = [f'"{method}"' for method in method_names]
-        method_filter = f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
-        base_filter.append(method_filter)
+        base_filter.append(
+            self._build_method_name_filter(self.SUPPORTED_INSTANCE_EVENTS.keys())
+        )
 
         # Add resource name filters for specific instances
         if instances:
@@ -277,7 +276,19 @@ class GcpAuditLogs:
             logger.warning(f"Error parsing audit log entry: {e}")
             return None
 
-    def _build_service_audit_log_filter(self, services: list[models.GcpService]) -> str:
+    def _build_method_name_filter(self, method_names: Iterable[str]) -> str:
+        """Build a filter string for method names
+        Args:
+            method_names: List of method names to include in the filter.
+        Returns:
+            Filter string for the specified method names.
+        """
+        quoted_methods = [f'"{method}"' for method in method_names]
+        return f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
+
+    def _build_service_audit_log_filter(
+        self, services: Sequence[models.GcpService]
+    ) -> str:
         """Build the filter string for querying Cloud Run service audit logs.
 
         Args:
@@ -293,10 +304,9 @@ class GcpAuditLogs:
         ]
 
         # Add method name filters
-        method_names = list(self.SUPPORTED_CLOUD_RUN_EVENTS.keys())
-        quoted_methods = [f'"{method}"' for method in method_names]
-        method_filter = f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
-        base_filter.append(method_filter)
+        base_filter.append(
+            self._build_method_name_filter(self.SUPPORTED_CLOUD_RUN_EVENTS.keys())
+        )
 
         # Add resource name filters for specific services
         if services:
