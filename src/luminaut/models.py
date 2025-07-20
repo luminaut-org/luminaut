@@ -421,9 +421,9 @@ class GcpInstance:
         return rich_text
 
     @classmethod
-    def from_gcp(cls, instance: Any) -> Self:
+    def from_gcp(cls, instance: gcp_compute_v1_types.Instance) -> Self:
         return cls(
-            resource_id=instance.id,
+            resource_id=str(instance.id),
             name=instance.name,
             network_interfaces=[
                 GcpNetworkInterface.from_gcp(nic) for nic in instance.network_interfaces
@@ -497,7 +497,7 @@ class GcpFirewallRule:
         return ", ".join(protocol_parts)
 
     @classmethod
-    def from_gcp(cls, firewall_rule: Any) -> Self:
+    def from_gcp(cls, firewall_rule: gcp_compute_v1_types.Firewall) -> Self:
         direction = (
             Direction.INGRESS
             if firewall_rule.direction == "INGRESS"
@@ -875,7 +875,7 @@ class SecurityGroup:
     group_name: str
     rules: list[SecurityGroupRule] = field(default_factory=list)
 
-    def build_rich_text(self):
+    def build_rich_text(self) -> str:
         rich_text = (
             f"[dark_orange3]{self.group_name}[/dark_orange3] ({self.group_id})\n"
         )
@@ -893,7 +893,7 @@ class AwsLoadBalancerListener:
     protocol: str
     tags: dict[str, str] = field(default_factory=dict)
 
-    def build_rich_text(self):
+    def build_rich_text(self) -> str:
         return f"[blue]{self.port}[/blue]/[magenta]{self.protocol}[/magenta]"
 
     @classmethod
@@ -1218,7 +1218,7 @@ class ShodanService:
 
         return rich_text
 
-    def _build_html_info_rich_text(self):
+    def _build_html_info_rich_text(self) -> str:
         http_information = ""
         if self.http_server:
             http_information += f"HTTP Server: {self.http_server}"
@@ -1305,10 +1305,10 @@ class Whatweb:
     summary_text: str
     json_data: list[dict[str, Any]]
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return bool(self.summary_text) or bool(self.json_data)
 
-    def build_rich_text(self):
+    def build_rich_text(self) -> str:
         rich_text = ""
         for item in self.json_data:
             if target := item.get("target"):
@@ -1397,7 +1397,7 @@ class ScanTarget:
     def __hash__(self) -> int:
         return hash((self.target, self.port, self.schema))
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ScanTarget):
             return False
         return (self.target, self.port, self.schema) == (

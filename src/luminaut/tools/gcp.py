@@ -150,7 +150,7 @@ class Gcp:
                 instance_events = [
                     event
                     for event in audit_log_events
-                    if event.resource_id == gcp_instance.resource_id
+                    if str(event.resource_id) == gcp_instance.resource_id
                 ]
                 if instance_events:
                     scan_finding.events.extend(instance_events)
