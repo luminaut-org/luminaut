@@ -244,69 +244,13 @@ class GcpAuditLogs:
     def _parse_instance_audit_log_entry(
         self, entry: Any, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
-        """Parse a GCP audit log entry into a TimelineEvent.
-
-        Args:
-            entry: Audit log entry from Cloud Logging API.
-            name_to_resource_id: Mapping from instance names to resource IDs.
-
-        Returns:
-            TimelineEvent if the entry represents a supported instance event,
-            None otherwise.
-        """
-        try:
-            if not entry.payload:
-                return None
-
-            # Get method name to determine event type
-            method_name = entry.payload.get("methodName", "")
-            if method_name not in self.SUPPORTED_INSTANCE_EVENTS:
-                return None
-
-            event_config = self.SUPPORTED_INSTANCE_EVENTS[method_name]
-
-            # Extract resource name and instance name
-            resource_name = entry.payload.get("resourceName", "")
-            instance_name = self._extract_resource_name(resource_name)
-
-            # Get the actual resource ID from the mapping
-            resource_id = name_to_resource_id.get(instance_name, instance_name)
-
-            # Extract authentication info for the message
-            auth_info = entry.payload.get("authenticationInfo", {})
-            principal_email = auth_info.get("principalEmail", "unknown")
-
-            # Build the event message
-            base_message = event_config["message"]
-            message = f"{base_message} by {principal_email}"
-
-            if entry.timestamp.tzinfo is None:
-                timestamp = entry.timestamp.replace(tzinfo=UTC)
-            else:
-                timestamp = entry.timestamp.astimezone(UTC)
-
-            # Create the timeline event
-            timeline_event = models.TimelineEvent(
-                timestamp=timestamp,
-                source=self.SOURCE_NAME,
-                event_type=event_config["event_type"],
-                resource_id=resource_id,
-                resource_type=models.ResourceType.GCP_Instance,
-                message=message,
-                details={
-                    "methodName": method_name,
-                    "resourceName": resource_name,
-                    "principalEmail": principal_email,
-                    "project": self.project,
-                    "instanceName": instance_name,
-                },
-            )
-
-            return timeline_event
-
-        except Exception as e:
-            logger.warning(f"Error parsing audit log entry: {e}")
-            return None
+        """Directly dispatch to the Compute parser for Compute Engine events."""
+        method_name = (
+            entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+        )
+        if method_name in self.SUPPORTED_INSTANCE_EVENTS:
+            return self._compute_parser.parse(entry, name_to_resource_id)
+        return None
 
     def _build_service_audit_log_filter(
         self, services: Sequence[models.GcpService]
@@ -334,76 +278,13 @@ class GcpAuditLogs:
     def _parse_service_audit_log_entry(
         self, entry: Any, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
-        """Parse a GCP audit log entry into a TimelineEvent for Cloud Run services.
-
-        Args:
-            entry: Audit log entry from Cloud Logging API.
-            name_to_resource_id: Mapping from service names to resource IDs.
-
-        Returns:
-            TimelineEvent if the entry represents a supported service event,
-            None otherwise.
-        """
-        try:
-            if not entry.payload:
-                return None
-
-            # Get method name to determine event type
-            method_name = entry.payload.get("methodName", "")
-            if method_name not in self.SUPPORTED_CLOUD_RUN_EVENTS:
-                return None
-
-            event_config = self.SUPPORTED_CLOUD_RUN_EVENTS[method_name]
-
-            # Extract resource name and service name
-            resource_name = entry.payload.get("resourceName", "")
-            service_name = self._extract_service_name(resource_name)
-
-            # Get the actual resource ID from the mapping
-            resource_id = name_to_resource_id.get(service_name)
-            if not resource_id:
-                logger.warning(
-                    "Service resource ID not found for resource: %s and service: %s",
-                    resource_name,
-                    service_name,
-                )
-                return None
-
-            # Extract authentication info for the message
-            auth_info = entry.payload.get("authenticationInfo", {})
-            principal_email = auth_info.get("principalEmail", "unknown")
-
-            # Build the event message
-            base_message = event_config["message"]
-            message = f"{base_message} by {principal_email}"
-
-            if entry.timestamp.tzinfo is None:
-                timestamp = entry.timestamp.replace(tzinfo=UTC)
-            else:
-                timestamp = entry.timestamp.astimezone(UTC)
-
-            # Create the timeline event
-            timeline_event = models.TimelineEvent(
-                timestamp=timestamp,
-                source=self.SOURCE_NAME,
-                event_type=event_config["event_type"],
-                resource_id=resource_id,
-                resource_type=models.ResourceType.GCP_Service,
-                message=message,
-                details={
-                    "methodName": method_name,
-                    "resourceName": resource_name,
-                    "principalEmail": principal_email,
-                    "project": self.project,
-                    "serviceName": service_name,
-                },
-            )
-
-            return timeline_event
-
-        except Exception as e:
-            logger.warning(f"Error parsing service audit log entry: {e}")
-            return None
+        """Directly dispatch to the Cloud Run parser for Cloud Run events."""
+        method_name = (
+            entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+        )
+        if method_name in self.SUPPORTED_CLOUD_RUN_EVENTS:
+            return self._cloudrun_parser.parse(entry, name_to_resource_id)
+        return None
 
     @staticmethod
     def _extract_service_name(resource_path: str) -> str:
