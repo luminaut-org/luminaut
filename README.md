@@ -79,7 +79,12 @@ Additional installation information is available within the [Luminaut documentat
 
 ## Usage
 
-Luminaut requires access to AWS. The commands in this documentation assumes that your shell is already configured with the necessary AWS credentials. You can confirm your credential configuration by running `aws sts get-caller-identity`. For additional information on configuring AWS credentials, see the [AWS CLI documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html).
+Luminaut requires access to cloud providers with appropriate credentials and permissions. Configure your system with the necessary credentials for the cloud providers you want to scan:
+
+- **AWS**: Configure AWS credentials using the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html).
+- **GCP**: Configure GCP credentials using the [gcloud CLI](https://cloud.google.com/sdk/docs/initializing).
+
+See the [Configuration documentation](https://luminaut-org.github.io/luminaut/configuration.html) for required cloud provider permissions.
 
 No arguments are required to run luminaut. The default is to look for a `luminaut.toml` file in the same directory
 and run available tools to start detecting resources.
