@@ -165,8 +165,8 @@ class Aws:
         )
 
     def skip_resource(self, resource: models.FindingResource) -> bool:
-        if hasattr(resource, "tags"):
-            if self._should_skip_by_tags(resource):
+        if tags := getattr(resource, "tags", {}):
+            if self._should_skip_by_tags(tags):
                 return True
 
         if hasattr(resource, "resource_id") and hasattr(resource, "resource_type"):
@@ -184,8 +184,8 @@ class Aws:
                 should_skip = True
         return should_skip
 
-    def _should_skip_by_tags(self, resource: models.FindingResource) -> bool:
-        if not (tags := getattr(resource, "tags", {})):
+    def _should_skip_by_tags(self, tags: dict[str, str]) -> bool:
+        if not tags:
             return False
 
         for allowed_resource in self.config.aws.allowed_resources:
