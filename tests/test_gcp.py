@@ -519,7 +519,11 @@ class TestGcpScanResultsIntegration(TestCase):
         self.config = models.LuminautConfig.from_toml(config)
 
     def mock_gcp_and_firewall_clients(
-        self, gcp: Gcp, instance_response=None, firewall_response=None
+        self,
+        gcp: Gcp,
+        instance_response=None,
+        firewall_response=None,
+        services_response=None,
     ) -> dict[str, Mock]:
         clients = {}
 
@@ -535,7 +539,7 @@ class TestGcpScanResultsIntegration(TestCase):
 
         # Mock run client (not used in this test)
         clients["run_v2"] = Mock()
-        clients["run_v2"].list_services.return_value = []
+        clients["run_v2"].list_services.return_value = services_response or []
         gcp.get_run_v2_services_client = Mock(return_value=clients["run_v2"])
 
         return clients
