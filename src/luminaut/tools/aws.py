@@ -422,7 +422,12 @@ class ExtractEventsFromConfigDiffs:
 
     @classmethod
     def process_ec2_instance(
-        cls, config_capture_time, diff_as_dict, events, resource_id, resource_type
+        cls,
+        config_capture_time: datetime,
+        diff_as_dict: dict[str, Any],
+        events: list[models.TimelineEvent],
+        resource_id: str,
+        resource_type: models.ResourceType,
     ):
         changes = diff_as_dict["changed"]
         for key, value in changes.items():
@@ -474,7 +479,7 @@ class ExtractEventsFromConfigDiffs:
                 )
 
     @staticmethod
-    def _format_ec2_state_change_message(action: str, value: Any) -> str:
+    def _format_ec2_state_change_message(action: str, value: dict[str, Any]) -> str:
         message = f"State {action}"
         if action == "changed":
             message += f" from {value['old']['name']} to {value['new']['name']}"
@@ -587,7 +592,7 @@ class CloudTrailEventMessageFormatter:
         return ". Security groups: " + summary
 
     @staticmethod
-    def summarize_sg_from_request_params(request_parameters):
+    def summarize_sg_from_request_params(request_parameters: dict[str, Any]) -> str:
         security_groups = []
         summary = ""
         if groups_set := request_parameters.get("groupSet", {}):
@@ -690,7 +695,9 @@ class CloudTrail:
         self.scan_start_time = scan_start_time
         self.scan_end_time = scan_end_time
 
-    def _fetch_context(self, resource_type):
+    def _fetch_context(
+        self, resource_type: models.ResourceType
+    ) -> dict[str, dict[str, Any]]:
         context = {}
         if resource_type == models.ResourceType.EC2_Instance:
             context = self.supported_ec2_instance_events
