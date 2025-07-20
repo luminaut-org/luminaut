@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from collections.abc import Collection, Mapping
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -72,7 +73,9 @@ class TestWhatweb(unittest.TestCase):
         self.assertFalse(brief_file.exists())
         self.assertFalse(json_file.exists())
 
-    def prep_whatweb_data(self, json_data: Any):
+    def prep_whatweb_data(
+        self, json_data: Collection[Mapping[str, Any]] | Mapping[str, Any]
+    ) -> tuple[str, Collection[Mapping[str, Any]] | Mapping[str, Any]]:
         brief_data = "foo"
         with self.whatweb.json_file.open("wb") as f:
             f.write(json.dumps(json_data))

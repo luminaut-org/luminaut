@@ -11,7 +11,9 @@ from luminaut.tools.aws import Aws, CloudTrail, ExtractEventsFromConfigDiffs
 
 class MockDescribeEniPaginator:
     @staticmethod
-    def paginate(*args, **kwargs):
+    def paginate(
+        *_args: str, **_kwargs: dict[str, str]
+    ) -> list[dict[str, list[dict[str, str | dict[str, str]]]]]:
         return [
             {
                 "NetworkInterfaces": [
@@ -69,9 +71,9 @@ class AwsTool(unittest.TestCase):
             resource_creation_time=None,
         )
 
-    def aws_client_mock_setup(self, config=None) -> Aws:
+    def aws_client_mock_setup(self, config: models.LuminautConfig | None = None) -> Aws:
         def mock_get_config_history_for_resource(
-            resource_type: models.ResourceType, *args, **kwargs
+            resource_type: models.ResourceType, *_args: str, **_kwargs: dict[str, str]
         ) -> tuple[list[models.AwsConfigItem], list[models.TimelineEvent]]:
             if resource_type == models.ResourceType.EC2_NetworkInterface:
                 return [self.sample_config_eni], []

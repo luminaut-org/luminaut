@@ -1,7 +1,7 @@
 import unittest
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from luminaut import models
 from luminaut.tools.gcp_audit_logs import GcpAuditLogs
@@ -81,7 +81,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
         )
 
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_audit_logs_service_initialization(self, mock_logging_client):
+    def test_audit_logs_service_initialization(self, mock_logging_client: Mock):
         """Test that GcpAuditLogs service initializes correctly."""
         audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
 
@@ -96,7 +96,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
         mock_logging_client.assert_called_once()
 
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_query_instance_events_filters(self, mock_logging_client):
+    def test_query_instance_events_filters(self, mock_logging_client: Mock):
         """Test that audit log queries use correct filters for instance events."""
         mock_client = MagicMock()
         mock_logging_client.return_value = mock_client
@@ -131,7 +131,9 @@ class TestGcpAuditLogsService(unittest.TestCase):
         self.assertEqual(events, [])
 
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_parse_audit_log_entries_all_instance_events(self, mock_logging_client):
+    def test_parse_audit_log_entries_all_instance_events(
+        self, mock_logging_client: Mock
+    ):
         """Test parsing of all supported instance audit log entries."""
         mock_client = MagicMock()
         mock_logging_client.return_value = mock_client
@@ -238,8 +240,8 @@ class TestGcpAuditLogsService(unittest.TestCase):
             resource_name, invalid_path
         )  # Should return original if can't parse
 
-    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_disabled_audit_logs(self, mock_logging_client):
+    @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client", new=Mock())
+    def test_disabled_audit_logs(self):
         """Test that audit logs service respects disabled configuration."""
         config = models.LuminautConfig()
         config.gcp.audit_logs.enabled = False
@@ -254,7 +256,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
     @patch("luminaut.tools.gcp_audit_logs.datetime")
     def test_default_time_range_when_none_specified(
-        self, mock_datetime, mock_logging_client
+        self, mock_datetime: Mock, mock_logging_client: Mock
     ):
         """Test that a default 30-day time range is applied when no time range is specified."""
         # Mock current time
@@ -315,7 +317,7 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         )
 
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_query_service_events_filters(self, mock_logging_client):
+    def test_query_service_events_filters(self, mock_logging_client: Mock):
         """Test that service audit log filters are properly constructed."""
         mock_client = MagicMock()
         mock_logging_client.return_value = mock_client
@@ -458,7 +460,7 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         )  # Should return original if can't parse
 
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_disabled_service_audit_logs(self, mock_logging_client):
+    def test_disabled_service_audit_logs(self, mock_logging_client: Mock):
         """Test that service audit logs respect disabled configuration."""
         config = models.LuminautConfig()
         config.gcp.audit_logs.enabled = False
@@ -473,7 +475,7 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         mock_logging_client.assert_not_called()
 
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_query_service_events_no_services(self, mock_logging_client):
+    def test_query_service_events_no_services(self, mock_logging_client: Mock):
         """Test querying service events with empty service list."""
         audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
 
@@ -485,7 +487,7 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         mock_logging_client.assert_not_called()
 
     @patch("luminaut.tools.gcp_audit_logs.gcp_logging.Client")
-    def test_service_audit_logs_exception_handling(self, mock_logging_client):
+    def test_service_audit_logs_exception_handling(self, mock_logging_client: Mock):
         """Test that service audit log exceptions are handled gracefully."""
         mock_client = MagicMock()
         mock_logging_client.return_value = mock_client
