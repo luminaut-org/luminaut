@@ -74,7 +74,7 @@ fake_container = run_v2_types.Container(
 some_date = datetime.datetime(2025, 5, 19, 5, 35, 9, tzinfo=datetime.UTC)
 
 fake_service = run_v2_types.Service(
-    name="test-service",
+    name="projects/test-project/locations/us-central1/services/test-service",
     uid="12345678-1234-1234-1234-123456789012",
     uri="https://test-service-12345678-uc.a.run.app",
     creator="foo",
@@ -87,7 +87,7 @@ fake_service = run_v2_types.Service(
 )
 
 fake_service_with_no_ingress = run_v2_types.Service(
-    name="test-service-ingress-none",
+    name="/projects/test-project/locations/us-central1/services/test-service-ingress-none",
     uid="12345678-1234-1234-1234-123456789013",
     uri="https://test-service-12345678-uc.a.run.app",
     creator="foo",
@@ -292,7 +292,7 @@ class TestGCP(TestCase):
         self.assertEqual(len(services), 1)
 
         service = services[0]
-        self.assertEqual(service.name, fake_service.name)
+        self.assertEqual(service.name, fake_service.name.split("/")[-1])
         self.assertEqual(service.uri, fake_service.uri)
         self.assertEqual(service.resource_id, fake_service.name)
         self.assertEqual(service.created_by, fake_service.creator)
