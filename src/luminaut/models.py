@@ -103,6 +103,9 @@ class ResourceType(StrEnum):
     ELB_LoadBalancer = "AWS::ElasticLoadBalancingV2::LoadBalancer"
     GCP_Instance = "GCP::Compute::Instance"
     GCP_Service = "GCP::Run::Service"
+    GCP_Task = "GCP::Run::Task"
+    GCP_Firewall = "GCP::Compute::Firewall"
+    Hostname = "Hostname"
 
 
 class SecurityGroupRuleTargetType(StrEnum):
@@ -392,6 +395,7 @@ class GcpInstance:
     status: str | None = None
     description: str | None = None
     tags: list[str] = field(default_factory=list)
+    resource_type: ResourceType = ResourceType.GCP_Instance
 
     def get_public_ips(self) -> list[str]:
         """Return a list of public IPs from the network interfaces."""
@@ -659,6 +663,8 @@ class GcpFirewallRules:
     """Collection of related GCP firewall rules"""
 
     rules: list[GcpFirewallRule] = field(default_factory=list)
+    resource_id: str = ""
+    resource_type: ResourceType = ResourceType.GCP_Firewall
 
     def __bool__(self) -> bool:
         return bool(self.rules)
@@ -718,6 +724,7 @@ class GcpTask:
     creation_time: datetime | None = None
     update_time: datetime | None = None
     containers: list[Container] = field(default_factory=list)
+    resource_type: ResourceType = ResourceType.GCP_Task
 
     @classmethod
     def from_gcp(cls, task: gcp_run_v2_types.Task) -> Self:
@@ -756,6 +763,7 @@ class GcpService:
     ingress: str | None = None
     urls: list[str] = field(default_factory=list)
     containers: list[Container] = field(default_factory=list)
+    resource_type: ResourceType = ResourceType.GCP_Service
 
     @classmethod
     def from_gcp(cls, service: gcp_run_v2_types.Service) -> Self:
@@ -874,6 +882,12 @@ class SecurityGroup:
     group_id: str
     group_name: str
     rules: list[SecurityGroupRule] = field(default_factory=list)
+    resource_id: str = ""
+    resource_type: ResourceType = ResourceType.EC2_SecurityGroup
+
+    def __post_init__(self) -> None:
+        if not self.resource_id:
+            self.resource_id = self.group_id
 
     def build_rich_text(self) -> str:
         rich_text = (
@@ -921,6 +935,7 @@ class AwsLoadBalancer:
     subnets: list[str] = field(default_factory=list)
     listeners: list[AwsLoadBalancerListener] = field(default_factory=list)
     tags: dict[str, str] = field(default_factory=dict)
+    resource_type: ResourceType = ResourceType.ELB_LoadBalancer
 
     def build_rich_text(self) -> str:
         headline = f"[dark_orange3]{self.resource_id}[/dark_orange3] {self.scheme} ({self.state}) Created: {self.created_time}\n"
@@ -975,9 +990,6 @@ class AwsNetworkInterface:
     subnet_id: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
     resource_type: ResourceType = ResourceType.EC2_NetworkInterface
-
-    def get_aws_tags(self) -> dict[str, str]:
-        return self.tags
 
     def build_rich_text(self) -> str:
         rich_text = f"[dark_orange3]{self.resource_id}[/dark_orange3] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
@@ -1053,9 +1065,6 @@ class AwsEc2Instance:
     public_ip_address: str | None = None
     resource_type: ResourceType = ResourceType.EC2_Instance
 
-    def get_aws_tags(self) -> dict[str, str]:
-        return self.tags
-
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
         tags = convert_tag_set_to_dict(configuration["tags"])
@@ -1098,9 +1107,6 @@ class AwsConfigItem:
     tags: dict[str, str]
     resource_creation_time: datetime | None = None
     diff_to_prior: ConfigDiff | None = None
-
-    def get_aws_tags(self) -> dict[str, str]:
-        return self.tags
 
     @staticmethod
     def build_configuration(
@@ -1262,6 +1268,12 @@ class ShodanService:
 class Hostname:
     name: str
     timestamp: datetime | None = None
+    resource_id: str = ""
+    resource_type: ResourceType = ResourceType.Hostname
+
+    def __post_init__(self) -> None:
+        if not self.resource_id:
+            self.resource_id = self.name
 
     def build_rich_text(self) -> str:
         rich_text = f" Hostname: [dark_orange3]{self.name}[/dark_orange3]"
@@ -1408,7 +1420,7 @@ class ScanTarget:
 
 
 FindingServices = MutableSequence[NmapPortServices | ShodanService | Whatweb]
-FindingResources = MutableSequence[
+FindingResource = (
     AwsConfigItem
     | AwsLoadBalancer
     | AwsNetworkInterface
@@ -1418,7 +1430,8 @@ FindingResources = MutableSequence[
     | GcpTask
     | SecurityGroup
     | Hostname
-]
+)
+FindingResources = MutableSequence[FindingResource]
 
 
 @dataclass
