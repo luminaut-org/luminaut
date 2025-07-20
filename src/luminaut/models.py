@@ -17,7 +17,7 @@ from rich.emoji import Emoji
 
 T = TypeVar("T")
 IPAddress = IPv4Address | IPv6Address
-QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))
+QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))  # noqa: S104
 
 
 def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]:
@@ -103,6 +103,9 @@ class ResourceType(StrEnum):
     ELB_LoadBalancer = "AWS::ElasticLoadBalancingV2::LoadBalancer"
     GCP_Instance = "GCP::Compute::Instance"
     GCP_Service = "GCP::Run::Service"
+    GCP_Task = "GCP::Run::Task"
+    GCP_Firewall = "GCP::Compute::Firewall"
+    Hostname = "Hostname"
 
 
 class SecurityGroupRuleTargetType(StrEnum):
@@ -392,6 +395,7 @@ class GcpInstance:
     status: str | None = None
     description: str | None = None
     tags: list[str] = field(default_factory=list)
+    resource_type: ResourceType = ResourceType.GCP_Instance
 
     def get_public_ips(self) -> list[str]:
         """Return a list of public IPs from the network interfaces."""
@@ -414,15 +418,16 @@ class GcpInstance:
             rich_text += f"  Description: {description}\n"
         for nic in self.network_interfaces:
             # Indent each network interface line
-            rich_text += "\n".join(
-                ["  " + line for line in nic.build_rich_text().splitlines()]
+            rich_text += (
+                "\n".join(["  " + line for line in nic.build_rich_text().splitlines()])
+                + "\n"
             )
         return rich_text
 
     @classmethod
-    def from_gcp(cls, instance: Any) -> Self:
+    def from_gcp(cls, instance: gcp_compute_v1_types.Instance) -> Self:
         return cls(
-            resource_id=instance.id,
+            resource_id=str(instance.id),
             name=instance.name,
             network_interfaces=[
                 GcpNetworkInterface.from_gcp(nic) for nic in instance.network_interfaces
@@ -496,7 +501,7 @@ class GcpFirewallRule:
         return ", ".join(protocol_parts)
 
     @classmethod
-    def from_gcp(cls, firewall_rule: Any) -> Self:
+    def from_gcp(cls, firewall_rule: gcp_compute_v1_types.Firewall) -> Self:
         direction = (
             Direction.INGRESS
             if firewall_rule.direction == "INGRESS"
@@ -624,8 +629,7 @@ class GcpFirewallRule:
             else:
                 port_text = f"[blue]{', '.join(ports)}[/blue]"
             return f"[magenta]{protocol_name}[/magenta]/{port_text}"
-        else:
-            return f"[magenta]{protocol_name}[/magenta]/all ports"
+        return f"[magenta]{protocol_name}[/magenta]/all ports"
 
     def _parse_port_range(self, port_range: str, ip: str) -> set["ScanTarget"]:
         """Parse a port range string and return ScanTargets."""
@@ -658,6 +662,8 @@ class GcpFirewallRules:
     """Collection of related GCP firewall rules"""
 
     rules: list[GcpFirewallRule] = field(default_factory=list)
+    resource_id: str = ""
+    resource_type: ResourceType = ResourceType.GCP_Firewall
 
     def __bool__(self) -> bool:
         return bool(self.rules)
@@ -675,8 +681,8 @@ class GcpFirewallRules:
             for rule in sorted(ingress_rules, key=lambda r: r.priority):
                 rich_text += rule.build_rich_text()
             return rich_text
-        else:
-            return "[yellow]No ingress firewall rules[/yellow]\n"
+
+        return "[yellow]No ingress firewall rules[/yellow]\n"
 
 
 @dataclass
@@ -717,6 +723,7 @@ class GcpTask:
     creation_time: datetime | None = None
     update_time: datetime | None = None
     containers: list[Container] = field(default_factory=list)
+    resource_type: ResourceType = ResourceType.GCP_Task
 
     @classmethod
     def from_gcp(cls, task: gcp_run_v2_types.Task) -> Self:
@@ -755,6 +762,7 @@ class GcpService:
     ingress: str | None = None
     urls: list[str] = field(default_factory=list)
     containers: list[Container] = field(default_factory=list)
+    resource_type: ResourceType = ResourceType.GCP_Service
 
     @classmethod
     def from_gcp(cls, service: gcp_run_v2_types.Service) -> Self:
@@ -873,8 +881,14 @@ class SecurityGroup:
     group_id: str
     group_name: str
     rules: list[SecurityGroupRule] = field(default_factory=list)
+    resource_id: str = ""
+    resource_type: ResourceType = ResourceType.EC2_SecurityGroup
 
-    def build_rich_text(self):
+    def __post_init__(self) -> None:
+        if not self.resource_id:
+            self.resource_id = self.group_id
+
+    def build_rich_text(self) -> str:
         rich_text = (
             f"[dark_orange3]{self.group_name}[/dark_orange3] ({self.group_id})\n"
         )
@@ -892,7 +906,7 @@ class AwsLoadBalancerListener:
     protocol: str
     tags: dict[str, str] = field(default_factory=dict)
 
-    def build_rich_text(self):
+    def build_rich_text(self) -> str:
         return f"[blue]{self.port}[/blue]/[magenta]{self.protocol}[/magenta]"
 
     @classmethod
@@ -920,12 +934,11 @@ class AwsLoadBalancer:
     subnets: list[str] = field(default_factory=list)
     listeners: list[AwsLoadBalancerListener] = field(default_factory=list)
     tags: dict[str, str] = field(default_factory=dict)
+    resource_type: ResourceType = ResourceType.ELB_LoadBalancer
 
     def build_rich_text(self) -> str:
         headline = f"[dark_orange3]{self.resource_id}[/dark_orange3] {self.scheme} ({self.state}) Created: {self.created_time}\n"
-        listener_details = []
-        for listener in self.listeners:
-            listener_details.append(listener.build_rich_text())
+        listener_details = [listener.build_rich_text() for listener in self.listeners]
 
         if listener_details:
             return headline + "  Listeners: " + ", ".join(listener_details) + "\n"
@@ -974,9 +987,6 @@ class AwsNetworkInterface:
     subnet_id: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
     resource_type: ResourceType = ResourceType.EC2_NetworkInterface
-
-    def get_aws_tags(self) -> dict[str, str]:
-        return self.tags
 
     def build_rich_text(self) -> str:
         rich_text = f"[dark_orange3]{self.resource_id}[/dark_orange3] in [cyan]{self.vpc_id} ({self.availability_zone})[/cyan]\n"
@@ -1052,9 +1062,6 @@ class AwsEc2Instance:
     public_ip_address: str | None = None
     resource_type: ResourceType = ResourceType.EC2_Instance
 
-    def get_aws_tags(self) -> dict[str, str]:
-        return self.tags
-
     @classmethod
     def from_aws_config(cls, configuration: dict[str, Any]) -> Self:
         tags = convert_tag_set_to_dict(configuration["tags"])
@@ -1097,9 +1104,6 @@ class AwsConfigItem:
     tags: dict[str, str]
     resource_creation_time: datetime | None = None
     diff_to_prior: ConfigDiff | None = None
-
-    def get_aws_tags(self) -> dict[str, str]:
-        return self.tags
 
     @staticmethod
     def build_configuration(
@@ -1203,13 +1207,7 @@ class ShodanService:
             # Add newline after title line
             rich_text += "\n"
 
-        http_information = ""
-        if self.http_server:
-            http_information += f"HTTP Server: {self.http_server}"
-        if self.http_title:
-            if http_information:
-                http_information += " "
-            http_information += f"HTTP Title: {self.http_title}"
+        http_information = self._build_html_info_rich_text()
 
         if http_information:
             rich_text += "  " + http_information + "\n"
@@ -1222,6 +1220,16 @@ class ShodanService:
                 rich_text += f"  {len(self.opt_vulnerabilities)} total vulnerabilities found. See JSON for full report.\n"
 
         return rich_text
+
+    def _build_html_info_rich_text(self) -> str:
+        http_information = ""
+        if self.http_server:
+            http_information += f"HTTP Server: {self.http_server}"
+        if self.http_title:
+            if http_information:
+                http_information += " "
+            http_information += f"HTTP Title: {self.http_title}"
+        return http_information
 
     @classmethod
     def from_shodan_host(cls, service: Mapping[str, Any]) -> Self:
@@ -1257,6 +1265,12 @@ class ShodanService:
 class Hostname:
     name: str
     timestamp: datetime | None = None
+    resource_id: str = ""
+    resource_type: ResourceType = ResourceType.Hostname
+
+    def __post_init__(self) -> None:
+        if not self.resource_id:
+            self.resource_id = self.name
 
     def build_rich_text(self) -> str:
         rich_text = f" Hostname: [dark_orange3]{self.name}[/dark_orange3]"
@@ -1300,10 +1314,10 @@ class Whatweb:
     summary_text: str
     json_data: list[dict[str, Any]]
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return bool(self.summary_text) or bool(self.json_data)
 
-    def build_rich_text(self):
+    def build_rich_text(self) -> str:
         rich_text = ""
         for item in self.json_data:
             if target := item.get("target"):
@@ -1392,7 +1406,7 @@ class ScanTarget:
     def __hash__(self) -> int:
         return hash((self.target, self.port, self.schema))
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ScanTarget):
             return False
         return (self.target, self.port, self.schema) == (
@@ -1403,7 +1417,7 @@ class ScanTarget:
 
 
 FindingServices = MutableSequence[NmapPortServices | ShodanService | Whatweb]
-FindingResources = MutableSequence[
+FindingResource = (
     AwsConfigItem
     | AwsLoadBalancer
     | AwsNetworkInterface
@@ -1413,7 +1427,8 @@ FindingResources = MutableSequence[
     | GcpTask
     | SecurityGroup
     | Hostname
-]
+)
+FindingResources = MutableSequence[FindingResource]
 
 
 @dataclass
@@ -1484,9 +1499,11 @@ class ScanResult:
     def get_eni_resources(self) -> list[AwsNetworkInterface]:
         eni_resources = []
         for finding in self.findings:
-            for resource in finding.resources:
-                if isinstance(resource, AwsNetworkInterface):
-                    eni_resources.append(resource)
+            eni_resources.extend(
+                resource
+                for resource in finding.resources
+                if isinstance(resource, AwsNetworkInterface)
+            )
         return eni_resources
 
     def get_security_group_rules(self) -> list[SecurityGroupRule]:
@@ -1509,9 +1526,11 @@ class ScanResult:
     def get_resources_by_type(self, resource_type: type[T]) -> list[T]:
         resources = []
         for finding in self.findings:
-            for resource in finding.resources:
-                if isinstance(resource, resource_type):
-                    resources.append(resource)
+            resources.extend(
+                resource
+                for resource in finding.resources
+                if isinstance(resource, resource_type)
+            )
         return resources
 
     def generate_ip_port_targets(self) -> list[str]:
@@ -1522,7 +1541,7 @@ class ScanResult:
     def generate_scan_targets(self) -> set[ScanTarget]:
         if self.ip:
             return self.generate_ip_scan_targets(self.ip)
-        elif self.url:
+        if self.url:
             return self.generate_url_scan_targets()
         return set()
 
@@ -1594,7 +1613,7 @@ class ScanResult:
             for sg_rule in security_group_rules:
                 if sg_rule.protocol in (Protocol.ICMP, Protocol.ICMPv6):
                     continue
-                elif sg_rule.protocol == Protocol.ALL:
+                if sg_rule.protocol == Protocol.ALL:
                     ports.update(default_ports)
                 ports.update(
                     {

@@ -71,11 +71,11 @@ class Scanner:
         # the "ports" key. There should only be one entry for the ports key.
         for result_values in result.values():
             if "ports" in result_values:
-                for port in result_values["ports"]:
-                    if port.get("state") in SUPPORTED_NMAP_PORT_STATES:
-                        port_services.append(
-                            models.NmapPortServices.from_nmap_port_data(port)
-                        )
+                port_services.extend(
+                    models.NmapPortServices.from_nmap_port_data(port)
+                    for port in result_values["ports"]
+                    if port.get("state") in SUPPORTED_NMAP_PORT_STATES
+                )
         logger.info("Nmap found %s services on %s", len(port_services), target)
 
         nmap_findings = models.ScanFindings(tool="nmap", services=port_services)

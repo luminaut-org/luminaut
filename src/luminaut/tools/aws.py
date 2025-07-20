@@ -70,11 +70,12 @@ class Aws:
                 )
                 findings.append(self.explore_config_history(eni))
 
-            if self.config.aws.cloudtrail.enabled:
-                if cloudtrail_finding := self.add_cloudtrail(
+            if self.config.aws.cloudtrail.enabled and (
+                cloudtrail_finding := self.add_cloudtrail(
                     eni, security_group_finding, region, elb_findings=elb_attachment
-                ):
-                    findings.append(cloudtrail_finding)
+                )
+            ):
+                findings.append(cloudtrail_finding)
 
             eni_exploration = models.ScanResult(
                 ip=eni.public_ip,
@@ -164,17 +165,17 @@ class Aws:
             events=events,
         )
 
-    def skip_resource(self, resource: Any) -> bool:
-        if hasattr(resource, "get_aws_tags"):
-            if self._should_skip_by_tags(resource):
-                return True
+    def skip_resource(self, resource: models.FindingResource) -> bool:
+        if (tags := getattr(resource, "tags", {})) and self._should_skip_by_tags(tags):
+            return True
 
-        if hasattr(resource, "resource_id") and hasattr(resource, "resource_type"):
-            if self._should_skip_by_id(resource):
-                return True
-        return False
+        return (
+            hasattr(resource, "resource_id")
+            and hasattr(resource, "resource_type")
+            and self._should_skip_by_id(resource)
+        )
 
-    def _should_skip_by_id(self, resource) -> bool:
+    def _should_skip_by_id(self, resource: models.FindingResource) -> bool:
         should_skip = False
         for allowed_resource in self.config.aws.allowed_resources:
             if (
@@ -184,16 +185,19 @@ class Aws:
                 should_skip = True
         return should_skip
 
-    def _should_skip_by_tags(self, resource) -> bool:
-        resource_tags = resource.get_aws_tags()
+    def _should_skip_by_tags(self, tags: dict[str, str]) -> bool:
+        if not tags:
+            return False
+
         for allowed_resource in self.config.aws.allowed_resources:
             for (
                 allowed_tag_name,
                 allowed_tag_value,
             ) in allowed_resource.tags.items():
-                if resource_tag_value := resource_tags.get(allowed_tag_name):
-                    if resource_tag_value == allowed_tag_value:
-                        return True
+                if (
+                    resource_tag_value := tags.get(allowed_tag_name)
+                ) and resource_tag_value == allowed_tag_value:
+                    return True
         return False
 
     def setup_client_region(self, region: str) -> None:
@@ -305,11 +309,12 @@ class Aws:
             if not (
                 isinstance(prior_configuration, str)
                 or isinstance(new_configuration, str)
-            ):
-                if diff_to_prior := models.generate_config_diff(
+            ) and (
+                diff_to_prior := models.generate_config_diff(
                     prior_configuration, new_configuration
-                ):
-                    config_entry.diff_to_prior = diff_to_prior
+                )
+            ):
+                config_entry.diff_to_prior = diff_to_prior
 
     def populate_permissive_ingress_security_group_rules(
         self, security_group: models.SecurityGroup
@@ -420,7 +425,12 @@ class ExtractEventsFromConfigDiffs:
 
     @classmethod
     def process_ec2_instance(
-        cls, config_capture_time, diff_as_dict, events, resource_id, resource_type
+        cls,
+        config_capture_time: datetime,
+        diff_as_dict: dict[str, Any],
+        events: list[models.TimelineEvent],
+        resource_id: str,
+        resource_type: models.ResourceType,
     ):
         changes = diff_as_dict["changed"]
         for key, value in changes.items():
@@ -472,7 +482,7 @@ class ExtractEventsFromConfigDiffs:
                 )
 
     @staticmethod
-    def _format_ec2_state_change_message(action: str, value: Any) -> str:
+    def _format_ec2_state_change_message(action: str, value: dict[str, Any]) -> str:
         message = f"State {action}"
         if action == "changed":
             message += f" from {value['old']['name']} to {value['new']['name']}"
@@ -572,8 +582,7 @@ class CloudTrailEventMessageFormatter:
         from_port = items.get("fromPort")
         to_port = items.get("toPort")
         port_range = f"{from_port}-{to_port}" if from_port != to_port else from_port
-        rule_summary = f"{target}:{port_range} over {items.get('ipProtocol')}"
-        return rule_summary
+        return f"{target}:{port_range} over {items.get('ipProtocol')}"
 
     @staticmethod
     def format_eni_attribute_modification(event: dict[str, Any]) -> str:
@@ -585,13 +594,17 @@ class CloudTrailEventMessageFormatter:
         return ". Security groups: " + summary
 
     @staticmethod
-    def summarize_sg_from_request_params(request_parameters):
+    def summarize_sg_from_request_params(request_parameters: dict[str, Any]) -> str:
         security_groups = []
         summary = ""
         if groups_set := request_parameters.get("groupSet", {}):
-            for security_group in groups_set.get("items", []):
-                if security_group.get("groupId"):
-                    security_groups.append(security_group["groupId"])
+            security_groups.extend(
+                [
+                    security_group["groupId"]
+                    for security_group in groups_set.get("items", [])
+                    if security_group.get("groupId")
+                ]
+            )
         if security_groups:
             summary += ", ".join(security_groups)
         return summary
@@ -688,7 +701,9 @@ class CloudTrail:
         self.scan_start_time = scan_start_time
         self.scan_end_time = scan_end_time
 
-    def _fetch_context(self, resource_type):
+    def _fetch_context(
+        self, resource_type: models.ResourceType
+    ) -> dict[str, dict[str, Any]]:
         context = {}
         if resource_type == models.ResourceType.EC2_Instance:
             context = self.supported_ec2_instance_events
@@ -745,9 +760,12 @@ class CloudTrail:
             if username := event.get("Username"):
                 message += f" by {username}"
 
-            if event_details and (formatter := event_context.get("formatter")):
-                if formatted_message := formatter(event_details):
-                    message += formatted_message
+            if (
+                event_details
+                and (formatter := event_context.get("formatter"))
+                and (formatted_message := formatter(event_details))
+            ):
+                message += formatted_message
 
             events.append(
                 models.TimelineEvent(

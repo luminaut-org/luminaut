@@ -12,8 +12,8 @@ from luminaut import models
 class Whatweb:
     def __init__(self, config: models.LuminautConfig | None = None):
         self.config = config
-        self.brief_file = Path(tempfile.NamedTemporaryFile(delete=False).name)
-        self.json_file = Path(tempfile.NamedTemporaryFile(delete=False).name)
+        self.brief_file = Path(tempfile.NamedTemporaryFile(delete=False).name)  # noqa: SIM115
+        self.json_file = Path(tempfile.NamedTemporaryFile(delete=False).name)  # noqa: SIM115
 
     def __del__(self):
         # Clean up files when the object is deleted.
@@ -26,7 +26,7 @@ class Whatweb:
 
         command = self.build_command(target)
         timeout = self.config.whatweb.timeout if self.config else None
-        subprocess.run(
+        subprocess.run(  # noqa: S603
             command,
             check=True,
             timeout=timeout,

@@ -58,15 +58,29 @@ package = true
 
 [tool.ruff.lint]
 select = [
-    # Pyflakes
-    "F",
-    # pyupgrade
-    "UP",
-    # flake8-bugbear
-    "B",
-    # isort
-    "I",
+    "F",  # pyflakes
+    "UP",  # pyupgrade
+    "B",  # bugbear
+    "I",  # isort
+    "C90",  # mccabe complexity
+    "ANN",  # Type annotations
+    "S",  # Bandit
+    "A",  # Built-in shadowing
+    "C4",  # Comprehensions
+    "DTZ",  # Datetime
+    "ISC",  # Implicit string concatenation
+    "LOG",  # Logging
+    "PIE",  # Misc lints
+    "T20",  # Print found
+    "Q",  # Quotes
+    "RET",  # Returns
+    "SIM",  # Simplification
+    "PTH",  # Pathlib
+    "PERF",  # Performance
 ]
+
+[tool.ruff.lint.flake8-annotations]
+suppress-none-returning = true
 
 [tool.pytest.ini_options]
 addopts = "--cov=src/luminaut --cov-report=term --cov-report=html --cov-report=xml --cov-branch --durations=3"

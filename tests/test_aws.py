@@ -11,7 +11,9 @@ from luminaut.tools.aws import Aws, CloudTrail, ExtractEventsFromConfigDiffs
 
 class MockDescribeEniPaginator:
     @staticmethod
-    def paginate(*args, **kwargs):
+    def paginate(
+        *_args: str, **_kwargs: dict[str, str]
+    ) -> list[dict[str, list[dict[str, str | dict[str, str]]]]]:
         return [
             {
                 "NetworkInterfaces": [
@@ -36,7 +38,7 @@ class AwsTool(unittest.TestCase):
             public_ip="10.0.0.1",
             private_ip="10.0.0.1",
             attachment_id="eni-attach-1234567890abcdef0",
-            attachment_time=datetime.today(),
+            attachment_time=datetime.now(tz=UTC),
             attachment_status="attached",
             availability_zone="us-west-2a",
             status="available",
@@ -50,7 +52,7 @@ class AwsTool(unittest.TestCase):
             account="123456789012",
             region="us-west-2",
             arn="arn",
-            config_capture_time=datetime.today(),
+            config_capture_time=datetime.now(tz=UTC),
             config_status="OK",
             configuration="",
             tags={},
@@ -62,20 +64,20 @@ class AwsTool(unittest.TestCase):
             account="123456789012",
             region="us-west-2",
             arn="arn",
-            config_capture_time=datetime.today(),
+            config_capture_time=datetime.now(tz=UTC),
             config_status="OK",
             configuration="",
             tags={},
             resource_creation_time=None,
         )
 
-    def aws_client_mock_setup(self, config=None) -> Aws:
+    def aws_client_mock_setup(self, config: models.LuminautConfig | None = None) -> Aws:
         def mock_get_config_history_for_resource(
-            resource_type: models.ResourceType, *args, **kwargs
+            resource_type: models.ResourceType, *_args: str, **_kwargs: dict[str, str]
         ) -> tuple[list[models.AwsConfigItem], list[models.TimelineEvent]]:
             if resource_type == models.ResourceType.EC2_NetworkInterface:
                 return [self.sample_config_eni], []
-            elif resource_type == models.ResourceType.EC2_Instance:
+            if resource_type == models.ResourceType.EC2_Instance:
                 return [self.sample_config_ec2], []
             raise NotImplementedError(
                 f"This test does not support this resource type: {resource_type}"
@@ -327,7 +329,7 @@ class TestCloudTrail(unittest.TestCase):
     def test_lookup_ec2_instance(self):
         cloudtrail_event = {
             "EventName": "RunInstances",
-            "EventTime": datetime.now(),
+            "EventTime": datetime.now(tz=UTC),
             "foo": "bar",
         }
         cloudtrail = CloudTrail(region="us-east-1")

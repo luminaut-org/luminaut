@@ -44,7 +44,7 @@ class JsonReport(unittest.TestCase):
                             arn="bar",
                             configuration="foo",
                             config_status="OK",
-                            config_capture_time=datetime.today(),
+                            config_capture_time=datetime.now(tz=UTC),
                             tags={"Name": "test"},
                         )
                     ],

@@ -100,10 +100,14 @@ class Gcp:
 
         tasks = []
         for project in self.get_projects():
-            for zone in self.get_zones(project):
-                tasks.append(asyncio.to_thread(self.find_instances, project, zone))
-            for region in self.get_regions(project):
-                tasks.append(asyncio.to_thread(self.find_services, project, region))
+            tasks.extend(
+                asyncio.to_thread(self.find_instances, project, zone)
+                for zone in self.get_zones(project)
+            )
+            tasks.extend(
+                asyncio.to_thread(self.find_services, project, region)
+                for region in self.get_regions(project)
+            )
 
         scan_results = []
         with logging_redirect_tqdm():
@@ -150,7 +154,7 @@ class Gcp:
                 instance_events = [
                     event
                     for event in audit_log_events
-                    if event.resource_id == gcp_instance.resource_id
+                    if str(event.resource_id) == gcp_instance.resource_id
                 ]
                 if instance_events:
                     scan_finding.events.extend(instance_events)

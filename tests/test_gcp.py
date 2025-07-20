@@ -1,100 +1,96 @@
 import datetime
+from collections.abc import Iterable
 from io import BytesIO
 from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
 
 from google.cloud.compute_v1 import types as gcp_compute_v1_types
-from google.cloud.run_v2 import types as run_v2_types
+from google.cloud.run_v2 import types as gcp_run_v2_types
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from luminaut import models
 from luminaut.tools.gcp import Gcp
 from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 
+fake_gcp_access_config = gcp_compute_v1_types.AccessConfig(nat_i_p="1.2.3.4")
 
-class TestGcpAccessConfig:
-    nat_i_p = "1.2.3.4"
-
-
-class FakeGcpNetworkInterface:
-    access_configs = [TestGcpAccessConfig()]
-    name = "nic0"
-    network_i_p = "10.0.0.1"
-    network = "https://www.googleapis.com/compute/v1/projects/luminaut/global/networks/default"
-    network_attachment = ""
-    alias_ip_ranges = []
+fake_gcp_network_interface = gcp_compute_v1_types.NetworkInterface(
+    access_configs=[fake_gcp_access_config],
+    name="nic0",
+    network_i_p="1.2.3.4",
+    network="https://www.googleapis.com/compute/v1/projects/luminaut/global/networks/default",
+    network_attachment="",
+    alias_ip_ranges=[],
+)
 
 
-class FakeGcpInstanceTags:
-    items = ["web-server", "production", "backend"]
+fake_gcp_instance = gcp_compute_v1_types.Instance(
+    id=123,
+    name="test-instance",
+    network_interfaces=[fake_gcp_network_interface],
+    creation_timestamp="2025-05-19T05:35:09.886-07:00",
+    zone="https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c",
+    status="RUNNING",
+    description="Test instance",
+    tags=gcp_compute_v1_types.Tags(items=["web-server", "production", "backend"]),
+)
+
+fake_gcp_internal_network_interface = gcp_compute_v1_types.NetworkInterface(
+    access_configs=[],
+    name="nic0",
+    network_i_p="10.0.0.1",
+    network="https://www.googleapis.com/compute/v1/projects/luminaut/global/networks/default",
+    network_attachment="",
+    alias_ip_ranges=[],
+)
+
+fake_gcp_internal_instance_tags = gcp_compute_v1_types.Tags(
+    items=["internal", "database"]
+)
 
 
-class FakeGcpInstance:
-    id = "abc123"
-    name = "test-instance"
-    network_interfaces = [FakeGcpNetworkInterface()]
-    creation_timestamp = "2025-05-19T05:35:09.886-07:00"
-    zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
-    status = "RUNNING"
-    description = "Test instance"
-    tags = FakeGcpInstanceTags()
+fake_gcp_instance_with_no_public_ip = gcp_compute_v1_types.Instance(
+    id=456,
+    name="test-instance",
+    network_interfaces=[fake_gcp_internal_network_interface],
+    creation_timestamp="2025-05-19T05:35:09.886-07:00",
+    zone="https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c",
+    status="RUNNING",
+    description="Test instance",
+    tags=fake_gcp_internal_instance_tags,
+)
 
-
-class FakeGcpInternalNetworkInterface:
-    access_configs = []
-    name = "nic0"
-    network_i_p = "10.0.0.1"
-    network = "https://www.googleapis.com/compute/v1/projects/luminaut/global/networks/default"
-    network_attachment = ""
-    alias_ip_ranges = []
-
-
-class FakeGcpInternalInstanceTags:
-    items = ["internal", "database"]
-
-
-class FakeGcpInternalInstance:
-    id = "abc123"
-    name = "test-instance"
-    network_interfaces = [FakeGcpInternalNetworkInterface()]
-    creation_timestamp = "2025-05-19T05:35:09.886-07:00"
-    zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
-    status = "RUNNING"
-    description = "Test instance"
-    tags = FakeGcpInternalInstanceTags()
-
-
-fake_container = run_v2_types.Container(
+fake_container = gcp_run_v2_types.Container(
     name="test-container",
     image="gcr.io/test-project/test-image",
     command=["python", "app.py"],
-    ports=[run_v2_types.ContainerPort(name="http1", container_port=8080)],
+    ports=[gcp_run_v2_types.ContainerPort(name="http1", container_port=8080)],
 )
 
 some_date = datetime.datetime(2025, 5, 19, 5, 35, 9, tzinfo=datetime.UTC)
 
-fake_service = run_v2_types.Service(
+fake_service = gcp_run_v2_types.Service(
     name="projects/test-project/locations/us-central1/services/test-service",
     uid="12345678-1234-1234-1234-123456789012",
     uri="https://test-service-12345678-uc.a.run.app",
     creator="foo",
     last_modifier="bar",
-    template=run_v2_types.RevisionTemplate(containers=[fake_container]),
-    ingress=run_v2_types.IngressTraffic.INGRESS_TRAFFIC_ALL,
+    template=gcp_run_v2_types.RevisionTemplate(containers=[fake_container]),
+    ingress=gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_ALL,
     urls=["https://test-service-12345678-uc.a.run.app"],
     create_time=Timestamp(seconds=int(some_date.timestamp())),
     update_time=Timestamp(seconds=int(some_date.timestamp())),
 )
 
-fake_service_with_no_ingress = run_v2_types.Service(
+fake_service_with_no_ingress = gcp_run_v2_types.Service(
     name="projects/test-project/locations/us-central1/services/test-service-ingress-none",
     uid="12345678-1234-1234-1234-123456789013",
     uri="https://test-service-12345678-uc.a.run.app",
     creator="foo",
     last_modifier="bar",
-    template=run_v2_types.RevisionTemplate(containers=[fake_container]),
-    ingress=run_v2_types.IngressTraffic.INGRESS_TRAFFIC_NONE,
+    template=gcp_run_v2_types.RevisionTemplate(containers=[fake_container]),
+    ingress=gcp_run_v2_types.IngressTraffic.INGRESS_TRAFFIC_NONE,
     urls=["https://test-service-12345678-uc.a.run.app"],
     create_time=Timestamp(seconds=int(some_date.timestamp())),
     update_time=Timestamp(seconds=int(some_date.timestamp())),
@@ -119,8 +115,10 @@ class TestGCP(TestCase):
     def mock_gcp_clients(
         self,
         gcp: Gcp,
-        compute_list_instance_response=None,
-        cloud_run_list_service_response=None,
+        compute_list_instance_response: Iterable[gcp_compute_v1_types.Instance]
+        | None = None,
+        cloud_run_list_service_response: Iterable[gcp_run_v2_types.Service]
+        | None = None,
     ) -> dict[str, Mock]:
         clients = {}
         clients["compute_v1"] = Mock()
@@ -139,7 +137,7 @@ class TestGCP(TestCase):
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
             gcp,
-            compute_list_instance_response=[FakeGcpInstance()],
+            compute_list_instance_response=[fake_gcp_instance],
             cloud_run_list_service_response=[fake_service],
         )
         instances = gcp.explore()
@@ -161,16 +159,18 @@ class TestGCP(TestCase):
 
     def test_enumerate_instances_with_public_ips(self):
         expected_nic = models.GcpNetworkInterface(
-            resource_id=FakeGcpNetworkInterface.name,
-            public_ip=TestGcpAccessConfig.nat_i_p,
-            internal_ip=FakeGcpNetworkInterface.network_i_p,
-            network=FakeGcpNetworkInterface.network,
-            network_attachment=FakeGcpNetworkInterface.network_attachment,
-            alias_ip_ranges=FakeGcpNetworkInterface.alias_ip_ranges,
+            resource_id=fake_gcp_network_interface.name,
+            public_ip=fake_gcp_access_config.nat_i_p,
+            internal_ip=fake_gcp_network_interface.network_i_p,
+            network=fake_gcp_network_interface.network,
+            network_attachment=fake_gcp_network_interface.network_attachment,
+            alias_ip_ranges=[
+                str(x) for x in fake_gcp_network_interface.alias_ip_ranges
+            ],
         )
         expected_instance = models.GcpInstance(
-            resource_id=FakeGcpInstance.id,
-            name=FakeGcpInstance.name,
+            resource_id=str(fake_gcp_instance.id),
+            name=fake_gcp_instance.name,
             network_interfaces=[expected_nic],
             creation_time=datetime.datetime(
                 2025,
@@ -183,13 +183,13 @@ class TestGCP(TestCase):
                 tzinfo=datetime.timezone(datetime.timedelta(hours=-7)),
             ),
             zone="us-central1-c",
-            status=FakeGcpInstance.status,
-            description=FakeGcpInstance.description,
+            status=fake_gcp_instance.status,
+            description=fake_gcp_instance.description,
         )
 
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
-            gcp, compute_list_instance_response=[FakeGcpInstance()]
+            gcp, compute_list_instance_response=[fake_gcp_instance]
         )
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
@@ -215,18 +215,20 @@ class TestGCP(TestCase):
 
     def test_enumerate_instances_without_public_ips(self):
         expected_nic = models.GcpNetworkInterface(
-            resource_id=FakeGcpInternalNetworkInterface.name,
+            resource_id=fake_gcp_internal_network_interface.name,
             public_ip=None,
-            internal_ip=FakeGcpInternalNetworkInterface.network_i_p,
-            network=FakeGcpInternalNetworkInterface.network,
-            network_attachment=FakeGcpInternalNetworkInterface.network_attachment,
-            alias_ip_ranges=FakeGcpInternalNetworkInterface.alias_ip_ranges,
+            internal_ip=fake_gcp_internal_network_interface.network_i_p,
+            network=fake_gcp_internal_network_interface.network,
+            network_attachment=fake_gcp_internal_network_interface.network_attachment,
+            alias_ip_ranges=[
+                str(x) for x in fake_gcp_internal_network_interface.alias_ip_ranges
+            ],
         )
 
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
             gcp,
-            compute_list_instance_response=[FakeGcpInternalInstance()],
+            compute_list_instance_response=[fake_gcp_instance_with_no_public_ip],
         )
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
@@ -252,7 +254,7 @@ class TestGCP(TestCase):
         gcp = Gcp(self.config)
         mock_clients = self.mock_gcp_clients(
             gcp,
-            compute_list_instance_response=[FakeGcpInternalInstance()],
+            compute_list_instance_response=[fake_gcp_instance_with_no_public_ip],
         )
         instances = gcp.explore()
 
@@ -348,7 +350,11 @@ class TestGcpFirewalls(TestCase):
         )
         self.config = models.LuminautConfig.from_toml(config)
 
-    def mock_firewall_client(self, gcp: Gcp, firewall_list_response=None) -> Mock:
+    def mock_firewall_client(
+        self,
+        gcp: Gcp,
+        firewall_list_response: Iterable[gcp_compute_v1_types.Firewall] | None = None,
+    ) -> Mock:
         client = Mock()
         client.list.return_value = firewall_list_response or []
         gcp.get_firewall_client = Mock(return_value=client)
@@ -524,9 +530,9 @@ class TestGcpScanResultsIntegration(TestCase):
     def mock_gcp_and_firewall_clients(
         self,
         gcp: Gcp,
-        instance_response=None,
-        firewall_response=None,
-        services_response=None,
+        instance_response: Iterable[gcp_compute_v1_types.Instance] | None = None,
+        firewall_response: Iterable[gcp_compute_v1_types.Firewall] | None = None,
+        services_response: Iterable[gcp_run_v2_types.Service] | None = None,
     ) -> dict[str, Mock]:
         clients = {}
 
@@ -552,7 +558,7 @@ class TestGcpScanResultsIntegration(TestCase):
         gcp = Gcp(self.config)
         self.mock_gcp_and_firewall_clients(
             gcp,
-            instance_response=[FakeGcpInstance()],
+            instance_response=[fake_gcp_instance],
             firewall_response=[fake_firewall_rule],
         )
 
@@ -562,7 +568,7 @@ class TestGcpScanResultsIntegration(TestCase):
         self.assertEqual(len(scan_results), 1)
 
         scan_result = scan_results[0]
-        self.assertEqual(scan_result.ip, TestGcpAccessConfig.nat_i_p)
+        self.assertEqual(scan_result.ip, fake_gcp_access_config.nat_i_p)
 
         # Should have one finding with both instance and firewall resources
         self.assertEqual(len(scan_result.findings), 1)
@@ -580,16 +586,18 @@ class TestGcpScanResultsIntegration(TestCase):
         # Check firewall rules resource
         firewall_rules_resource = finding.resources[1]
         self.assertIsInstance(firewall_rules_resource, models.GcpFirewallRules)
-        assert isinstance(firewall_rules_resource, models.GcpFirewallRules)
-        self.assertEqual(len(firewall_rules_resource.rules), 1)
-        self.assertEqual(firewall_rules_resource.rules[0].name, "allow-http-https")
+        self.assertIsInstance(firewall_rules_resource, models.GcpFirewallRules)
+        if isinstance(firewall_rules_resource, models.GcpFirewallRules):
+            # Though covered by the above assertion, this is to inform the type checker
+            self.assertEqual(len(firewall_rules_resource.rules), 1)
+            self.assertEqual(firewall_rules_resource.rules[0].name, "allow-http-https")
 
     def test_find_instances_with_no_firewall_rules(self):
         # Test that find_instances handles instances with no applicable firewall rules
         gcp = Gcp(self.config)
         self.mock_gcp_and_firewall_clients(
             gcp,
-            instance_response=[FakeGcpInstance()],
+            instance_response=[fake_gcp_instance],
             firewall_response=[],  # No firewall rules
         )
 
@@ -655,7 +663,7 @@ class TestGcpScanResultsIntegration(TestCase):
             timestamp=datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
             source="GCP Audit Logs",
             event_type=models.TimelineEventType.COMPUTE_INSTANCE_CREATED,
-            resource_id=FakeGcpInstance.id,
+            resource_id=str(fake_gcp_instance.id),
             resource_type=models.ResourceType.GCP_Instance,
             message="Instance created by test@example.com",
         )
@@ -665,7 +673,7 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock the compute client
         self.mock_gcp_and_firewall_clients(
             gcp,
-            instance_response=[FakeGcpInstance()],
+            instance_response=[fake_gcp_instance],
         )
 
         # Mock the audit logs service
@@ -704,7 +712,7 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock the compute client
         self.mock_gcp_and_firewall_clients(
             gcp,
-            instance_response=[FakeGcpInstance()],
+            instance_response=[fake_gcp_instance],
         )
 
         # Mock the audit logs service - it should not be called
