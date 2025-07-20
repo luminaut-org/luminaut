@@ -140,8 +140,9 @@ class GcpAuditLogs:
             self._build_resource_name_id_mapping(services),
         )
 
+    @staticmethod
     def _build_resource_name_id_mapping(
-        self, resources: Sequence[models.GcpInstance | models.GcpService]
+        resources: Sequence[models.GcpInstance | models.GcpService],
     ) -> dict[str, str]:
         """Build a mapping from resource names to their IDs.
 
@@ -153,8 +154,9 @@ class GcpAuditLogs:
         """
         return {resource.name: resource.resource_id for resource in resources}
 
+    @staticmethod
     def _build_time_filter(
-        self, start_time: datetime | None, end_time: datetime | None
+        start_time: datetime | None, end_time: datetime | None
     ) -> str:
         """Build the time filter string for querying audit logs.
 
@@ -172,12 +174,23 @@ class GcpAuditLogs:
 
         filters = []
         if start_time:
-            start_time_str = start_time.strftime(self.TIMESTAMP_FORMAT)
+            start_time_str = start_time.strftime(GcpAuditLogs.TIMESTAMP_FORMAT)
             filters.append(f'timestamp>="{start_time_str}"')
         if end_time:
-            end_time_str = end_time.strftime(self.TIMESTAMP_FORMAT)
+            end_time_str = end_time.strftime(GcpAuditLogs.TIMESTAMP_FORMAT)
             filters.append(f'timestamp<="{end_time_str}"')
         return " AND ".join(filters)
+
+    @staticmethod
+    def _build_method_name_filter(method_names: Iterable[str]) -> str:
+        """Build a filter string for method names
+        Args:
+            method_names: List of method names to include in the filter.
+        Returns:
+            Filter string for the specified method names.
+        """
+        quoted_methods = [f'"{method}"' for method in method_names]
+        return f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
 
     def _build_instance_audit_log_filter(
         self, instances: list[models.GcpInstance]
@@ -288,16 +301,6 @@ class GcpAuditLogs:
         except Exception as e:
             logger.warning(f"Error parsing audit log entry: {e}")
             return None
-
-    def _build_method_name_filter(self, method_names: Iterable[str]) -> str:
-        """Build a filter string for method names
-        Args:
-            method_names: List of method names to include in the filter.
-        Returns:
-            Filter string for the specified method names.
-        """
-        quoted_methods = [f'"{method}"' for method in method_names]
-        return f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
 
     def _build_service_audit_log_filter(
         self, services: Sequence[models.GcpService]
