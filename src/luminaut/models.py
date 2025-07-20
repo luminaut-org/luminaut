@@ -102,6 +102,7 @@ class ResourceType(StrEnum):
     EC2_SecurityGroup = "AWS::EC2::SecurityGroup"
     ELB_LoadBalancer = "AWS::ElasticLoadBalancingV2::LoadBalancer"
     GCP_Instance = "GCP::Compute::Instance"
+    GCP_Service = "GCP::Run::Service"
 
 
 class SecurityGroupRuleTargetType(StrEnum):
@@ -761,9 +762,15 @@ class GcpService:
             Container.from_gcp(container) for container in service.template.containers
         ]
 
+        # Extract the service name from the full path
+        # service.name format: projects/{project}/locations/{region}/services/{service-name}
+        service_name = (
+            service.name.split("/")[-1] if "/" in service.name else service.name
+        )
+
         return cls(
-            resource_id=service.uid,
-            name=service.name,
+            resource_id=service.name,
+            name=service_name,
             uri=service.uri,
             creation_time=datetime.fromisoformat(service.create_time.rfc3339()),  # type: ignore
             update_time=datetime.fromisoformat(service.update_time.rfc3339()),  # type: ignore
@@ -1350,6 +1357,11 @@ class TimelineEventType(StrEnum):
     SECURITY_GROUP_ASSOCIATION_CHANGE = "Security group changed"
     SECURITY_GROUP_RULE_CHANGE = "Security group rule changed"
     RESOURCE_CREATED = "Resource created"
+    SERVICE_CREATED = "Service created"
+    SERVICE_DELETED = "Service deleted"
+    SERVICE_UPDATED = "Service updated"
+    SERVICE_DEFINITION_REVISION_CREATED = "Service definition revision created"
+    SERVICE_DEFINITION_REVISION_DELETED = "Service definition revision deleted"
 
 
 @dataclass

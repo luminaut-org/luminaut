@@ -71,7 +71,7 @@ regions = []
 compute_zones = []
 
 [tool.gcp.audit_logs]
-enabled = true  # Enables the collection of GCP audit log events related to discovered compute instances.
+enabled = true  # Enables the collection of GCP audit log events related to discovered compute instances and Cloud Run services.
 
 # The below dates must be specified as offset aware timestamps in RFC-3339 format, per https://toml.io/en/v1.0.0#offset-date-time
 # You can specify either the start, end, both, or None to influence the time period of the scan as desired.

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable, Iterable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -7,6 +8,59 @@ from google.cloud import logging as gcp_logging
 from luminaut import models
 
 logger = logging.getLogger(__name__)
+
+
+class GcpAuditLogFilterBuilder:
+    """Builder for constructing GCP Audit Log filter strings in a flexible, chainable way."""
+
+    def __init__(self, project: str, log_name_template: str):
+        self.project = project
+        self.log_name_template = log_name_template
+        self.parts: list[str] = []
+
+    def with_log_name(self) -> "GcpAuditLogFilterBuilder":
+        self.parts.append(
+            f'logName:"{self.log_name_template.format(project=self.project)}"'
+        )
+        return self
+
+    def with_service_name(self, service_name: str) -> "GcpAuditLogFilterBuilder":
+        self.parts.append(f'protoPayload.serviceName="{service_name}"')
+        return self
+
+    def with_method_names(
+        self, method_names: Iterable[str]
+    ) -> "GcpAuditLogFilterBuilder":
+        quoted_methods = [f'"{method}"' for method in method_names]
+        self.parts.append(f"protoPayload.methodName:({' OR '.join(quoted_methods)})")
+        return self
+
+    def with_resource_names(
+        self, resource_names: Iterable[str]
+    ) -> "GcpAuditLogFilterBuilder":
+        if resource_names:
+            quoted = [f'"{name}"' for name in resource_names]
+            self.parts.append(f"protoPayload.resourceName=({' OR '.join(quoted)})")
+        return self
+
+    def with_time_range(
+        self,
+        start_time: datetime | None,
+        end_time: datetime | None,
+        timestamp_format: str,
+    ) -> "GcpAuditLogFilterBuilder":
+        # If no time range is specified, default to last 30 days
+        if not start_time and not end_time:
+            end_time = datetime.now(UTC)
+            start_time = end_time - timedelta(days=30)
+        if start_time:
+            self.parts.append(f'timestamp>="{start_time.strftime(timestamp_format)}"')
+        if end_time:
+            self.parts.append(f'timestamp<="{end_time.strftime(timestamp_format)}"')
+        return self
+
+    def build(self) -> str:
+        return " AND ".join(self.parts)
 
 
 class GcpAuditLogs:
@@ -30,11 +84,11 @@ class GcpAuditLogs:
     # Constants for audit log filtering and parsing
     SOURCE_NAME = "GCP Audit Logs"
     LOG_NAME_TEMPLATE = "projects/{project}/logs/cloudaudit.googleapis.com%2Factivity"
-    SERVICE_NAME = "compute.googleapis.com"
-    RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
+    SERVICE_NAME_COMPUTE = "compute.googleapis.com"
+    SERVICE_NAME_RUN = "run.googleapis.com"
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
-    # Expected resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
+    RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
     RESOURCE_PATH_PARTS_COUNT = 6
     RESOURCE_PATH_INSTANCES_INDEX = 4
     RESOURCE_PATH_NAME_INDEX = 5
@@ -67,10 +121,42 @@ class GcpAuditLogs:
         },
     }
 
+    # Mapping of GCP audit log method names to timeline event types and messages for Cloud Run
+    SUPPORTED_CLOUD_RUN_EVENTS = {
+        "google.cloud.run.v1.Services.CreateService": {
+            "event_type": models.TimelineEventType.SERVICE_CREATED,
+            "message": "Service created",
+        },
+        "google.cloud.run.v1.Services.DeleteService": {
+            "event_type": models.TimelineEventType.SERVICE_DELETED,
+            "message": "Service deleted",
+        },
+        "google.cloud.run.v1.Services.ReplaceService": {
+            "event_type": models.TimelineEventType.SERVICE_UPDATED,
+            "message": "Service updated",
+        },
+        "google.cloud.run.v1.Revisions.DeleteRevision": {
+            "event_type": models.TimelineEventType.SERVICE_DEFINITION_REVISION_DELETED,
+            "message": "Service revision deleted",
+        },
+    }
+
     def __init__(self, project: str, config: models.LuminautConfigToolGcpAuditLogs):
         self.project = project
         self.config = config
         self._client: gcp_logging.Client | None = None
+        self._compute_parser = ComputeInstanceEventParser(
+            self.SUPPORTED_INSTANCE_EVENTS,
+            self._extract_resource_name,
+            self.SOURCE_NAME,
+            self.project,
+        )
+        self._cloudrun_parser = CloudRunServiceEventParser(
+            self.SUPPORTED_CLOUD_RUN_EVENTS,
+            self._extract_service_name,
+            self.SOURCE_NAME,
+            self.project,
+        )
 
     @property
     def client(self) -> gcp_logging.Client:
@@ -92,169 +178,143 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no instances provided,
             or if an error occurs during querying.
         """
-        if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
-            return []
+        return self._query_audit_events(
+            instances,
+            self._build_instance_audit_log_filter,
+            self._parse_instance_audit_log_entry,
+            self._build_resource_name_id_mapping(instances),
+        )
 
-        if not instances:
-            logger.debug("No instances provided for audit log query")
-            return []
-
-        # Create a mapping from instance names to resource IDs for exact matching
-        name_to_resource_id = {
-            instance.name: instance.resource_id for instance in instances
-        }
-
-        # Build the filter for audit log queries
-        filter_str = self._build_audit_log_filter(instances)
-        if not filter_str:
-            logger.debug("No valid filter could be built for audit log query")
-            return []
-
-        try:
-            # Query the audit logs
-            log_entries = self.client.list_entries(
-                filter_=filter_str, order_by=gcp_logging.ASCENDING
-            )
-
-            # Parse the entries into timeline events
-            timeline_events = []
-            for entry in log_entries:
-                if timeline_event := self._parse_audit_log_entry(
-                    entry, name_to_resource_id
-                ):
-                    timeline_events.append(timeline_event)
-            return timeline_events
-
-        except Exception as e:
-            logger.error(
-                f"Error querying GCP audit logs for project {self.project}: {e}"
-            )
-            return []
-
-    def _build_audit_log_filter(self, instances: list[models.GcpInstance]) -> str:
-        """Build the filter string for querying audit logs.
+    def query_service_events(
+        self, services: list[models.GcpService]
+    ) -> list[models.TimelineEvent]:
+        """Query audit logs for Cloud Run service lifecycle events.
 
         Args:
-            instances: List of GCP instances to build filters for.
+            services: List of GCP Cloud Run services to query audit logs for.
 
         Returns:
-            Filter string compatible with Cloud Logging API.
+            List of timeline events found in audit logs for the given services.
+            Returns empty list if audit logs are disabled, no services provided,
+            or if an error occurs during querying.
         """
-        # Base filter for GCP Compute Engine audit logs
-        base_filter = [
-            f'logName:"{self.LOG_NAME_TEMPLATE.format(project=self.project)}"',
-            f'protoPayload.serviceName="{self.SERVICE_NAME}"',
-        ]
+        return self._query_audit_events(
+            services,
+            self._build_service_audit_log_filter,
+            self._parse_service_audit_log_entry,
+            self._build_resource_name_id_mapping(services),
+        )
 
-        # Add method name filters
-        method_names = list(self.SUPPORTED_INSTANCE_EVENTS.keys())
-        quoted_methods = [f'"{method}"' for method in method_names]
-        method_filter = f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
-        base_filter.append(method_filter)
+    @staticmethod
+    def _build_resource_name_id_mapping(
+        resources: Sequence[models.GcpInstance | models.GcpService],
+    ) -> dict[str, str]:
+        """Build a mapping from resource names to their IDs.
 
-        # Add resource name filters for specific instances
-        if instances:
-            instance_resources = []
-            for instance in instances:
-                # Build the full resource path for the instance
-                resource_path = self.RESOURCE_PATH_TEMPLATE.format(
-                    project=self.project, zone=instance.zone, instance=instance.name
-                )
-                instance_resources.append(f'"{resource_path}"')
+        Args:
+            resources: List of GCP instances or services.
 
-            resource_filter = (
-                f"protoPayload.resourceName=({' OR '.join(instance_resources)})"
+        Returns:
+            Mapping of resource names to their IDs.
+        """
+        return {resource.name: resource.resource_id for resource in resources}
+
+    def _build_instance_audit_log_filter(
+        self, instances: list[models.GcpInstance]
+    ) -> str:
+        """Build the filter string for querying audit logs for Compute Engine instances."""
+        resource_names = []
+        for instance in instances:
+            resource_path = self.RESOURCE_PATH_TEMPLATE.format(
+                project=self.project, zone=instance.zone, instance=instance.name
             )
-            base_filter.append(resource_filter)
+            resource_names.append(resource_path)
+        return (
+            GcpAuditLogFilterBuilder(self.project, self.LOG_NAME_TEMPLATE)
+            .with_log_name()
+            .with_service_name(self.SERVICE_NAME_COMPUTE)
+            .with_method_names(self.SUPPORTED_INSTANCE_EVENTS.keys())
+            .with_resource_names(resource_names)
+            .with_time_range(
+                self.config.start_time, self.config.end_time, self.TIMESTAMP_FORMAT
+            )
+            .build()
+        )
 
-        # Add time range filters if configured, with default 30-day lookback
-        start_time = self.config.start_time
-        end_time = self.config.end_time
-
-        # If no time range is specified, default to last 30 days
-        if not start_time and not end_time:
-            end_time = datetime.now(UTC)
-            start_time = end_time - timedelta(days=30)
-
-        if start_time:
-            start_time_str = start_time.strftime(self.TIMESTAMP_FORMAT)
-            base_filter.append(f'timestamp>="{start_time_str}"')
-
-        if end_time:
-            end_time_str = end_time.strftime(self.TIMESTAMP_FORMAT)
-            base_filter.append(f'timestamp<="{end_time_str}"')
-
-        return " AND ".join(base_filter)
-
-    def _parse_audit_log_entry(
+    def _parse_instance_audit_log_entry(
         self, entry: Any, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
-        """Parse a GCP audit log entry into a TimelineEvent.
+        """Directly dispatch to the Compute parser for Compute Engine events."""
+        method_name = (
+            entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+        )
+        if method_name in self.SUPPORTED_INSTANCE_EVENTS:
+            return self._compute_parser.parse(entry, name_to_resource_id)
+        return None
+
+    def _build_service_audit_log_filter(
+        self, services: Sequence[models.GcpService]
+    ) -> str:
+        """Build the filter string for querying Cloud Run service audit logs."""
+        resource_names = []
+        for service in services:
+            service_name = self._extract_service_name(service.resource_id)
+            audit_log_resource_name = (
+                f"namespaces/{self.project}/services/{service_name}"
+            )
+            resource_names.append(audit_log_resource_name)
+        return (
+            GcpAuditLogFilterBuilder(self.project, self.LOG_NAME_TEMPLATE)
+            .with_log_name()
+            .with_service_name(self.SERVICE_NAME_RUN)
+            .with_method_names(self.SUPPORTED_CLOUD_RUN_EVENTS.keys())
+            .with_resource_names(resource_names)
+            .with_time_range(
+                self.config.start_time, self.config.end_time, self.TIMESTAMP_FORMAT
+            )
+            .build()
+        )
+
+    def _parse_service_audit_log_entry(
+        self, entry: Any, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        """Directly dispatch to the Cloud Run parser for Cloud Run events."""
+        method_name = (
+            entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+        )
+        if method_name in self.SUPPORTED_CLOUD_RUN_EVENTS:
+            return self._cloudrun_parser.parse(entry, name_to_resource_id)
+        return None
+
+    @staticmethod
+    def _extract_service_name(resource_path: str) -> str:
+        """Extract the service name from a GCP Cloud Run resource path.
 
         Args:
-            entry: Audit log entry from Cloud Logging API.
-            name_to_resource_id: Mapping from instance names to resource IDs.
+            resource_path: Full GCP resource path. Can be either:
+                - namespaces/{project}/services/{name} (actual audit log format)
+                - projects/{project}/locations/{region}/services/{name} (API resource format)
 
         Returns:
-            TimelineEvent if the entry represents a supported instance event,
-            None otherwise.
+            The service name or the original path if parsing fails.
         """
         try:
-            if not entry.payload:
-                return None
+            parts = resource_path.split("/")
 
-            # Get method name to determine event type
-            method_name = entry.payload.get("methodName", "")
-            if method_name not in self.SUPPORTED_INSTANCE_EVENTS:
-                return None
+            # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
+            if len(parts) >= 6 and parts[4] == "services":
+                return parts[5]
 
-            event_config = self.SUPPORTED_INSTANCE_EVENTS[method_name]
+            # Handle actual audit log format: namespaces/{project}/services/{service-name}
+            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
+                return parts[3]
 
-            # Extract resource name and instance name
-            resource_name = entry.payload.get("resourceName", "")
-            instance_name = self._extract_resource_name(resource_name)
+            return resource_path
+        except (IndexError, AttributeError):
+            return resource_path
 
-            # Get the actual resource ID from the mapping
-            resource_id = name_to_resource_id.get(instance_name, instance_name)
-
-            # Extract authentication info for the message
-            auth_info = entry.payload.get("authenticationInfo", {})
-            principal_email = auth_info.get("principalEmail", "unknown")
-
-            # Build the event message
-            base_message = event_config["message"]
-            message = f"{base_message} by {principal_email}"
-
-            if entry.timestamp.tzinfo is None:
-                timestamp = entry.timestamp.replace(tzinfo=UTC)
-            else:
-                timestamp = entry.timestamp.astimezone(UTC)
-
-            # Create the timeline event
-            timeline_event = models.TimelineEvent(
-                timestamp=timestamp,
-                source=self.SOURCE_NAME,
-                event_type=event_config["event_type"],
-                resource_id=resource_id,
-                resource_type=models.ResourceType.GCP_Instance,
-                message=message,
-                details={
-                    "methodName": method_name,
-                    "resourceName": resource_name,
-                    "principalEmail": principal_email,
-                    "project": self.project,
-                    "instanceName": instance_name,
-                },
-            )
-
-            return timeline_event
-
-        except Exception as e:
-            logger.warning(f"Error parsing audit log entry: {e}")
-            return None
-
-    def _extract_resource_name(self, resource_path: str) -> str:
+    @classmethod
+    def _extract_resource_name(cls, resource_path: str) -> str:
         """Extract the resource name from a GCP resource path.
 
         Args:
@@ -267,10 +327,217 @@ class GcpAuditLogs:
             # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
             parts = resource_path.split("/")
             if (
-                len(parts) >= self.RESOURCE_PATH_PARTS_COUNT
-                and parts[self.RESOURCE_PATH_INSTANCES_INDEX] == "instances"
+                len(parts) >= cls.RESOURCE_PATH_PARTS_COUNT
+                and parts[cls.RESOURCE_PATH_INSTANCES_INDEX] == "instances"
             ):
-                return parts[self.RESOURCE_PATH_NAME_INDEX]
+                return parts[cls.RESOURCE_PATH_NAME_INDEX]
             return resource_path
         except (IndexError, AttributeError):
             return resource_path
+
+    def _query_audit_events(
+        self,
+        resources: list[Any],
+        filter_builder: Callable,
+        entry_parser: Callable,
+        name_to_resource_id: dict[str, str],
+    ) -> list[models.TimelineEvent]:
+        """
+        Query GCP audit logs for the given resources using a provided filter builder and entry parser.
+
+        Args:
+            items: List of resource objects (instances or services) to query audit logs for.
+            filter_builder: Callable that builds the filter string for the audit log query based on the items.
+            entry_parser: Callable that parses each audit log entry into a TimelineEvent.
+            name_to_resource_id: Mapping from resource names to resource IDs for resolving resource references.
+
+        Returns:
+            List of TimelineEvent objects parsed from the audit logs for the given resources.
+            Returns an empty list if audit logs are disabled, no items are provided, or if an error occurs during querying.
+        """
+        if not self.config.enabled:
+            logger.debug("GCP audit logs are disabled, skipping query")
+            return []
+        if not resources:
+            logger.debug("No resources provided for audit log query")
+            return []
+        filter_str = filter_builder(resources)
+        if not filter_str:
+            logger.debug("No valid filter could be built for audit log query")
+            return []
+        try:
+            log_entries = self.client.list_entries(
+                filter_=filter_str, order_by=gcp_logging.ASCENDING
+            )
+            timeline_events = []
+            for entry in log_entries:
+                if timeline_event := entry_parser(entry, name_to_resource_id):
+                    timeline_events.append(timeline_event)
+            return timeline_events
+        except Exception as e:
+            logger.error(
+                f"Error querying GCP audit logs for project {self.project}: {e}"
+            )
+            return []
+
+
+class ComputeInstanceEventParser:
+    def __init__(
+        self,
+        supported_events: dict[str, dict[str, Any]],
+        extract_resource_name: Callable,
+        source_name: str,
+        project: str,
+    ):
+        self.supported_events = supported_events
+        self.extract_resource_name = extract_resource_name
+        self.source_name = source_name
+        self.project = project
+
+    def parse(
+        self, entry: Any, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        try:
+            method_name = AuditLogParseTools.get_method_name(entry)
+            event_config = AuditLogParseTools.get_event_config(
+                method_name, self.supported_events
+            )
+            if not entry.payload or not event_config:
+                return None
+            resource_name = AuditLogParseTools.get_resource_name(entry)
+            instance_name = self.extract_resource_name(resource_name)
+            resource_id = AuditLogParseTools.get_resource_id(
+                name_to_resource_id, instance_name
+            )
+            if resource_id is None:
+                logger.warning(
+                    "Instance resource ID not found for resource: %s and instance: %s",
+                    resource_name,
+                    instance_name,
+                )
+                return None
+            principal_email = AuditLogParseTools.get_principal_email(entry)
+            message = AuditLogParseTools.build_message(
+                event_config["message"], principal_email
+            )
+            timestamp = AuditLogParseTools.normalize_timestamp(entry)
+            return models.TimelineEvent(
+                timestamp=timestamp,
+                source=self.source_name,
+                event_type=event_config["event_type"],
+                resource_id=resource_id,
+                resource_type=models.ResourceType.GCP_Instance,
+                message=message,
+                details={
+                    "methodName": method_name,
+                    "resourceName": resource_name,
+                    "principalEmail": principal_email,
+                    "project": self.project,
+                    "instanceName": instance_name,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Error parsing audit log entry: {e}")
+            return None
+
+
+class CloudRunServiceEventParser:
+    def __init__(
+        self,
+        supported_events: dict[str, dict[str, Any]],
+        extract_service_name: Callable,
+        source_name: str,
+        project: str,
+    ):
+        self.supported_events = supported_events
+        self.extract_service_name = extract_service_name
+        self.source_name = source_name
+        self.project = project
+
+    def parse(
+        self, entry: Any, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        try:
+            method_name = AuditLogParseTools.get_method_name(entry)
+            event_config = AuditLogParseTools.get_event_config(
+                method_name, self.supported_events
+            )
+            if not entry.payload or not event_config:
+                return None
+            resource_name = AuditLogParseTools.get_resource_name(entry)
+            service_name = self.extract_service_name(resource_name)
+            resource_id = AuditLogParseTools.get_resource_id(
+                name_to_resource_id, service_name
+            )
+            if not isinstance(resource_id, str):
+                logger.warning(
+                    "Service resource ID not found for resource: %s and service: %s",
+                    resource_name,
+                    service_name,
+                )
+                return None
+            principal_email = AuditLogParseTools.get_principal_email(entry)
+            message = AuditLogParseTools.build_message(
+                event_config["message"], principal_email
+            )
+            timestamp = AuditLogParseTools.normalize_timestamp(entry)
+            return models.TimelineEvent(
+                timestamp=timestamp,
+                source=self.source_name,
+                event_type=event_config["event_type"],
+                resource_id=resource_id,
+                resource_type=models.ResourceType.GCP_Service,
+                message=message,
+                details={
+                    "methodName": method_name,
+                    "resourceName": resource_name,
+                    "principalEmail": principal_email,
+                    "project": self.project,
+                    "serviceName": service_name,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Error parsing service audit log entry: {e}")
+            return None
+
+
+class AuditLogParseTools:
+    @staticmethod
+    def get_method_name(entry: Any) -> str:
+        return entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+
+    @staticmethod
+    def get_event_config(
+        method_name: str, supported_events: dict[str, dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        return supported_events.get(method_name)
+
+    @staticmethod
+    def get_resource_name(entry: Any) -> str:
+        return (
+            entry.payload.get("resourceName", "") if hasattr(entry, "payload") else ""
+        )
+
+    @staticmethod
+    def get_resource_id(name_to_resource_id: dict[str, str], name: str) -> str | None:
+        return name_to_resource_id.get(name)
+
+    @staticmethod
+    def get_principal_email(entry: Any) -> str:
+        auth_info = (
+            entry.payload.get("authenticationInfo", {})
+            if hasattr(entry, "payload")
+            else {}
+        )
+        return auth_info.get("principalEmail", "unknown")
+
+    @staticmethod
+    def normalize_timestamp(entry: Any) -> datetime:
+        if entry.timestamp.tzinfo is None:
+            return entry.timestamp.replace(tzinfo=UTC)
+        else:
+            return entry.timestamp.astimezone(UTC)
+
+    @staticmethod
+    def build_message(base_message: str, principal_email: str) -> str:
+        return f"{base_message} by {principal_email}"
