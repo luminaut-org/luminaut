@@ -33,10 +33,9 @@ class GcpAuditLogs:
     LOG_NAME_TEMPLATE = "projects/{project}/logs/cloudaudit.googleapis.com%2Factivity"
     SERVICE_NAME_COMPUTE = "compute.googleapis.com"
     SERVICE_NAME_RUN = "run.googleapis.com"
-    RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
-    # Expected resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
+    RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
     RESOURCE_PATH_PARTS_COUNT = 6
     RESOURCE_PATH_INSTANCES_INDEX = 4
     RESOURCE_PATH_NAME_INDEX = 5
