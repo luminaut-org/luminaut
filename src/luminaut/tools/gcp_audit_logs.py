@@ -242,7 +242,7 @@ class GcpAuditLogs:
         )
 
     def _parse_instance_audit_log_entry(
-        self, entry: Any, name_to_resource_id: dict[str, str]
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
         """Directly dispatch to the Compute parser for Compute Engine events."""
         method_name = (
@@ -276,7 +276,7 @@ class GcpAuditLogs:
         )
 
     def _parse_service_audit_log_entry(
-        self, entry: Any, name_to_resource_id: dict[str, str]
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
         """Directly dispatch to the Cloud Run parser for Cloud Run events."""
         method_name = (
@@ -395,7 +395,7 @@ class ComputeInstanceEventParser:
         self.project = project
 
     def parse(
-        self, entry: Any, name_to_resource_id: dict[str, str]
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
         try:
             method_name = AuditLogParseTools.get_method_name(entry)
@@ -420,7 +420,14 @@ class ComputeInstanceEventParser:
             message = AuditLogParseTools.build_message(
                 event_config["message"], principal_email
             )
-            timestamp = AuditLogParseTools.normalize_timestamp(entry)
+            if not isinstance(entry.timestamp, datetime):
+                logger.warning(
+                    "Invalid timestamp format in audit log entry: %s %s",
+                    entry.timestamp,
+                    type(entry.timestamp),
+                )
+                return None
+            timestamp = AuditLogParseTools.normalize_timestamp(entry.timestamp)
             return models.TimelineEvent(
                 timestamp=timestamp,
                 source=self.source_name,
@@ -455,7 +462,7 @@ class CloudRunServiceEventParser:
         self.project = project
 
     def parse(
-        self, entry: Any, name_to_resource_id: dict[str, str]
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
         try:
             method_name = AuditLogParseTools.get_method_name(entry)
@@ -480,7 +487,14 @@ class CloudRunServiceEventParser:
             message = AuditLogParseTools.build_message(
                 event_config["message"], principal_email
             )
-            timestamp = AuditLogParseTools.normalize_timestamp(entry)
+            if not isinstance(entry.timestamp, datetime):
+                logger.warning(
+                    "Invalid timestamp format in audit log entry: %s %s",
+                    entry.timestamp,
+                    type(entry.timestamp),
+                )
+                return None
+            timestamp = AuditLogParseTools.normalize_timestamp(entry.timestamp)
             return models.TimelineEvent(
                 timestamp=timestamp,
                 source=self.source_name,
@@ -503,7 +517,7 @@ class CloudRunServiceEventParser:
 
 class AuditLogParseTools:
     @staticmethod
-    def get_method_name(entry: Any) -> str:
+    def get_method_name(entry: gcp_logging.types.LogEntry) -> str:
         return entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
 
     @staticmethod
@@ -513,7 +527,7 @@ class AuditLogParseTools:
         return supported_events.get(method_name)
 
     @staticmethod
-    def get_resource_name(entry: Any) -> str:
+    def get_resource_name(entry: gcp_logging.types.LogEntry) -> str:
         return (
             entry.payload.get("resourceName", "") if hasattr(entry, "payload") else ""
         )
@@ -523,7 +537,7 @@ class AuditLogParseTools:
         return name_to_resource_id.get(name)
 
     @staticmethod
-    def get_principal_email(entry: Any) -> str:
+    def get_principal_email(entry: gcp_logging.types.LogEntry) -> str:
         auth_info = (
             entry.payload.get("authenticationInfo", {})
             if hasattr(entry, "payload")
@@ -532,11 +546,11 @@ class AuditLogParseTools:
         return auth_info.get("principalEmail", "unknown")
 
     @staticmethod
-    def normalize_timestamp(entry: Any) -> datetime:
-        if entry.timestamp.tzinfo is None:
-            return entry.timestamp.replace(tzinfo=UTC)
+    def normalize_timestamp(timestamp: datetime) -> datetime:
+        if timestamp.tzinfo is None:
+            return timestamp.replace(tzinfo=UTC)
         else:
-            return entry.timestamp.astimezone(UTC)
+            return timestamp.astimezone(UTC)
 
     @staticmethod
     def build_message(base_message: str, principal_email: str) -> str:
