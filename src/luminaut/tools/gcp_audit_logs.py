@@ -10,6 +10,59 @@ from luminaut import models
 logger = logging.getLogger(__name__)
 
 
+class GcpAuditLogFilterBuilder:
+    """Builder for constructing GCP Audit Log filter strings in a flexible, chainable way."""
+
+    def __init__(self, project: str, log_name_template: str):
+        self.project = project
+        self.log_name_template = log_name_template
+        self.parts: list[str] = []
+
+    def with_log_name(self) -> "GcpAuditLogFilterBuilder":
+        self.parts.append(
+            f'logName:"{self.log_name_template.format(project=self.project)}"'
+        )
+        return self
+
+    def with_service_name(self, service_name: str) -> "GcpAuditLogFilterBuilder":
+        self.parts.append(f'protoPayload.serviceName="{service_name}"')
+        return self
+
+    def with_method_names(
+        self, method_names: Iterable[str]
+    ) -> "GcpAuditLogFilterBuilder":
+        quoted_methods = [f'"{method}"' for method in method_names]
+        self.parts.append(f"protoPayload.methodName:({' OR '.join(quoted_methods)})")
+        return self
+
+    def with_resource_names(
+        self, resource_names: Iterable[str]
+    ) -> "GcpAuditLogFilterBuilder":
+        if resource_names:
+            quoted = [f'"{name}"' for name in resource_names]
+            self.parts.append(f"protoPayload.resourceName=({' OR '.join(quoted)})")
+        return self
+
+    def with_time_range(
+        self,
+        start_time: datetime | None,
+        end_time: datetime | None,
+        timestamp_format: str,
+    ) -> "GcpAuditLogFilterBuilder":
+        # If no time range is specified, default to last 30 days
+        if not start_time and not end_time:
+            end_time = datetime.now(UTC)
+            start_time = end_time - timedelta(days=30)
+        if start_time:
+            self.parts.append(f'timestamp>="{start_time.strftime(timestamp_format)}"')
+        if end_time:
+            self.parts.append(f'timestamp<="{end_time.strftime(timestamp_format)}"')
+        return self
+
+    def build(self) -> str:
+        return " AND ".join(self.parts)
+
+
 class GcpAuditLogs:
     """Service for querying Google Cloud Audit Logs for Compute Engine instance events.
 
@@ -154,86 +207,27 @@ class GcpAuditLogs:
         """
         return {resource.name: resource.resource_id for resource in resources}
 
-    @staticmethod
-    def _build_time_filter(
-        start_time: datetime | None, end_time: datetime | None
-    ) -> str:
-        """Build the time filter string for querying audit logs.
-
-        Args:
-            start_time: Start time for the time range filter.
-            end_time: End time for the time range filter.
-
-        Returns:
-            Time filter string compatible with Cloud Logging API.
-        """
-        # If no time range is specified, default to last 30 days
-        if not start_time and not end_time:
-            end_time = datetime.now(UTC)
-            start_time = end_time - timedelta(days=30)
-
-        filters = []
-        if start_time:
-            start_time_str = start_time.strftime(GcpAuditLogs.TIMESTAMP_FORMAT)
-            filters.append(f'timestamp>="{start_time_str}"')
-        if end_time:
-            end_time_str = end_time.strftime(GcpAuditLogs.TIMESTAMP_FORMAT)
-            filters.append(f'timestamp<="{end_time_str}"')
-        return " AND ".join(filters)
-
-    @staticmethod
-    def _build_method_name_filter(method_names: Iterable[str]) -> str:
-        """Build a filter string for method names
-        Args:
-            method_names: List of method names to include in the filter.
-        Returns:
-            Filter string for the specified method names.
-        """
-        quoted_methods = [f'"{method}"' for method in method_names]
-        return f"protoPayload.methodName:({' OR '.join(quoted_methods)})"
-
     def _build_instance_audit_log_filter(
         self, instances: list[models.GcpInstance]
     ) -> str:
-        """Build the filter string for querying audit logs.
-
-        Args:
-            instances: List of GCP instances to build filters for.
-
-        Returns:
-            Filter string compatible with Cloud Logging API.
-        """
-        # Base filter for GCP Compute Engine audit logs
-        base_filter = [
-            f'logName:"{self.LOG_NAME_TEMPLATE.format(project=self.project)}"',
-            f'protoPayload.serviceName="{self.SERVICE_NAME_COMPUTE}"',
-        ]
-
-        # Add method name filters
-        base_filter.append(
-            self._build_method_name_filter(self.SUPPORTED_INSTANCE_EVENTS.keys())
-        )
-
-        # Add resource name filters for specific instances
-        if instances:
-            instance_resources = []
-            for instance in instances:
-                # Build the full resource path for the instance
-                resource_path = self.RESOURCE_PATH_TEMPLATE.format(
-                    project=self.project, zone=instance.zone, instance=instance.name
-                )
-                instance_resources.append(f'"{resource_path}"')
-
-            resource_filter = (
-                f"protoPayload.resourceName=({' OR '.join(instance_resources)})"
+        """Build the filter string for querying audit logs for Compute Engine instances."""
+        resource_names = []
+        for instance in instances:
+            resource_path = self.RESOURCE_PATH_TEMPLATE.format(
+                project=self.project, zone=instance.zone, instance=instance.name
             )
-            base_filter.append(resource_filter)
-
-        base_filter.append(
-            self._build_time_filter(self.config.start_time, self.config.end_time)
+            resource_names.append(resource_path)
+        return (
+            GcpAuditLogFilterBuilder(self.project, self.LOG_NAME_TEMPLATE)
+            .with_log_name()
+            .with_service_name(self.SERVICE_NAME_COMPUTE)
+            .with_method_names(self.SUPPORTED_INSTANCE_EVENTS.keys())
+            .with_resource_names(resource_names)
+            .with_time_range(
+                self.config.start_time, self.config.end_time, self.TIMESTAMP_FORMAT
+            )
+            .build()
         )
-
-        return " AND ".join(base_filter)
 
     def _parse_instance_audit_log_entry(
         self, entry: Any, name_to_resource_id: dict[str, str]
@@ -305,48 +299,25 @@ class GcpAuditLogs:
     def _build_service_audit_log_filter(
         self, services: Sequence[models.GcpService]
     ) -> str:
-        """Build the filter string for querying Cloud Run service audit logs.
-
-        Args:
-            services: List of GCP services to build filters for.
-
-        Returns:
-            Filter string compatible with Cloud Logging API.
-        """
-        # Base filter for GCP Cloud Run audit logs
-        base_filter = [
-            f'logName:"{self.LOG_NAME_TEMPLATE.format(project=self.project)}"',
-            f'protoPayload.serviceName="{self.SERVICE_NAME_RUN}"',
-        ]
-
-        # Add method name filters
-        base_filter.append(
-            self._build_method_name_filter(self.SUPPORTED_CLOUD_RUN_EVENTS.keys())
-        )
-
-        # Add resource name filters for specific services
-        if services:
-            service_resources = []
-            for service in services:
-                # Convert API resource format to audit log resource format
-                # API format: projects/{project}/locations/{region}/services/{service-name}
-                # Audit log format: namespaces/{project}/services/{service-name}
-                service_name = self._extract_service_name(service.resource_id)
-                audit_log_resource_name = (
-                    f"namespaces/{self.project}/services/{service_name}"
-                )
-                service_resources.append(f'"{audit_log_resource_name}"')
-
-            resource_filter = (
-                f"protoPayload.resourceName=({' OR '.join(service_resources)})"
+        """Build the filter string for querying Cloud Run service audit logs."""
+        resource_names = []
+        for service in services:
+            service_name = self._extract_service_name(service.resource_id)
+            audit_log_resource_name = (
+                f"namespaces/{self.project}/services/{service_name}"
             )
-            base_filter.append(resource_filter)
-
-        base_filter.append(
-            self._build_time_filter(self.config.start_time, self.config.end_time)
+            resource_names.append(audit_log_resource_name)
+        return (
+            GcpAuditLogFilterBuilder(self.project, self.LOG_NAME_TEMPLATE)
+            .with_log_name()
+            .with_service_name(self.SERVICE_NAME_RUN)
+            .with_method_names(self.SUPPORTED_CLOUD_RUN_EVENTS.keys())
+            .with_resource_names(resource_names)
+            .with_time_range(
+                self.config.start_time, self.config.end_time, self.TIMESTAMP_FORMAT
+            )
+            .build()
         )
-
-        return " AND ".join(base_filter)
 
     def _parse_service_audit_log_entry(
         self, entry: Any, name_to_resource_id: dict[str, str]
