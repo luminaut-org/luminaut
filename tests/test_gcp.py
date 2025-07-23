@@ -10,7 +10,7 @@ from google.cloud.run_v2 import types as gcp_run_v2_types
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from luminaut import models
-from luminaut.tools.gcp import Gcp, GcpClients
+from luminaut.tools.gcp import Gcp, GcpClients, GcpResourceDiscovery
 from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 
 
@@ -1403,4 +1403,136 @@ class TestGcpResourceDiscovery(TestCase):
         zones = gcp.get_zones("test-project")
 
         self.assertEqual(zones, [])
+        mock_clients["zones"].list.assert_called_once_with(project="test-project")
+
+
+class TestGcpResourceDiscoveryStandalone(TestCase):
+    """Test cases for the standalone GcpResourceDiscovery class."""
+
+    def setUp(self):
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project-1", "test-project-2"]
+            regions = ["us-central1", "us-east1"]
+            compute_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+            """
+            ).encode("utf-8")
+        )
+        self.config = models.LuminautConfig.from_toml(config)
+
+    def test_standalone_get_projects_from_config(self):
+        """Test GcpResourceDiscovery.get_projects when projects are specified in config."""
+        clients = GcpClients()
+        discovery = GcpResourceDiscovery(self.config, clients)
+        projects = discovery.get_projects()
+
+        expected_projects = ["test-project-1", "test-project-2"]
+        self.assertEqual(projects, expected_projects)
+
+    @patch("luminaut.tools.gcp.google.auth.default")
+    def test_standalone_get_projects_default_fallback(self, mock_auth: Mock):
+        """Test GcpResourceDiscovery.get_projects falls back to default project when config is empty."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            """
+            ).encode("utf-8")
+        )
+        config_no_projects = models.LuminautConfig.from_toml(config)
+
+        # Mock google.auth.default to return a default project
+        mock_auth.return_value = (Mock(), "default-project")
+
+        clients = GcpClients()
+        discovery = GcpResourceDiscovery(config_no_projects, clients)
+        projects = discovery.get_projects()
+
+        self.assertEqual(projects, ["default-project"])
+        mock_auth.assert_called_once()
+
+    def test_standalone_get_regions_from_config(self):
+        """Test GcpResourceDiscovery.get_regions when regions are specified in config."""
+        clients = GcpClients()
+        discovery = GcpResourceDiscovery(self.config, clients)
+        regions = discovery.get_regions("test-project")
+
+        expected_regions = ["us-central1", "us-east1"]
+        self.assertEqual(regions, expected_regions)
+
+    def test_standalone_get_regions_api_discovery(self):
+        """Test GcpResourceDiscovery.get_regions when no config regions, using API discovery."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        config_no_regions = models.LuminautConfig.from_toml(config)
+
+        # Create a dummy Gcp instance to use setup_mock_clients
+        gcp = Gcp(config_no_regions)
+        clients = gcp.clients
+        discovery = GcpResourceDiscovery(config_no_regions, clients)
+
+        # Mock the regions client using setup_mock_clients
+        mock_region1 = Mock()
+        mock_region1.name = "us-central1"
+        mock_region2 = Mock()
+        mock_region2.name = "us-east1"
+
+        mock_clients = setup_mock_clients(gcp, regions=[mock_region1, mock_region2])
+
+        regions = discovery.get_regions("test-project")
+
+        expected_regions = ["us-central1", "us-east1"]
+        self.assertEqual(regions, expected_regions)
+        mock_clients["regions"].list.assert_called_once_with(project="test-project")
+
+    def test_standalone_get_zones_from_config(self):
+        """Test GcpResourceDiscovery.get_zones when zones are specified in config."""
+        clients = GcpClients()
+        discovery = GcpResourceDiscovery(self.config, clients)
+        zones = discovery.get_zones("test-project")
+
+        expected_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+        self.assertEqual(zones, expected_zones)
+
+    def test_standalone_get_zones_api_discovery(self):
+        """Test GcpResourceDiscovery.get_zones when no config zones, using API discovery."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        config_no_zones = models.LuminautConfig.from_toml(config)
+
+        # Create a dummy Gcp instance to use setup_mock_clients
+        gcp = Gcp(config_no_zones)
+        clients = gcp.clients
+        discovery = GcpResourceDiscovery(config_no_zones, clients)
+
+        # Mock the zones client using setup_mock_clients
+        mock_zone1 = Mock()
+        mock_zone1.name = "us-central1-a"
+        mock_zone2 = Mock()
+        mock_zone2.name = "us-central1-b"
+
+        mock_clients = setup_mock_clients(gcp, zones=[mock_zone1, mock_zone2])
+
+        zones = discovery.get_zones("test-project")
+
+        expected_zones = ["us-central1-a", "us-central1-b"]
+        self.assertEqual(zones, expected_zones)
         mock_clients["zones"].list.assert_called_once_with(project="test-project")

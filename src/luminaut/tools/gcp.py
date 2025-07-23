@@ -54,6 +54,70 @@ class GcpClients:
         return self._zones
 
 
+class GcpResourceDiscovery:
+    """Handles discovery of GCP resources like projects, regions, and zones."""
+
+    def __init__(self, config: models.LuminautConfig, clients: GcpClients) -> None:
+        self.config = config
+        self.clients = clients
+
+    def get_projects(self) -> list[str]:
+        if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
+            return self.config.gcp.projects
+
+        (_default_creds, default_project) = google.auth.default()
+        if default_project:
+            logger.warning(
+                "No GCP projects specified in the configuration. Using default project '%s'.",
+                default_project,
+            )
+            self.config.gcp.projects = [default_project]
+            return [default_project]
+
+        logger.error(
+            "No GCP projects specified in the configuration and no default project found."
+        )
+        return []
+
+    def get_regions(self, project: str) -> list[str]:
+        if self.config.gcp.regions:
+            return self.config.gcp.regions
+        try:
+            logger.warning(
+                "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
+                project,
+            )
+            regions_client = self.clients.regions
+            all_regions = regions_client.list(project=project)
+            return [region.name for region in all_regions]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch regions for project %s: %s",
+                project,
+                str(e),
+            )
+            return []
+
+    def get_zones(self, project: str) -> list[str]:
+        if self.config.gcp.compute_zones:
+            return self.config.gcp.compute_zones
+        try:
+            logger.warning(
+                "No GCP compute zones specified in the configuration. Using all available zones for the project %s.",
+                project,
+            )
+            zones_client = self.clients.zones
+            all_zones = zones_client.list(project=project)
+            return [zone.name for zone in all_zones]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch zones for project %s: %s",
+                project,
+                str(e),
+            )
+            return []
+
+
 class Gcp:
     def __init__(
         self, config: models.LuminautConfig, clients: GcpClients | None = None
