@@ -212,7 +212,7 @@ class Gcp:
 
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
         try:
-            instances = self.get_compute_v1_client().list(
+            instances = self.clients.instances.list(
                 project=project,
                 zone=zone,
             )

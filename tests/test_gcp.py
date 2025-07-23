@@ -124,7 +124,7 @@ class TestGCP(TestCase):
         clients = {}
         clients["compute_v1"] = Mock()
         clients["compute_v1"].list.return_value = compute_list_instance_response or []
-        gcp.get_compute_v1_client = Mock(return_value=clients["compute_v1"])
+        gcp.clients._instances = clients["compute_v1"]
 
         clients["run_v2"] = Mock()
         clients["run_v2"].list_services.return_value = (
@@ -540,7 +540,7 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock compute client for instances
         clients["compute_v1"] = Mock()
         clients["compute_v1"].list.return_value = instance_response or []
-        gcp.get_compute_v1_client = Mock(return_value=clients["compute_v1"])
+        gcp.clients._instances = clients["compute_v1"]
 
         # Mock firewall client
         clients["firewall"] = Mock()
@@ -1148,3 +1148,22 @@ class TestGcpClass(TestCase):
         self.assertIsNotNone(gcp.get_compute_v1_client())
         self.assertIsNotNone(gcp.get_run_v2_services_client())
         self.assertIsNotNone(gcp.get_firewall_client())
+
+    def test_fetch_instances_uses_clients_instances(self):
+        """Test that fetch_instances uses self.clients.instances."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        # Mock the instances client
+        mock_client = Mock()
+        mock_client.list.return_value = []
+        gcp.clients._instances = mock_client
+
+        # Call fetch_instances
+        gcp.fetch_instances("test-project", "us-central1-a")
+
+        # Verify that the mocked client was called
+        mock_client.list.assert_called_once_with(
+            project="test-project",
+            zone="us-central1-a",
+        )
