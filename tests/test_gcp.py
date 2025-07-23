@@ -1536,3 +1536,85 @@ class TestGcpResourceDiscoveryStandalone(TestCase):
         expected_zones = ["us-central1-a", "us-central1-b"]
         self.assertEqual(zones, expected_zones)
         mock_clients["zones"].list.assert_called_once_with(project="test-project")
+
+
+class TestGcpResourceDiscoveryIntegration(TestCase):
+    """Test cases for integration between Gcp and GcpResourceDiscovery classes."""
+
+    def setUp(self):
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project-1", "test-project-2"]
+            regions = ["us-central1", "us-east1"]
+            compute_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+            """
+            ).encode("utf-8")
+        )
+        self.config = models.LuminautConfig.from_toml(config)
+
+    def test_gcp_delegates_to_resource_discovery(self):
+        """Test that Gcp class properly delegates to GcpResourceDiscovery."""
+        gcp = Gcp(self.config)
+
+        # Test that the resource_discovery attribute exists and is properly initialized
+        self.assertIsInstance(gcp.resource_discovery, GcpResourceDiscovery)
+        self.assertIs(gcp.resource_discovery.config, gcp.config)
+        self.assertIs(gcp.resource_discovery.clients, gcp.clients)
+
+    def test_error_propagation_from_resource_discovery(self):
+        """Test that errors from GcpResourceDiscovery are properly propagated through Gcp."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        config_no_regions = models.LuminautConfig.from_toml(config)
+
+        gcp = Gcp(config_no_regions)
+
+        # Mock the regions client to raise exception using setup_mock_clients
+        mock_region = Mock()
+        mock_clients = setup_mock_clients(gcp, regions=[mock_region])
+        mock_clients["regions"].list.side_effect = Exception("API Error")
+
+        # Error should propagate through delegation
+        regions = gcp.get_regions("test-project")
+
+        self.assertEqual(regions, [])
+        mock_clients["regions"].list.assert_called_once_with(project="test-project")
+
+    def test_shared_config_modifications(self):
+        """Test that config modifications in resource_discovery affect both instances."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            """
+            ).encode("utf-8")
+        )
+        config_no_projects = models.LuminautConfig.from_toml(config)
+
+        gcp = Gcp(config_no_projects)
+
+        with patch("luminaut.tools.gcp.google.auth.default") as mock_auth:
+            # Mock google.auth.default to return a default project
+            mock_auth.return_value = (Mock(), "default-project")
+
+            # Call through the Gcp class
+            projects = gcp.get_projects()
+
+            # Verify both the Gcp instance and resource_discovery have the updated config
+            self.assertEqual(projects, ["default-project"])
+            self.assertEqual(gcp.config.gcp.projects, ["default-project"])
+            self.assertEqual(
+                gcp.resource_discovery.config.gcp.projects, ["default-project"]
+            )
+            mock_auth.assert_called_once()
