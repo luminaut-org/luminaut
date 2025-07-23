@@ -19,7 +19,9 @@ def setup_mock_clients(
     instances: list | None = None,
     services: list | None = None,
     firewalls: list | None = None,
-) -> dict[Literal["instances", "services", "firewalls"], Mock]:
+    regions: list | None = None,
+    zones: list | None = None,
+) -> dict[Literal["instances", "services", "firewalls", "regions", "zones"], Mock]:
     """Set up mock GCP clients for testing.
 
     Args:
@@ -27,6 +29,8 @@ def setup_mock_clients(
         instances: List of fake GCP instances to return from instances.list()
         services: List of fake GCP services to return from services.list_services()
         firewalls: List of fake firewall rules to return from firewalls.list()
+        regions: List of fake GCP regions to return from regions.list()
+        zones: List of fake GCP zones to return from zones.list()
 
     Returns:
         Dict mapping client names to their Mock objects for assertion checking
@@ -54,6 +58,18 @@ def setup_mock_clients(
         mock_client.list.return_value = firewalls
         gcp.clients._firewalls = mock_client
         clients["firewalls"] = mock_client
+
+    if regions is not None:
+        mock_client = Mock()
+        mock_client.list.return_value = regions
+        gcp.clients._regions = mock_client
+        clients["regions"] = mock_client
+
+    if zones is not None:
+        mock_client = Mock()
+        mock_client.list.return_value = zones
+        gcp.clients._zones = mock_client
+        clients["zones"] = mock_client
 
     return clients
 
@@ -1194,3 +1210,197 @@ class TestGcpClients(TestCase):
         mock_instances.assert_called_once()
         self.assertIsNotNone(custom_clients._instances)
         self.assertIsNone(custom_clients._services)
+
+
+class TestGcpResourceDiscovery(TestCase):
+    """Test cases for GCP resource discovery methods."""
+
+    def setUp(self):
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project-1", "test-project-2"]
+            regions = ["us-central1", "us-east1"]
+            compute_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+            """
+            ).encode("utf-8")
+        )
+        self.config = models.LuminautConfig.from_toml(config)
+
+    def test_get_projects_from_config(self):
+        """Test get_projects when projects are specified in config."""
+        gcp = Gcp(self.config)
+        projects = gcp.get_projects()
+
+        expected_projects = ["test-project-1", "test-project-2"]
+        self.assertEqual(projects, expected_projects)
+
+    @patch("luminaut.tools.gcp.google.auth.default")
+    def test_get_projects_default_fallback(self, mock_auth: Mock):
+        """Test get_projects falls back to default project when config is empty."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            """
+            ).encode("utf-8")
+        )
+        config_no_projects = models.LuminautConfig.from_toml(config)
+
+        # Mock google.auth.default to return a default project
+        mock_auth.return_value = (Mock(), "default-project")
+
+        gcp = Gcp(config_no_projects)
+        projects = gcp.get_projects()
+
+        self.assertEqual(projects, ["default-project"])
+        mock_auth.assert_called_once()
+
+    @patch("luminaut.tools.gcp.google.auth.default")
+    def test_get_projects_no_default_found(self, mock_auth: Mock):
+        """Test get_projects when no config projects and no default found."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            """
+            ).encode("utf-8")
+        )
+        config_no_projects = models.LuminautConfig.from_toml(config)
+
+        # Mock google.auth.default to return no default project
+        mock_auth.return_value = (Mock(), None)
+
+        gcp = Gcp(config_no_projects)
+        projects = gcp.get_projects()
+
+        self.assertEqual(projects, [])
+        mock_auth.assert_called_once()
+
+    def test_get_regions_from_config(self):
+        """Test get_regions when regions are specified in config."""
+        gcp = Gcp(self.config)
+        regions = gcp.get_regions("test-project")
+
+        expected_regions = ["us-central1", "us-east1"]
+        self.assertEqual(regions, expected_regions)
+
+    def test_get_regions_api_discovery(self):
+        """Test get_regions when no config regions, using API discovery."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        config_no_regions = models.LuminautConfig.from_toml(config)
+
+        gcp = Gcp(config_no_regions)
+
+        # Mock the regions client using setup_mock_clients
+        mock_region1 = Mock()
+        mock_region1.name = "us-central1"
+        mock_region2 = Mock()
+        mock_region2.name = "us-east1"
+
+        mock_clients = setup_mock_clients(gcp, regions=[mock_region1, mock_region2])
+
+        regions = gcp.get_regions("test-project")
+
+        expected_regions = ["us-central1", "us-east1"]
+        self.assertEqual(regions, expected_regions)
+        mock_clients["regions"].list.assert_called_once_with(project="test-project")
+
+    def test_get_regions_api_failure(self):
+        """Test get_regions when API call fails."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        config_no_regions = models.LuminautConfig.from_toml(config)
+
+        gcp = Gcp(config_no_regions)
+
+        # Mock the regions client to raise exception using setup_mock_clients
+        mock_region = Mock()
+        mock_clients = setup_mock_clients(gcp, regions=[mock_region])
+        mock_clients["regions"].list.side_effect = Exception("API Error")
+
+        regions = gcp.get_regions("test-project")
+
+        self.assertEqual(regions, [])
+        mock_clients["regions"].list.assert_called_once_with(project="test-project")
+
+    def test_get_zones_from_config(self):
+        """Test get_zones when zones are specified in config."""
+        gcp = Gcp(self.config)
+        zones = gcp.get_zones("test-project")
+
+        expected_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+        self.assertEqual(zones, expected_zones)
+
+    def test_get_zones_api_discovery(self):
+        """Test get_zones when no config zones, using API discovery."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        config_no_zones = models.LuminautConfig.from_toml(config)
+
+        gcp = Gcp(config_no_zones)
+
+        # Mock the zones client using setup_mock_clients
+        mock_zone1 = Mock()
+        mock_zone1.name = "us-central1-a"
+        mock_zone2 = Mock()
+        mock_zone2.name = "us-central1-b"
+
+        mock_clients = setup_mock_clients(gcp, zones=[mock_zone1, mock_zone2])
+
+        zones = gcp.get_zones("test-project")
+
+        expected_zones = ["us-central1-a", "us-central1-b"]
+        self.assertEqual(zones, expected_zones)
+        mock_clients["zones"].list.assert_called_once_with(project="test-project")
+
+    def test_get_zones_api_failure(self):
+        """Test get_zones when API call fails."""
+        config = BytesIO(
+            dedent(
+                """
+            [tool.gcp]
+            enabled = true
+            projects = ["test-project"]
+            """
+            ).encode("utf-8")
+        )
+        config_no_zones = models.LuminautConfig.from_toml(config)
+
+        gcp = Gcp(config_no_zones)
+
+        # Mock the zones client to raise exception using setup_mock_clients
+        mock_zone = Mock()
+        mock_clients = setup_mock_clients(gcp, zones=[mock_zone])
+        mock_clients["zones"].list.side_effect = Exception("API Error")
+
+        zones = gcp.get_zones("test-project")
+
+        self.assertEqual(zones, [])
+        mock_clients["zones"].list.assert_called_once_with(project="test-project")
