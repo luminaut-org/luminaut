@@ -5,12 +5,13 @@ from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
 
+from google.cloud import compute_v1, run_v2
 from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from google.cloud.run_v2 import types as gcp_run_v2_types
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from luminaut import models
-from luminaut.tools.gcp import Gcp
+from luminaut.tools.gcp import Gcp, GcpClients
 from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 
 fake_gcp_access_config = gcp_compute_v1_types.AccessConfig(nat_i_p="1.2.3.4")
@@ -1060,3 +1061,71 @@ class TestGcpNetworkInterface(TestCase):
 
         # Verify API was called again after cache clear
         self.assertEqual(mock_client.list.call_count, 2)
+
+
+class TestGcpClients(TestCase):
+    def setUp(self):
+        self.clients = GcpClients()
+
+    def test_all_client_properties_return_correct_types(self):
+        """Test that all client properties return the expected client types."""
+        # Test instances client
+        instances_client = self.clients.instances
+        self.assertIsInstance(instances_client, compute_v1.InstancesClient)
+
+        # Test services client
+        services_client = self.clients.services
+        self.assertIsInstance(services_client, run_v2.ServicesClient)
+
+        # Test firewalls client
+        firewalls_client = self.clients.firewalls
+        self.assertIsInstance(firewalls_client, compute_v1.FirewallsClient)
+
+        # Test regions client
+        regions_client = self.clients.regions
+        self.assertIsInstance(regions_client, compute_v1.RegionsClient)
+
+        # Test zones client
+        zones_client = self.clients.zones
+        self.assertIsInstance(zones_client, compute_v1.ZonesClient)
+
+    def test_lazy_loading_behavior(self):
+        """Test that clients are created only on first access."""
+        # Initially, all internal attributes should be None
+        self.assertIsNone(self.clients._instances)
+        self.assertIsNone(self.clients._services)
+        self.assertIsNone(self.clients._firewalls)
+        self.assertIsNone(self.clients._regions)
+        self.assertIsNone(self.clients._zones)
+
+        # Access instances client - should create it
+        _ = self.clients.instances
+        self.assertIsNotNone(self.clients._instances)
+        self.assertIsNone(self.clients._services)
+        self.assertIsNone(self.clients._firewalls)
+        self.assertIsNone(self.clients._regions)
+        self.assertIsNone(self.clients._zones)
+
+    def test_client_reuse(self):
+        """Test that the same instance is returned on subsequent calls."""
+        # Get instances client twice
+        instances1 = self.clients.instances
+        instances2 = self.clients.instances
+        self.assertIs(instances1, instances2)
+
+        # Get services client twice
+        services1 = self.clients.services
+        services2 = self.clients.services
+        self.assertIs(services1, services2)
+
+    def test_unused_clients_not_created(self):
+        """Test that unused clients are not created."""
+        # Access only instances client
+        _ = self.clients.instances
+
+        # Only instances should be created
+        self.assertIsNotNone(self.clients._instances)
+        self.assertIsNone(self.clients._services)
+        self.assertIsNone(self.clients._firewalls)
+        self.assertIsNone(self.clients._regions)
+        self.assertIsNone(self.clients._zones)

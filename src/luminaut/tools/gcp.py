@@ -13,6 +13,47 @@ from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 logger = logging.getLogger(__name__)
 
 
+class GcpClients:
+    """Manages GCP client instances."""
+
+    def __init__(self):
+        self._instances = None
+        self._services = None
+        self._firewalls = None
+        self._regions = None
+        self._zones = None
+
+    @property
+    def instances(self) -> compute_v1.InstancesClient:
+        if self._instances is None:
+            self._instances = compute_v1.InstancesClient()
+        return self._instances
+
+    @property
+    def services(self) -> run_v2.ServicesClient:
+        if self._services is None:
+            self._services = run_v2.ServicesClient()
+        return self._services
+
+    @property
+    def firewalls(self) -> compute_v1.FirewallsClient:
+        if self._firewalls is None:
+            self._firewalls = compute_v1.FirewallsClient()
+        return self._firewalls
+
+    @property
+    def regions(self) -> compute_v1.RegionsClient:
+        if self._regions is None:
+            self._regions = compute_v1.RegionsClient()
+        return self._regions
+
+    @property
+    def zones(self) -> compute_v1.ZonesClient:
+        if self._zones is None:
+            self._zones = compute_v1.ZonesClient()
+        return self._zones
+
+
 class Gcp:
     def __init__(self, config: models.LuminautConfig):
         self.config = config

@@ -175,3 +175,5 @@ Gemfile.lock
 # AI coding tools
 CLAUDE.md
 github-copilot*.md
+.claude/
+.github/chatmodes/
