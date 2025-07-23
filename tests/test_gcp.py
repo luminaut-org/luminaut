@@ -4,7 +4,6 @@ from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
 
-from google.cloud import compute_v1, run_v2
 from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from google.cloud.run_v2 import types as gcp_run_v2_types
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -1029,27 +1028,44 @@ class TestGcpClients(TestCase):
     def setUp(self):
         self.clients = GcpClients()
 
-    def test_all_client_properties_return_correct_types(self):
+    @patch("luminaut.tools.gcp.compute_v1.InstancesClient")
+    @patch("luminaut.tools.gcp.run_v2.ServicesClient")
+    @patch("luminaut.tools.gcp.compute_v1.FirewallsClient")
+    @patch("luminaut.tools.gcp.compute_v1.RegionsClient")
+    @patch("luminaut.tools.gcp.compute_v1.ZonesClient")
+    def test_all_client_properties_return_correct_types(
+        self,
+        mock_zones: Mock,
+        mock_regions: Mock,
+        mock_firewalls: Mock,
+        mock_services: Mock,
+        mock_instances: Mock,
+    ):
         """Test that all client properties return the expected client types."""
         # Test instances client
         instances_client = self.clients.instances
-        self.assertIsInstance(instances_client, compute_v1.InstancesClient)
+        mock_instances.assert_called_once()
+        self.assertEqual(instances_client, mock_instances.return_value)
 
         # Test services client
         services_client = self.clients.services
-        self.assertIsInstance(services_client, run_v2.ServicesClient)
+        mock_services.assert_called_once()
+        self.assertEqual(services_client, mock_services.return_value)
 
         # Test firewalls client
         firewalls_client = self.clients.firewalls
-        self.assertIsInstance(firewalls_client, compute_v1.FirewallsClient)
+        mock_firewalls.assert_called_once()
+        self.assertEqual(firewalls_client, mock_firewalls.return_value)
 
         # Test regions client
         regions_client = self.clients.regions
-        self.assertIsInstance(regions_client, compute_v1.RegionsClient)
+        mock_regions.assert_called_once()
+        self.assertEqual(regions_client, mock_regions.return_value)
 
         # Test zones client
         zones_client = self.clients.zones
-        self.assertIsInstance(zones_client, compute_v1.ZonesClient)
+        mock_zones.assert_called_once()
+        self.assertEqual(zones_client, mock_zones.return_value)
 
     def test_lazy_loading_behavior(self):
         """Test that clients are created only on first access."""
@@ -1060,32 +1076,43 @@ class TestGcpClients(TestCase):
         self.assertIsNone(self.clients._regions)
         self.assertIsNone(self.clients._zones)
 
-        # Access instances client - should create it
-        _ = self.clients.instances
-        self.assertIsNotNone(self.clients._instances)
-        self.assertIsNone(self.clients._services)
-        self.assertIsNone(self.clients._firewalls)
-        self.assertIsNone(self.clients._regions)
-        self.assertIsNone(self.clients._zones)
+        # Mock the client creation to avoid authentication
+        with patch("luminaut.tools.gcp.compute_v1.InstancesClient") as mock_instances:
+            # Access instances client - should create it
+            _ = self.clients.instances
+            mock_instances.assert_called_once()
+            self.assertIsNotNone(self.clients._instances)
+            self.assertIsNone(self.clients._services)
+            self.assertIsNone(self.clients._firewalls)
+            self.assertIsNone(self.clients._regions)
+            self.assertIsNone(self.clients._zones)
 
-    def test_client_reuse(self):
+    @patch("luminaut.tools.gcp.compute_v1.InstancesClient")
+    @patch("luminaut.tools.gcp.run_v2.ServicesClient")
+    def test_client_reuse(self, mock_services: Mock, mock_instances: Mock):
         """Test that the same instance is returned on subsequent calls."""
         # Get instances client twice
         instances1 = self.clients.instances
         instances2 = self.clients.instances
         self.assertIs(instances1, instances2)
+        # Should only be called once due to caching
+        mock_instances.assert_called_once()
 
         # Get services client twice
         services1 = self.clients.services
         services2 = self.clients.services
         self.assertIs(services1, services2)
+        # Should only be called once due to caching
+        mock_services.assert_called_once()
 
-    def test_unused_clients_not_created(self):
+    @patch("luminaut.tools.gcp.compute_v1.InstancesClient")
+    def test_unused_clients_not_created(self, mock_instances: Mock):
         """Test that unused clients are not created."""
         # Access only instances client
         _ = self.clients.instances
 
         # Only instances should be created
+        mock_instances.assert_called_once()
         self.assertIsNotNone(self.clients._instances)
         self.assertIsNone(self.clients._services)
         self.assertIsNone(self.clients._firewalls)
@@ -1129,7 +1156,8 @@ class TestGcpClients(TestCase):
             zone="us-central1-a",
         )
 
-    def test_lazy_loading_works_with_injected_clients(self):
+    @patch("luminaut.tools.gcp.compute_v1.InstancesClient")
+    def test_lazy_loading_works_with_injected_clients(self, mock_instances: Mock):
         """Test that lazy loading still works with injected clients."""
         config = models.LuminautConfig()
         custom_clients = GcpClients()
@@ -1143,5 +1171,6 @@ class TestGcpClients(TestCase):
         _ = gcp.clients.instances
 
         # Verify lazy loading worked on the injected instance
+        mock_instances.assert_called_once()
         self.assertIsNotNone(custom_clients._instances)
         self.assertIsNone(custom_clients._services)
