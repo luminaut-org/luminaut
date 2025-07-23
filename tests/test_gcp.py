@@ -1,6 +1,7 @@
 import datetime
 from io import BytesIO
 from textwrap import dedent
+from typing import Literal
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
 
@@ -13,25 +14,44 @@ from luminaut.tools.gcp import Gcp, GcpClients
 from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 
 
-def setup_mock_clients(gcp: Gcp, **responses: object) -> dict[str, Mock]:
-    """Unified GCP client mocking helper for test classes."""
+def setup_mock_clients(
+    gcp: Gcp,
+    instances: list | None = None,
+    services: list | None = None,
+    firewalls: list | None = None,
+) -> dict[Literal["instances", "services", "firewalls"], Mock]:
+    """Set up mock GCP clients for testing.
+
+    Args:
+        gcp: The Gcp instance to mock clients for
+        instances: List of fake GCP instances to return from instances.list()
+        services: List of fake GCP services to return from services.list_services()
+        firewalls: List of fake firewall rules to return from firewalls.list()
+
+    Returns:
+        Dict mapping client names to their Mock objects for assertion checking
+
+    Example:
+        mock_clients = setup_mock_clients(gcp, instances=[fake_instance])
+        mock_clients["instances"].list.assert_called_once()
+    """
     clients = {}
 
-    if "instances" in responses:
+    if instances is not None:
         mock_client = Mock()
-        mock_client.list.return_value = responses["instances"]
+        mock_client.list.return_value = instances
         gcp.clients._instances = mock_client
         clients["instances"] = mock_client
 
-    if "services" in responses:
+    if services is not None:
         mock_client = Mock()
-        mock_client.list_services.return_value = responses["services"]
+        mock_client.list_services.return_value = services
         gcp.clients._services = mock_client
         clients["services"] = mock_client
 
-    if "firewalls" in responses:
+    if firewalls is not None:
         mock_client = Mock()
-        mock_client.list.return_value = responses["firewalls"]
+        mock_client.list.return_value = firewalls
         gcp.clients._firewalls = mock_client
         clients["firewalls"] = mock_client
 
