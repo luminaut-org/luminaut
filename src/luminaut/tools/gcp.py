@@ -282,7 +282,7 @@ class Gcp:
         self, project: str, location: str
     ) -> list[models.GcpService]:
         try:
-            client = self.get_run_v2_services_client()
+            client = self.clients.services
             services = client.list_services(
                 parent=f"projects/{project}/locations/{location}"
             )

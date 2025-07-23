@@ -130,7 +130,7 @@ class TestGCP(TestCase):
         clients["run_v2"].list_services.return_value = (
             cloud_run_list_service_response or []
         )
-        gcp.get_run_v2_services_client = Mock(return_value=clients["run_v2"])
+        gcp.clients._services = clients["run_v2"]
 
         return clients
 
@@ -550,7 +550,7 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock run client (not used in this test)
         clients["run_v2"] = Mock()
         clients["run_v2"].list_services.return_value = services_response or []
-        gcp.get_run_v2_services_client = Mock(return_value=clients["run_v2"])
+        gcp.clients._services = clients["run_v2"]
 
         return clients
 
@@ -1166,4 +1166,22 @@ class TestGcpClass(TestCase):
         mock_client.list.assert_called_once_with(
             project="test-project",
             zone="us-central1-a",
+        )
+
+    def test_fetch_run_services_uses_clients_services(self):
+        """Test that fetch_run_services uses self.clients.services."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        # Mock the services client
+        mock_client = Mock()
+        mock_client.list_services.return_value = []
+        gcp.clients._services = mock_client
+
+        # Call fetch_run_services
+        gcp.fetch_run_services("test-project", "us-central1")
+
+        # Verify that the mocked client was called
+        mock_client.list_services.assert_called_once_with(
+            parent="projects/test-project/locations/us-central1"
         )
