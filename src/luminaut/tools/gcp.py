@@ -55,13 +55,44 @@ class GcpClients:
 
 
 class GcpResourceDiscovery:
-    """Handles discovery of GCP resources like projects, regions, and zones."""
+    """Handles discovery of GCP resources like projects, regions, and zones.
+
+    This class is responsible for discovering GCP projects, regions, and zones
+    based on configuration settings or by querying the GCP APIs. It supports
+    both configuration-driven discovery and automatic discovery via API calls.
+
+    The class follows the following precedence:
+    1. Use explicitly configured resources from luminaut.toml
+    2. Fall back to API discovery for regions/zones
+    3. Fall back to default project authentication for projects
+
+    Attributes:
+        config: The Luminaut configuration object
+        clients: The GCP clients manager for API access
+    """
 
     def __init__(self, config: models.LuminautConfig, clients: GcpClients) -> None:
+        """Initialize the GCP resource discovery instance.
+
+        Args:
+            config: The Luminaut configuration object containing GCP settings
+            clients: The GCP clients manager for accessing GCP APIs
+        """
         self.config = config
         self.clients = clients
 
     def get_projects(self) -> list[str]:
+        """Get the list of GCP projects to scan.
+
+        Returns the configured projects from the configuration file, or falls back
+        to the default project from the authenticated Google Cloud SDK.
+
+        Returns:
+            List of GCP project IDs to scan. Empty list if no projects are found.
+
+        Side Effects:
+            May modify self.config.gcp.projects if using default project fallback.
+        """
         if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
             return self.config.gcp.projects
 
@@ -80,6 +111,17 @@ class GcpResourceDiscovery:
         return []
 
     def get_regions(self, project: str) -> list[str]:
+        """Get the list of GCP compute regions to scan for a given project.
+
+        Returns the configured regions from the configuration file, or queries
+        the GCP Compute Engine API to get all available regions for the project.
+
+        Args:
+            project: The GCP project ID to get regions for
+
+        Returns:
+            List of GCP region names to scan. Empty list if API call fails.
+        """
         if self.config.gcp.regions:
             return self.config.gcp.regions
         try:
@@ -99,6 +141,17 @@ class GcpResourceDiscovery:
             return []
 
     def get_zones(self, project: str) -> list[str]:
+        """Get the list of GCP compute zones to scan for a given project.
+
+        Returns the configured zones from the configuration file, or queries
+        the GCP Compute Engine API to get all available zones for the project.
+
+        Args:
+            project: The GCP project ID to get zones for
+
+        Returns:
+            List of GCP zone names to scan. Empty list if API call fails.
+        """
         if self.config.gcp.compute_zones:
             return self.config.gcp.compute_zones
         try:
