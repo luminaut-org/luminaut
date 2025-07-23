@@ -13,22 +13,57 @@ from luminaut.tools.gcp_audit_logs import GcpAuditLogs
 logger = logging.getLogger(__name__)
 
 
+class GcpClients:
+    """Manages GCP client instances."""
+
+    def __init__(self):
+        self._instances = None
+        self._services = None
+        self._firewalls = None
+        self._regions = None
+        self._zones = None
+
+    @property
+    def instances(self) -> compute_v1.InstancesClient:
+        if self._instances is None:
+            self._instances = compute_v1.InstancesClient()
+        return self._instances
+
+    @property
+    def services(self) -> run_v2.ServicesClient:
+        if self._services is None:
+            self._services = run_v2.ServicesClient()
+        return self._services
+
+    @property
+    def firewalls(self) -> compute_v1.FirewallsClient:
+        if self._firewalls is None:
+            self._firewalls = compute_v1.FirewallsClient()
+        return self._firewalls
+
+    @property
+    def regions(self) -> compute_v1.RegionsClient:
+        if self._regions is None:
+            self._regions = compute_v1.RegionsClient()
+        return self._regions
+
+    @property
+    def zones(self) -> compute_v1.ZonesClient:
+        if self._zones is None:
+            self._zones = compute_v1.ZonesClient()
+        return self._zones
+
+
 class Gcp:
-    def __init__(self, config: models.LuminautConfig):
+    def __init__(
+        self, config: models.LuminautConfig, clients: GcpClients | None = None
+    ):
         self.config = config
+        self.clients = clients if clients is not None else GcpClients()
         # Cache for firewall rules by (project, network) tuple
         self._firewall_rules_cache: dict[
             tuple[str, str], list[models.GcpFirewallRule]
         ] = {}
-
-    def get_compute_v1_client(self) -> compute_v1.InstancesClient:
-        return compute_v1.InstancesClient()
-
-    def get_run_v2_services_client(self) -> run_v2.ServicesClient:
-        return run_v2.ServicesClient()
-
-    def get_firewall_client(self) -> compute_v1.FirewallsClient:
-        return compute_v1.FirewallsClient()
 
     def clear_firewall_rules_cache(self) -> None:
         """Clear the firewall rules cache."""
@@ -61,7 +96,7 @@ class Gcp:
                 "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
                 project,
             )
-            regions_client = compute_v1.RegionsClient()
+            regions_client = self.clients.regions
             all_regions = regions_client.list(project=project)
             return [region.name for region in all_regions]
         except Exception as e:
@@ -80,7 +115,7 @@ class Gcp:
                 "No GCP compute zones specified in the configuration. Using all available zones for the project %s.",
                 project,
             )
-            zones_client = compute_v1.ZonesClient()
+            zones_client = self.clients.zones
             all_zones = zones_client.list(project=project)
             return [zone.name for zone in all_zones]
         except Exception as e:
@@ -170,7 +205,7 @@ class Gcp:
 
     def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
         try:
-            instances = self.get_compute_v1_client().list(
+            instances = self.clients.instances.list(
                 project=project,
                 zone=zone,
             )
@@ -240,7 +275,7 @@ class Gcp:
         self, project: str, location: str
     ) -> list[models.GcpService]:
         try:
-            client = self.get_run_v2_services_client()
+            client = self.clients.services
             services = client.list_services(
                 parent=f"projects/{project}/locations/{location}"
             )
@@ -270,7 +305,7 @@ class Gcp:
             project=project, filter=filter_expression
         )
         try:
-            client = self.get_firewall_client()
+            client = self.clients.firewalls
             firewall_rules = client.list(request=request)
             rules = [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
 
