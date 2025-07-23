@@ -122,7 +122,7 @@ class Gcp:
                 "No GCP compute zones specified in the configuration. Using all available zones for the project %s.",
                 project,
             )
-            zones_client = compute_v1.ZonesClient()
+            zones_client = self.clients.zones
             all_zones = zones_client.list(project=project)
             return [zone.name for zone in all_zones]
         except Exception as e:
