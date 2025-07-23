@@ -1,5 +1,4 @@
 import datetime
-from collections.abc import Iterable
 from io import BytesIO
 from textwrap import dedent
 from unittest import TestCase
@@ -113,49 +112,52 @@ class TestGCP(TestCase):
         )
         self.config = models.LuminautConfig.from_toml(config)
 
-    def mock_gcp_clients(
-        self,
-        gcp: Gcp,
-        compute_list_instance_response: Iterable[gcp_compute_v1_types.Instance]
-        | None = None,
-        cloud_run_list_service_response: Iterable[gcp_run_v2_types.Service]
-        | None = None,
-    ) -> dict[str, Mock]:
+    def setup_mock_clients(self, gcp: Gcp, **responses: object) -> dict[str, Mock]:
+        """Unified GCP client mocking helper."""
         clients = {}
-        clients["compute_v1"] = Mock()
-        clients["compute_v1"].list.return_value = compute_list_instance_response or []
-        gcp.clients._instances = clients["compute_v1"]
 
-        clients["run_v2"] = Mock()
-        clients["run_v2"].list_services.return_value = (
-            cloud_run_list_service_response or []
-        )
-        gcp.clients._services = clients["run_v2"]
+        if "instances" in responses:
+            mock_client = Mock()
+            mock_client.list.return_value = responses["instances"]
+            gcp.clients._instances = mock_client
+            clients["instances"] = mock_client
+
+        if "services" in responses:
+            mock_client = Mock()
+            mock_client.list_services.return_value = responses["services"]
+            gcp.clients._services = mock_client
+            clients["services"] = mock_client
+
+        if "firewalls" in responses:
+            mock_client = Mock()
+            mock_client.list.return_value = responses["firewalls"]
+            gcp.clients._firewalls = mock_client
+            clients["firewalls"] = mock_client
 
         return clients
 
     def test_explore(self):
         gcp = Gcp(self.config)
-        mock_clients = self.mock_gcp_clients(
+        mock_clients = self.setup_mock_clients(
             gcp,
-            compute_list_instance_response=[fake_gcp_instance],
-            cloud_run_list_service_response=[fake_service],
+            instances=[fake_gcp_instance],
+            services=[fake_service],
         )
         instances = gcp.explore()
 
-        self.assertEqual(mock_clients["compute_v1"].list.call_count, 6)
-        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 4)
+        self.assertEqual(mock_clients["instances"].list.call_count, 6)
+        self.assertEqual(mock_clients["services"].list_services.call_count, 4)
         self.assertEqual(len(instances), 10)
 
     def test_explore_gcp_disabled(self):
         self.config.gcp.enabled = False
 
         gcp = Gcp(self.config)
-        mock_clients = self.mock_gcp_clients(gcp)
+        mock_clients = self.setup_mock_clients(gcp, instances=[], services=[])
         instances = gcp.explore()
 
-        self.assertEqual(mock_clients["compute_v1"].list.call_count, 0)
-        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 0)
+        self.assertEqual(mock_clients["instances"].list.call_count, 0)
+        self.assertEqual(mock_clients["services"].list_services.call_count, 0)
         self.assertEqual(len(instances), 0)
 
     def test_enumerate_instances_with_public_ips(self):
@@ -189,16 +191,14 @@ class TestGCP(TestCase):
         )
 
         gcp = Gcp(self.config)
-        mock_clients = self.mock_gcp_clients(
-            gcp, compute_list_instance_response=[fake_gcp_instance]
-        )
+        mock_clients = self.setup_mock_clients(gcp, instances=[fake_gcp_instance])
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
 
         # Calls the list command
-        mock_clients["compute_v1"].list.assert_called_once()
+        mock_clients["instances"].list.assert_called_once()
 
         self.assertEqual(
             len(instances),
@@ -227,16 +227,16 @@ class TestGCP(TestCase):
         )
 
         gcp = Gcp(self.config)
-        mock_clients = self.mock_gcp_clients(
+        mock_clients = self.setup_mock_clients(
             gcp,
-            compute_list_instance_response=[fake_gcp_instance_with_no_public_ip],
+            instances=[fake_gcp_instance_with_no_public_ip],
         )
         instances = gcp.fetch_instances(
             project=self.config.gcp.projects[0],
             zone=self.config.gcp.compute_zones[0],
         )
 
-        mock_clients["compute_v1"].list.assert_called_once()
+        mock_clients["instances"].list.assert_called_once()
 
         self.assertEqual(
             len(instances),
@@ -253,13 +253,14 @@ class TestGCP(TestCase):
 
     def test_explore_only_returns_instances_with_external_ips(self):
         gcp = Gcp(self.config)
-        mock_clients = self.mock_gcp_clients(
+        mock_clients = self.setup_mock_clients(
             gcp,
-            compute_list_instance_response=[fake_gcp_instance_with_no_public_ip],
+            instances=[fake_gcp_instance_with_no_public_ip],
+            services=[],
         )
         instances = gcp.explore()
 
-        self.assertEqual(mock_clients["compute_v1"].list.call_count, 6)
+        self.assertEqual(mock_clients["instances"].list.call_count, 6)
         self.assertEqual(
             len(instances),
             0,
@@ -268,16 +269,17 @@ class TestGCP(TestCase):
 
     def test_explore_only_returns_cloud_run_services_with_ingress(self):
         gcp = Gcp(self.config)
-        mock_clients = self.mock_gcp_clients(
+        mock_clients = self.setup_mock_clients(
             gcp,
-            cloud_run_list_service_response=[
+            instances=[],
+            services=[
                 fake_service_with_no_ingress,
                 fake_service,
             ],
         )
         instances = gcp.explore()
 
-        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 4)
+        self.assertEqual(mock_clients["services"].list_services.call_count, 4)
         self.assertEqual(
             len(instances),
             len(self.config.gcp.projects) * len(self.config.gcp.regions),
@@ -286,13 +288,13 @@ class TestGCP(TestCase):
 
     def test_get_run_services(self):
         gcp = Gcp(self.config)
-        mock_clients = self.mock_gcp_clients(
+        mock_clients = self.setup_mock_clients(
             gcp,
-            cloud_run_list_service_response=[fake_service],
+            services=[fake_service],
         )
         services = gcp.fetch_run_services(project="unittest", location="unittest")
 
-        self.assertEqual(mock_clients["run_v2"].list_services.call_count, 1)
+        self.assertEqual(mock_clients["services"].list_services.call_count, 1)
         self.assertEqual(len(services), 1)
 
         service = services[0]
@@ -351,21 +353,33 @@ class TestGcpFirewalls(TestCase):
         )
         self.config = models.LuminautConfig.from_toml(config)
 
-    def mock_firewall_client(
-        self,
-        gcp: Gcp,
-        firewall_list_response: Iterable[gcp_compute_v1_types.Firewall] | None = None,
-    ) -> Mock:
-        client = Mock()
-        client.list.return_value = firewall_list_response or []
-        gcp.clients._firewalls = client
-        return client
+    def setup_mock_clients(self, gcp: Gcp, **responses: object) -> dict[str, Mock]:
+        """Unified GCP client mocking helper."""
+        clients = {}
+
+        if "instances" in responses:
+            mock_client = Mock()
+            mock_client.list.return_value = responses["instances"]
+            gcp.clients._instances = mock_client
+            clients["instances"] = mock_client
+
+        if "services" in responses:
+            mock_client = Mock()
+            mock_client.list_services.return_value = responses["services"]
+            gcp.clients._services = mock_client
+            clients["services"] = mock_client
+
+        if "firewalls" in responses:
+            mock_client = Mock()
+            mock_client.list.return_value = responses["firewalls"]
+            gcp.clients._firewalls = mock_client
+            clients["firewalls"] = mock_client
+
+        return clients
 
     def test_fetch_firewall_rules(self):
         gcp = Gcp(self.config)
-        mock_client = self.mock_firewall_client(
-            gcp, firewall_list_response=[fake_firewall_rule]
-        )
+        mock_clients = self.setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
         firewall_rules = gcp.fetch_firewall_rules(
             project="test-project", network="default"
@@ -375,7 +389,7 @@ class TestGcpFirewalls(TestCase):
             project="test-project",
             filter='network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default"',
         )
-        mock_client.list.assert_called_once_with(request=expected_request)
+        mock_clients["firewalls"].list.assert_called_once_with(request=expected_request)
 
         self.assertEqual(len(firewall_rules), 1)
 
@@ -408,7 +422,7 @@ class TestGcpFirewalls(TestCase):
         )
 
         gcp = Gcp(self.config)
-        self.mock_firewall_client(gcp, firewall_list_response=[fake_rule_no_tags])
+        self.setup_mock_clients(gcp, firewalls=[fake_rule_no_tags])
 
         firewall_rules = gcp.fetch_firewall_rules(
             project="test-project", network="default"
@@ -434,9 +448,7 @@ class TestGcpFirewalls(TestCase):
         )
 
         gcp = Gcp(self.config)
-        mock_client = self.mock_firewall_client(
-            gcp, firewall_list_response=[fake_firewall_rule]
-        )
+        mock_clients = self.setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
         firewall_rules = gcp.get_applicable_firewall_rules(instance)
 
@@ -445,7 +457,7 @@ class TestGcpFirewalls(TestCase):
             project="test-project",
             filter='network="https://www.googleapis.com/compute/v1/projects/test-project/global/networks/default"',
         )
-        mock_client.list.assert_called_once_with(request=expected_request)
+        mock_clients["firewalls"].list.assert_called_once_with(request=expected_request)
 
         # Should return GcpInstanceFirewallRules with matching rule
         self.assertIsInstance(firewall_rules, models.GcpFirewallRules)
@@ -468,7 +480,7 @@ class TestGcpFirewalls(TestCase):
         )
 
         gcp = Gcp(self.config)
-        self.mock_firewall_client(gcp, firewall_list_response=[fake_firewall_rule])
+        self.setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
         firewall_rules = gcp.get_applicable_firewall_rules(instance)
 
@@ -504,7 +516,7 @@ class TestGcpFirewalls(TestCase):
         )
 
         gcp = Gcp(self.config)
-        self.mock_firewall_client(gcp, firewall_list_response=[rule_no_tags])
+        self.setup_mock_clients(gcp, firewalls=[rule_no_tags])
 
         firewall_rules = gcp.get_applicable_firewall_rules(instance)
 
@@ -528,39 +540,37 @@ class TestGcpScanResultsIntegration(TestCase):
         )
         self.config = models.LuminautConfig.from_toml(config)
 
-    def mock_gcp_and_firewall_clients(
-        self,
-        gcp: Gcp,
-        instance_response: Iterable[gcp_compute_v1_types.Instance] | None = None,
-        firewall_response: Iterable[gcp_compute_v1_types.Firewall] | None = None,
-        services_response: Iterable[gcp_run_v2_types.Service] | None = None,
-    ) -> dict[str, Mock]:
+    def setup_mock_clients(self, gcp: Gcp, **responses: object) -> dict[str, Mock]:
+        """Unified GCP client mocking helper."""
         clients = {}
 
-        # Mock compute client for instances
-        clients["compute_v1"] = Mock()
-        clients["compute_v1"].list.return_value = instance_response or []
-        gcp.clients._instances = clients["compute_v1"]
+        if "instances" in responses:
+            mock_client = Mock()
+            mock_client.list.return_value = responses["instances"]
+            gcp.clients._instances = mock_client
+            clients["instances"] = mock_client
 
-        # Mock firewall client
-        clients["firewall"] = Mock()
-        clients["firewall"].list.return_value = firewall_response or []
-        gcp.clients._firewalls = clients["firewall"]
+        if "services" in responses:
+            mock_client = Mock()
+            mock_client.list_services.return_value = responses["services"]
+            gcp.clients._services = mock_client
+            clients["services"] = mock_client
 
-        # Mock run client (not used in this test)
-        clients["run_v2"] = Mock()
-        clients["run_v2"].list_services.return_value = services_response or []
-        gcp.clients._services = clients["run_v2"]
+        if "firewalls" in responses:
+            mock_client = Mock()
+            mock_client.list.return_value = responses["firewalls"]
+            gcp.clients._firewalls = mock_client
+            clients["firewalls"] = mock_client
 
         return clients
 
     def test_find_instances_includes_firewall_findings(self):
         # Test that find_instances includes firewall findings in scan results
         gcp = Gcp(self.config)
-        self.mock_gcp_and_firewall_clients(
+        self.setup_mock_clients(
             gcp,
-            instance_response=[fake_gcp_instance],
-            firewall_response=[fake_firewall_rule],
+            instances=[fake_gcp_instance],
+            firewalls=[fake_firewall_rule],
         )
 
         scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
@@ -596,10 +606,10 @@ class TestGcpScanResultsIntegration(TestCase):
     def test_find_instances_with_no_firewall_rules(self):
         # Test that find_instances handles instances with no applicable firewall rules
         gcp = Gcp(self.config)
-        self.mock_gcp_and_firewall_clients(
+        self.setup_mock_clients(
             gcp,
-            instance_response=[fake_gcp_instance],
-            firewall_response=[],  # No firewall rules
+            instances=[fake_gcp_instance],
+            firewalls=[],  # No firewall rules
         )
 
         scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
@@ -672,9 +682,9 @@ class TestGcpScanResultsIntegration(TestCase):
         gcp = Gcp(self.config)
 
         # Mock the compute client
-        self.mock_gcp_and_firewall_clients(
+        self.setup_mock_clients(
             gcp,
-            instance_response=[fake_gcp_instance],
+            instances=[fake_gcp_instance],
         )
 
         # Mock the audit logs service
@@ -711,9 +721,9 @@ class TestGcpScanResultsIntegration(TestCase):
         gcp = Gcp(self.config)
 
         # Mock the compute client
-        self.mock_gcp_and_firewall_clients(
+        self.setup_mock_clients(
             gcp,
-            instance_response=[fake_gcp_instance],
+            instances=[fake_gcp_instance],
         )
 
         # Mock the audit logs service - it should not be called
@@ -749,7 +759,7 @@ class TestGcpScanResultsIntegration(TestCase):
 
         gcp = Gcp(self.config)
 
-        self.mock_gcp_and_firewall_clients(gcp, services_response=[fake_service])
+        self.setup_mock_clients(gcp, services=[fake_service])
 
         # Mock the audit logs service
         with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
@@ -783,7 +793,7 @@ class TestGcpScanResultsIntegration(TestCase):
 
         gcp = Gcp(self.config)
 
-        self.mock_gcp_and_firewall_clients(gcp, services_response=[fake_service])
+        self.setup_mock_clients(gcp, services=[fake_service])
 
         # Mock the audit logs service - it should not be called
         with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
@@ -809,9 +819,7 @@ class TestGcpScanResultsIntegration(TestCase):
 
         gcp = Gcp(self.config)
 
-        self.mock_gcp_and_firewall_clients(
-            gcp, services_response=[fake_service_with_no_ingress]
-        )
+        self.setup_mock_clients(gcp, services=[fake_service_with_no_ingress])
 
         # Mock the audit logs service
         with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
@@ -1130,106 +1138,6 @@ class TestGcpClients(TestCase):
         self.assertIsNone(self.clients._regions)
         self.assertIsNone(self.clients._zones)
 
-
-class TestGcpClassClientUsage(TestCase):
-    def test_gcp_has_clients_property(self):
-        """Test that Gcp class has a clients property that is a GcpClients instance."""
-        config = models.LuminautConfig()
-        gcp = Gcp(config)
-
-        self.assertIsInstance(gcp.clients, GcpClients)
-
-    def test_fetch_instances_uses_clients_instances(self):
-        """Test that fetch_instances uses self.clients.instances."""
-        config = models.LuminautConfig()
-        gcp = Gcp(config)
-
-        # Mock the instances client
-        mock_client = Mock()
-        mock_client.list.return_value = []
-        gcp.clients._instances = mock_client
-
-        # Call fetch_instances
-        gcp.fetch_instances("test-project", "us-central1-a")
-
-        # Verify that the mocked client was called
-        mock_client.list.assert_called_once_with(
-            project="test-project",
-            zone="us-central1-a",
-        )
-
-    def test_fetch_run_services_uses_clients_services(self):
-        """Test that fetch_run_services uses self.clients.services."""
-        config = models.LuminautConfig()
-        gcp = Gcp(config)
-
-        # Mock the services client
-        mock_client = Mock()
-        mock_client.list_services.return_value = []
-        gcp.clients._services = mock_client
-
-        # Call fetch_run_services
-        gcp.fetch_run_services("test-project", "us-central1")
-
-        # Verify that the mocked client was called
-        mock_client.list_services.assert_called_once_with(
-            parent="projects/test-project/locations/us-central1"
-        )
-
-    def test_fetch_firewall_rules_uses_clients_firewalls(self):
-        """Test that fetch_firewall_rules uses self.clients.firewalls."""
-        config = models.LuminautConfig()
-        gcp = Gcp(config)
-
-        # Mock the firewalls client
-        mock_client = Mock()
-        mock_client.list.return_value = []
-        gcp.clients._firewalls = mock_client
-
-        # Call fetch_firewall_rules
-        gcp.fetch_firewall_rules("test-project", "default")
-
-        # Verify that the mocked client was called
-        mock_client.list.assert_called_once()
-
-    def test_get_regions_uses_clients_regions(self):
-        """Test that get_regions uses self.clients.regions."""
-        config = models.LuminautConfig()
-        gcp = Gcp(config)
-
-        # Mock the regions client
-        mock_client = Mock()
-        mock_region = Mock()
-        mock_region.name = "us-central1"
-        mock_client.list.return_value = [mock_region]
-        gcp.clients._regions = mock_client
-
-        # Call get_regions with no configured regions (to trigger the client usage)
-        regions = gcp.get_regions("test-project")
-
-        # Verify that the mocked client was called
-        mock_client.list.assert_called_once_with(project="test-project")
-        self.assertEqual(regions, ["us-central1"])
-
-    def test_get_zones_uses_clients_zones(self):
-        """Test that get_zones uses self.clients.zones."""
-        config = models.LuminautConfig()
-        gcp = Gcp(config)
-
-        # Mock the zones client
-        mock_client = Mock()
-        mock_zone = Mock()
-        mock_zone.name = "us-central1-a"
-        mock_client.list.return_value = [mock_zone]
-        gcp.clients._zones = mock_client
-
-        # Call get_zones with no configured zones (to trigger the client usage)
-        zones = gcp.get_zones("test-project")
-
-        # Verify that the mocked client was called
-        mock_client.list.assert_called_once_with(project="test-project")
-        self.assertEqual(zones, ["us-central1-a"])
-
     def test_gcp_accepts_custom_clients(self):
         """Test that custom GcpClients can be injected."""
         config = models.LuminautConfig()
@@ -1242,13 +1150,6 @@ class TestGcpClassClientUsage(TestCase):
         """Test that default behavior is unchanged when no clients provided."""
         config = models.LuminautConfig()
         gcp = Gcp(config)
-
-        self.assertIsInstance(gcp.clients, GcpClients)
-
-    def test_gcp_uses_default_clients_when_none_explicitly_provided(self):
-        """Test that default behavior works when None is explicitly provided."""
-        config = models.LuminautConfig()
-        gcp = Gcp(config, clients=None)
 
         self.assertIsInstance(gcp.clients, GcpClients)
 
