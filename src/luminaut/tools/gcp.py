@@ -103,7 +103,7 @@ class Gcp:
                 "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
                 project,
             )
-            regions_client = compute_v1.RegionsClient()
+            regions_client = self.clients.regions
             all_regions = regions_client.list(project=project)
             return [region.name for region in all_regions]
         except Exception as e:

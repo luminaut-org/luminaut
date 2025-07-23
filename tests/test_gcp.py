@@ -1201,3 +1201,22 @@ class TestGcpClass(TestCase):
 
         # Verify that the mocked client was called
         mock_client.list.assert_called_once()
+
+    def test_get_regions_uses_clients_regions(self):
+        """Test that get_regions uses self.clients.regions."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        # Mock the regions client
+        mock_client = Mock()
+        mock_region = Mock()
+        mock_region.name = "us-central1"
+        mock_client.list.return_value = [mock_region]
+        gcp.clients._regions = mock_client
+
+        # Call get_regions with no configured regions (to trigger the client usage)
+        regions = gcp.get_regions("test-project")
+
+        # Verify that the mocked client was called
+        mock_client.list.assert_called_once_with(project="test-project")
+        self.assertEqual(regions, ["us-central1"])
