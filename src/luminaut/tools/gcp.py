@@ -124,6 +124,7 @@ class Gcp:
     ):
         self.config = config
         self.clients = clients if clients is not None else GcpClients()
+        self.resource_discovery = GcpResourceDiscovery(self.config, self.clients)
         # Cache for firewall rules by (project, network) tuple
         self._firewall_rules_cache: dict[
             tuple[str, str], list[models.GcpFirewallRule]
@@ -135,60 +136,13 @@ class Gcp:
         logger.debug("Cleared firewall rules cache")
 
     def get_projects(self) -> list[str]:
-        if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
-            return self.config.gcp.projects
-
-        (_default_creds, default_project) = google.auth.default()
-        if default_project:
-            logger.warning(
-                "No GCP projects specified in the configuration. Using default project '%s'.",
-                default_project,
-            )
-            self.config.gcp.projects = [default_project]
-            return [default_project]
-
-        logger.error(
-            "No GCP projects specified in the configuration and no default project found."
-        )
-        return []
+        return self.resource_discovery.get_projects()
 
     def get_regions(self, project: str) -> list[str]:
-        if self.config.gcp.regions:
-            return self.config.gcp.regions
-        try:
-            logger.warning(
-                "No GCP compute regions specified in the configuration. Using all available regions for the project %s.",
-                project,
-            )
-            regions_client = self.clients.regions
-            all_regions = regions_client.list(project=project)
-            return [region.name for region in all_regions]
-        except Exception as e:
-            logger.error(
-                "Failed to fetch regions for project %s: %s",
-                project,
-                str(e),
-            )
-            return []
+        return self.resource_discovery.get_regions(project)
 
     def get_zones(self, project: str) -> list[str]:
-        if self.config.gcp.compute_zones:
-            return self.config.gcp.compute_zones
-        try:
-            logger.warning(
-                "No GCP compute zones specified in the configuration. Using all available zones for the project %s.",
-                project,
-            )
-            zones_client = self.clients.zones
-            all_zones = zones_client.list(project=project)
-            return [zone.name for zone in all_zones]
-        except Exception as e:
-            logger.error(
-                "Failed to fetch zones for project %s: %s",
-                project,
-                str(e),
-            )
-            return []
+        return self.resource_discovery.get_zones(project)
 
     def explore(self) -> list[models.ScanResult]:
         return asyncio.run(self.explore_async())
