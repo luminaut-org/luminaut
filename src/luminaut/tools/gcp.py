@@ -312,7 +312,7 @@ class Gcp:
             project=project, filter=filter_expression
         )
         try:
-            client = self.get_firewall_client()
+            client = self.clients.firewalls
             firewall_rules = client.list(request=request)
             rules = [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
 

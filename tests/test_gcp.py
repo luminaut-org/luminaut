@@ -358,7 +358,7 @@ class TestGcpFirewalls(TestCase):
     ) -> Mock:
         client = Mock()
         client.list.return_value = firewall_list_response or []
-        gcp.get_firewall_client = Mock(return_value=client)
+        gcp.clients._firewalls = client
         return client
 
     def test_fetch_firewall_rules(self):
@@ -545,7 +545,7 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock firewall client
         clients["firewall"] = Mock()
         clients["firewall"].list.return_value = firewall_response or []
-        gcp.get_firewall_client = Mock(return_value=clients["firewall"])
+        gcp.clients._firewalls = clients["firewall"]
 
         # Mock run client (not used in this test)
         clients["run_v2"] = Mock()
@@ -1036,7 +1036,7 @@ class TestGcpNetworkInterface(TestCase):
         mock_firewall_rule.target_tags = []
 
         mock_client.list.return_value = [mock_firewall_rule]
-        gcp.get_firewall_client = Mock(return_value=mock_client)
+        gcp.clients._firewalls = mock_client
 
         # First call should fetch from API
         rules1 = gcp.fetch_firewall_rules("test-project", "default")
@@ -1185,3 +1185,19 @@ class TestGcpClass(TestCase):
         mock_client.list_services.assert_called_once_with(
             parent="projects/test-project/locations/us-central1"
         )
+
+    def test_fetch_firewall_rules_uses_clients_firewalls(self):
+        """Test that fetch_firewall_rules uses self.clients.firewalls."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        # Mock the firewalls client
+        mock_client = Mock()
+        mock_client.list.return_value = []
+        gcp.clients._firewalls = mock_client
+
+        # Call fetch_firewall_rules
+        gcp.fetch_firewall_rules("test-project", "default")
+
+        # Verify that the mocked client was called
+        mock_client.list.assert_called_once()
