@@ -1229,3 +1229,64 @@ class TestGcpClassClientUsage(TestCase):
         # Verify that the mocked client was called
         mock_client.list.assert_called_once_with(project="test-project")
         self.assertEqual(zones, ["us-central1-a"])
+
+    def test_gcp_accepts_custom_clients(self):
+        """Test that custom GcpClients can be injected."""
+        config = models.LuminautConfig()
+        custom_clients = GcpClients()
+        gcp = Gcp(config, clients=custom_clients)
+
+        self.assertIs(gcp.clients, custom_clients)
+
+    def test_gcp_uses_default_clients_when_none_provided(self):
+        """Test that default behavior is unchanged when no clients provided."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        self.assertIsInstance(gcp.clients, GcpClients)
+
+    def test_gcp_uses_default_clients_when_none_explicitly_provided(self):
+        """Test that default behavior works when None is explicitly provided."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config, clients=None)
+
+        self.assertIsInstance(gcp.clients, GcpClients)
+
+    def test_mock_client_injection_for_testing(self):
+        """Test mock client injection for easier unit testing."""
+        config = models.LuminautConfig()
+
+        # Create a mock clients instance
+        mock_clients = Mock(spec=GcpClients)
+        mock_instances_client = Mock()
+        mock_clients.instances = mock_instances_client
+        mock_instances_client.list.return_value = []
+
+        # Inject the mock clients
+        gcp = Gcp(config, clients=mock_clients)
+
+        # Call a method that uses clients
+        gcp.fetch_instances("test-project", "us-central1-a")
+
+        # Verify the mock was used
+        mock_instances_client.list.assert_called_once_with(
+            project="test-project",
+            zone="us-central1-a",
+        )
+
+    def test_lazy_loading_works_with_injected_clients(self):
+        """Test that lazy loading still works with injected clients."""
+        config = models.LuminautConfig()
+        custom_clients = GcpClients()
+        gcp = Gcp(config, clients=custom_clients)
+
+        # Initially, all internal attributes should be None
+        self.assertIsNone(custom_clients._instances)
+        self.assertIsNone(custom_clients._services)
+
+        # Access instances client through injected clients
+        _ = gcp.clients.instances
+
+        # Verify lazy loading worked on the injected instance
+        self.assertIsNotNone(custom_clients._instances)
+        self.assertIsNone(custom_clients._services)

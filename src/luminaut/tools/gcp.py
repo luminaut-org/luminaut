@@ -55,9 +55,11 @@ class GcpClients:
 
 
 class Gcp:
-    def __init__(self, config: models.LuminautConfig):
+    def __init__(
+        self, config: models.LuminautConfig, clients: GcpClients | None = None
+    ):
         self.config = config
-        self.clients = GcpClients()
+        self.clients = clients if clients is not None else GcpClients()
         # Cache for firewall rules by (project, network) tuple
         self._firewall_rules_cache: dict[
             tuple[str, str], list[models.GcpFirewallRule]
