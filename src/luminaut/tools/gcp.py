@@ -57,6 +57,7 @@ class GcpClients:
 class Gcp:
     def __init__(self, config: models.LuminautConfig):
         self.config = config
+        self.clients = GcpClients()
         # Cache for firewall rules by (project, network) tuple
         self._firewall_rules_cache: dict[
             tuple[str, str], list[models.GcpFirewallRule]

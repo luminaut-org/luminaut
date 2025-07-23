@@ -1129,3 +1129,22 @@ class TestGcpClients(TestCase):
         self.assertIsNone(self.clients._firewalls)
         self.assertIsNone(self.clients._regions)
         self.assertIsNone(self.clients._zones)
+
+
+class TestGcpClass(TestCase):
+    def test_gcp_has_clients_property(self):
+        """Test that Gcp class has a clients property that is a GcpClients instance."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        self.assertIsInstance(gcp.clients, GcpClients)
+
+    def test_existing_functionality_unchanged(self):
+        """Test that existing functionality is not affected by adding clients property."""
+        config = models.LuminautConfig()
+        gcp = Gcp(config)
+
+        # Test that existing methods still work
+        self.assertIsNotNone(gcp.get_compute_v1_client())
+        self.assertIsNotNone(gcp.get_run_v2_services_client())
+        self.assertIsNotNone(gcp.get_firewall_client())
