@@ -63,15 +63,6 @@ class Gcp:
             tuple[str, str], list[models.GcpFirewallRule]
         ] = {}
 
-    def get_compute_v1_client(self) -> compute_v1.InstancesClient:
-        return compute_v1.InstancesClient()
-
-    def get_run_v2_services_client(self) -> run_v2.ServicesClient:
-        return run_v2.ServicesClient()
-
-    def get_firewall_client(self) -> compute_v1.FirewallsClient:
-        return compute_v1.FirewallsClient()
-
     def clear_firewall_rules_cache(self) -> None:
         """Clear the firewall rules cache."""
         self._firewall_rules_cache.clear()
