@@ -329,7 +329,9 @@ class TestGCP(TestCase):
             gcp,
             services=[fake_service],
         )
-        services = gcp.fetch_run_services(project="unittest", location="unittest")
+        services = gcp.service_discovery.fetch_resources(
+            project="unittest", location="unittest"
+        )
 
         self.assertEqual(mock_clients["services"].list_services.call_count, 1)
         self.assertEqual(len(services), 1)
@@ -765,7 +767,9 @@ class TestGcpScanResultsIntegration(TestCase):
             mock_audit_service.query_service_events.return_value = [mock_timeline_event]
 
             # Call find_services
-            scan_results = gcp.find_services("test-project", "us-central1")
+            scan_results = gcp.service_discovery.find_resources(
+                "test-project", "us-central1"
+            )
 
             # Verify audit logs service was called
             mock_audit_logs_class.assert_called_once_with(
@@ -795,7 +799,9 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock the audit logs service - it should not be called
         with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
             # Call find_services
-            scan_results = gcp.find_services("test-project", "us-central1")
+            scan_results = gcp.service_discovery.find_resources(
+                "test-project", "us-central1"
+            )
 
             # Verify audit logs service was NOT called
             mock_audit_logs_class.assert_not_called()
@@ -825,7 +831,9 @@ class TestGcpScanResultsIntegration(TestCase):
             mock_audit_service.query_service_events.return_value = []
 
             # Call find_services
-            scan_results = gcp.find_services("test-project", "us-central1")
+            scan_results = gcp.service_discovery.find_resources(
+                "test-project", "us-central1"
+            )
 
             # Verify audit logs service was still called (for all services discovered)
             mock_audit_logs_class.assert_called_once_with(
