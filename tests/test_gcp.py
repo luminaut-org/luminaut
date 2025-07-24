@@ -1248,7 +1248,7 @@ class TestGcpResourceDiscovery(TestCase):
     def test_get_projects_from_config(self):
         """Test get_projects when projects are specified in config."""
         gcp = Gcp(self.config)
-        projects = gcp.get_projects()
+        projects = gcp.resource_discovery.get_projects()
 
         expected_projects = ["test-project-1", "test-project-2"]
         self.assertEqual(projects, expected_projects)
@@ -1270,7 +1270,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_auth.return_value = (Mock(), "default-project")
 
         gcp = Gcp(config_no_projects)
-        projects = gcp.get_projects()
+        projects = gcp.resource_discovery.get_projects()
 
         self.assertEqual(projects, ["default-project"])
         mock_auth.assert_called_once()
@@ -1292,7 +1292,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_auth.return_value = (Mock(), None)
 
         gcp = Gcp(config_no_projects)
-        projects = gcp.get_projects()
+        projects = gcp.resource_discovery.get_projects()
 
         self.assertEqual(projects, [])
         mock_auth.assert_called_once()
@@ -1300,7 +1300,7 @@ class TestGcpResourceDiscovery(TestCase):
     def test_get_regions_from_config(self):
         """Test get_regions when regions are specified in config."""
         gcp = Gcp(self.config)
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         expected_regions = ["us-central1", "us-east1"]
         self.assertEqual(regions, expected_regions)
@@ -1328,7 +1328,7 @@ class TestGcpResourceDiscovery(TestCase):
 
         mock_clients = setup_mock_clients(gcp, regions=[mock_region1, mock_region2])
 
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         expected_regions = ["us-central1", "us-east1"]
         self.assertEqual(regions, expected_regions)
@@ -1354,7 +1354,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_clients = setup_mock_clients(gcp, regions=[mock_region])
         mock_clients["regions"].list.side_effect = Exception("API Error")
 
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         self.assertEqual(regions, [])
         mock_clients["regions"].list.assert_called_once_with(project="test-project")
@@ -1362,7 +1362,7 @@ class TestGcpResourceDiscovery(TestCase):
     def test_get_zones_from_config(self):
         """Test get_zones when zones are specified in config."""
         gcp = Gcp(self.config)
-        zones = gcp.get_zones("test-project")
+        zones = gcp.resource_discovery.get_zones("test-project")
 
         expected_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
         self.assertEqual(zones, expected_zones)
@@ -1390,7 +1390,7 @@ class TestGcpResourceDiscovery(TestCase):
 
         mock_clients = setup_mock_clients(gcp, zones=[mock_zone1, mock_zone2])
 
-        zones = gcp.get_zones("test-project")
+        zones = gcp.resource_discovery.get_zones("test-project")
 
         expected_zones = ["us-central1-a", "us-central1-b"]
         self.assertEqual(zones, expected_zones)
@@ -1416,7 +1416,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_clients = setup_mock_clients(gcp, zones=[mock_zone])
         mock_clients["zones"].list.side_effect = Exception("API Error")
 
-        zones = gcp.get_zones("test-project")
+        zones = gcp.resource_discovery.get_zones("test-project")
 
         self.assertEqual(zones, [])
         mock_clients["zones"].list.assert_called_once_with(project="test-project")
@@ -1469,7 +1469,7 @@ class TestGcpResourceDiscoveryIntegration(TestCase):
         mock_clients["regions"].list.side_effect = Exception("API Error")
 
         # Error should propagate through delegation
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         self.assertEqual(regions, [])
         mock_clients["regions"].list.assert_called_once_with(project="test-project")
@@ -1493,7 +1493,7 @@ class TestGcpResourceDiscoveryIntegration(TestCase):
             mock_auth.return_value = (Mock(), "default-project")
 
             # Call through the Gcp class
-            projects = gcp.get_projects()
+            projects = gcp.resource_discovery.get_projects()
 
             # Verify both the Gcp instance and resource_discovery have the updated config
             self.assertEqual(projects, ["default-project"])

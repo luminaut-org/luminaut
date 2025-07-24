@@ -482,15 +482,6 @@ class Gcp:
         """Clear the firewall rules cache."""
         self.firewall_manager.clear_cache()
 
-    def get_projects(self) -> list[str]:
-        return self.resource_discovery.get_projects()
-
-    def get_regions(self, project: str) -> list[str]:
-        return self.resource_discovery.get_regions(project)
-
-    def get_zones(self, project: str) -> list[str]:
-        return self.resource_discovery.get_zones(project)
-
     def explore(self) -> list[models.ScanResult]:
         return asyncio.run(self.explore_async())
 
@@ -499,16 +490,16 @@ class Gcp:
             return []
 
         tasks = []
-        for project in self.get_projects():
+        for project in self.resource_discovery.get_projects():
             tasks.extend(
                 asyncio.to_thread(self.instance_discovery.find_resources, project, zone)
-                for zone in self.get_zones(project)
+                for zone in self.resource_discovery.get_zones(project)
             )
             tasks.extend(
                 asyncio.to_thread(
                     self.service_discovery.find_resources, project, region
                 )
-                for region in self.get_regions(project)
+                for region in self.resource_discovery.get_regions(project)
             )
 
         scan_results = []
