@@ -451,8 +451,10 @@ class GcpServiceDiscovery:
         self.config = config
         self.clients = clients
 
-    def find_resources(self, project: str, location: str) -> list[models.ScanResult]:
-        """Find GCP Cloud Run services in the specified project and region.
+    async def find_resources_async(
+        self, project: str, location: str
+    ) -> list[models.ScanResult]:
+        """Find GCP Cloud Run services in the specified project and region asynchronously.
 
         Args:
             project: The GCP project ID
@@ -462,7 +464,7 @@ class GcpServiceDiscovery:
             List of scan results for discovered services with external ingress
         """
         scan_results = []
-        services = self.fetch_resources(project, location)
+        services = await self.fetch_resources_async(project, location)
 
         # Query audit logs for all discovered services if enabled
         audit_log_events = []
@@ -472,7 +474,10 @@ class GcpServiceDiscovery:
                     f"Querying GCP audit logs for {len(services)} Cloud Run services in project {project}/{location}"
                 )
                 audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
-                audit_log_events = audit_service.query_service_events(services)
+                # Use async audit log querying when available
+                audit_log_events = await asyncio.to_thread(
+                    audit_service.query_service_events, services
+                )
                 logger.info(
                     f"Found {len(audit_log_events)} audit log events for {len(services)} services in {project}/{location}"
                 )
@@ -512,8 +517,22 @@ class GcpServiceDiscovery:
             )
         return scan_results
 
-    def fetch_resources(self, project: str, location: str) -> list[models.GcpService]:
-        """Fetch GCP Cloud Run services from the specified project and region.
+    def find_resources(self, project: str, location: str) -> list[models.ScanResult]:
+        """Find GCP Cloud Run services in the specified project and region.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP region name
+
+        Returns:
+            List of scan results for discovered services with external ingress
+        """
+        return asyncio.run(self.find_resources_async(project, location))
+
+    async def fetch_resources_async(
+        self, project: str, location: str
+    ) -> list[models.GcpService]:
+        """Fetch GCP Cloud Run services from the specified project and region asynchronously.
 
         Args:
             project: The GCP project ID
@@ -524,8 +543,8 @@ class GcpServiceDiscovery:
         """
         try:
             client = self.clients.services
-            services = client.list_services(
-                parent=f"projects/{project}/locations/{location}"
+            services = await asyncio.to_thread(
+                client.list_services, parent=f"projects/{project}/locations/{location}"
             )
             return [models.GcpService.from_gcp(service) for service in services]
         except Exception as e:
@@ -536,6 +555,18 @@ class GcpServiceDiscovery:
                 str(e),
             )
             return []
+
+    def fetch_resources(self, project: str, location: str) -> list[models.GcpService]:
+        """Fetch GCP Cloud Run services from the specified project and region.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP region name
+
+        Returns:
+            List of GCP Cloud Run services
+        """
+        return asyncio.run(self.fetch_resources_async(project, location))
 
 
 class Gcp:
