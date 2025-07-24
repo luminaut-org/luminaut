@@ -54,23 +54,45 @@ class GcpClients:
         return self._zones
 
 
-class Gcp:
-    def __init__(
-        self, config: models.LuminautConfig, clients: GcpClients | None = None
-    ):
-        self.config = config
-        self.clients = clients if clients is not None else GcpClients()
-        # Cache for firewall rules by (project, network) tuple
-        self._firewall_rules_cache: dict[
-            tuple[str, str], list[models.GcpFirewallRule]
-        ] = {}
+class GcpResourceDiscovery:
+    """Handles discovery of GCP resources like projects, regions, and zones.
 
-    def clear_firewall_rules_cache(self) -> None:
-        """Clear the firewall rules cache."""
-        self._firewall_rules_cache.clear()
-        logger.debug("Cleared firewall rules cache")
+    This class is responsible for discovering GCP projects, regions, and zones
+    based on configuration settings or by querying the GCP APIs. It supports
+    both configuration-driven discovery and automatic discovery via API calls.
+
+    The class follows the following precedence:
+    1. Use explicitly configured resources from luminaut.toml
+    2. Fall back to API discovery for regions/zones
+    3. Fall back to default project authentication for projects
+
+    Attributes:
+        config: The Luminaut configuration object
+        clients: The GCP clients manager for API access
+    """
+
+    def __init__(self, config: models.LuminautConfig, clients: GcpClients) -> None:
+        """Initialize the GCP resource discovery instance.
+
+        Args:
+            config: The Luminaut configuration object containing GCP settings
+            clients: The GCP clients manager for accessing GCP APIs
+        """
+        self.config = config
+        self.clients = clients
 
     def get_projects(self) -> list[str]:
+        """Get the list of GCP projects to scan.
+
+        Returns the configured projects from the configuration file, or falls back
+        to the default project from the authenticated Google Cloud SDK.
+
+        Returns:
+            List of GCP project IDs to scan. Empty list if no projects are found.
+
+        Side Effects:
+            May modify self.config.gcp.projects if using default project fallback.
+        """
         if self.config.gcp.projects is not None and len(self.config.gcp.projects) > 0:
             return self.config.gcp.projects
 
@@ -89,6 +111,17 @@ class Gcp:
         return []
 
     def get_regions(self, project: str) -> list[str]:
+        """Get the list of GCP compute regions to scan for a given project.
+
+        Returns the configured regions from the configuration file, or queries
+        the GCP Compute Engine API to get all available regions for the project.
+
+        Args:
+            project: The GCP project ID to get regions for
+
+        Returns:
+            List of GCP region names to scan. Empty list if API call fails.
+        """
         if self.config.gcp.regions:
             return self.config.gcp.regions
         try:
@@ -108,6 +141,17 @@ class Gcp:
             return []
 
     def get_zones(self, project: str) -> list[str]:
+        """Get the list of GCP compute zones to scan for a given project.
+
+        Returns the configured zones from the configuration file, or queries
+        the GCP Compute Engine API to get all available zones for the project.
+
+        Args:
+            project: The GCP project ID to get zones for
+
+        Returns:
+            List of GCP zone names to scan. Empty list if API call fails.
+        """
         if self.config.gcp.compute_zones:
             return self.config.gcp.compute_zones
         try:
@@ -125,6 +169,33 @@ class Gcp:
                 str(e),
             )
             return []
+
+
+class Gcp:
+    def __init__(
+        self, config: models.LuminautConfig, clients: GcpClients | None = None
+    ):
+        self.config = config
+        self.clients = clients if clients is not None else GcpClients()
+        self.resource_discovery = GcpResourceDiscovery(self.config, self.clients)
+        # Cache for firewall rules by (project, network) tuple
+        self._firewall_rules_cache: dict[
+            tuple[str, str], list[models.GcpFirewallRule]
+        ] = {}
+
+    def clear_firewall_rules_cache(self) -> None:
+        """Clear the firewall rules cache."""
+        self._firewall_rules_cache.clear()
+        logger.debug("Cleared firewall rules cache")
+
+    def get_projects(self) -> list[str]:
+        return self.resource_discovery.get_projects()
+
+    def get_regions(self, project: str) -> list[str]:
+        return self.resource_discovery.get_regions(project)
+
+    def get_zones(self, project: str) -> list[str]:
+        return self.resource_discovery.get_zones(project)
 
     def explore(self) -> list[models.ScanResult]:
         return asyncio.run(self.explore_async())
