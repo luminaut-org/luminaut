@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Any
 
 import google.auth
 from google.cloud import compute_v1, run_v2
@@ -191,10 +192,10 @@ class GcpFirewallManager:
         self._firewall_rules_cache.clear()
         logger.debug("Cleared firewall rules cache")
 
-    def fetch_firewall_rules(
+    async def fetch_firewall_rules_async(
         self, project: str, network: str
     ) -> list[models.GcpFirewallRule]:
-        """Fetch firewall rules for a given project and network."""
+        """Fetch firewall rules for a given project and network asynchronously."""
         # Check cache first
         cache_key = (project, network)
         if cache_key in self._firewall_rules_cache:
@@ -208,7 +209,8 @@ class GcpFirewallManager:
         )
         try:
             client = self.clients.firewalls
-            firewall_rules = client.list(request=request)
+            # Run the blocking GCP API call in a thread pool
+            firewall_rules = await asyncio.to_thread(client.list, request=request)
             rules = [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
 
             # Cache the results
@@ -223,29 +225,65 @@ class GcpFirewallManager:
             )
             return []
 
+    def fetch_firewall_rules(
+        self, project: str, network: str
+    ) -> list[models.GcpFirewallRule]:
+        """Fetch firewall rules for a given project and network."""
+        return asyncio.run(self.fetch_firewall_rules_async(project, network))
+
+    async def get_applicable_firewall_rules_async(
+        self, instance: models.GcpInstance
+    ) -> models.GcpFirewallRules:
+        """Get firewall rules that apply to a given GCP instance asynchronously."""
+        applicable_rules = {}
+
+        # Collect all unique (project, network) combinations
+        network_queries = set()
+        for nic in instance.network_interfaces:
+            project_name = nic.get_project_name()
+            network_name = nic.get_network_name()
+            if project_name and network_name:
+                network_queries.add((project_name, network_name))
+
+        # Fetch firewall rules concurrently for all networks
+        firewall_tasks = [
+            self.fetch_firewall_rules_async(project, network)
+            for project, network in network_queries
+        ]
+
+        if firewall_tasks:
+            firewall_results: list[Any] = await asyncio.gather(
+                *firewall_tasks, return_exceptions=True
+            )
+
+            # Process results and handle any exceptions
+            for i, result in enumerate(firewall_results):
+                if isinstance(result, Exception):
+                    project, network = list(network_queries)[i]
+                    logger.error(
+                        "Error fetching firewall rules for %s/%s: %s",
+                        project,
+                        network,
+                        str(result),
+                    )
+                else:
+                    # Filter rules based on target tags
+                    # result is guaranteed to be list[models.GcpFirewallRule] here
+                    rules: list[models.GcpFirewallRule] = result
+                    for rule in rules:
+                        if (
+                            rule.resource_id not in applicable_rules
+                            and self._rule_applies_to_instance(rule, instance)
+                        ):
+                            applicable_rules[rule.resource_id] = rule
+
+        return models.GcpFirewallRules(rules=list(applicable_rules.values()))
+
     def get_applicable_firewall_rules(
         self, instance: models.GcpInstance
     ) -> models.GcpFirewallRules:
         """Get firewall rules that apply to a given GCP instance."""
-        applicable_rules = {}
-        for nic in instance.network_interfaces:
-            project_name = nic.get_project_name()
-            network_name = nic.get_network_name()
-
-            if not project_name or not network_name:
-                continue
-
-            firewall_rules = self.fetch_firewall_rules(project_name, network_name)
-
-            # Filter rules based on target tags
-            for rule in firewall_rules:
-                if (
-                    rule.resource_id not in applicable_rules
-                    and self._rule_applies_to_instance(rule, instance)
-                ):
-                    applicable_rules[rule.resource_id] = rule
-
-        return models.GcpFirewallRules(rules=list(applicable_rules.values()))
+        return asyncio.run(self.get_applicable_firewall_rules_async(instance))
 
     def _rule_applies_to_instance(
         self, rule: models.GcpFirewallRule, instance: models.GcpInstance
