@@ -171,194 +171,25 @@ class GcpResourceDiscovery:
             return []
 
 
-class Gcp:
-    def __init__(
-        self, config: models.LuminautConfig, clients: GcpClients | None = None
-    ):
-        self.config = config
-        self.clients = clients if clients is not None else GcpClients()
-        self.resource_discovery = GcpResourceDiscovery(self.config, self.clients)
+class GcpFirewallManager:
+    """Manages GCP firewall rules including caching and instance matching."""
+
+    def __init__(self, clients: GcpClients) -> None:
+        """Initialize the GCP firewall manager.
+
+        Args:
+            clients: The GCP clients manager for accessing GCP APIs
+        """
+        self.clients = clients
         # Cache for firewall rules by (project, network) tuple
         self._firewall_rules_cache: dict[
             tuple[str, str], list[models.GcpFirewallRule]
         ] = {}
 
-    def clear_firewall_rules_cache(self) -> None:
+    def clear_cache(self) -> None:
         """Clear the firewall rules cache."""
         self._firewall_rules_cache.clear()
         logger.debug("Cleared firewall rules cache")
-
-    def get_projects(self) -> list[str]:
-        return self.resource_discovery.get_projects()
-
-    def get_regions(self, project: str) -> list[str]:
-        return self.resource_discovery.get_regions(project)
-
-    def get_zones(self, project: str) -> list[str]:
-        return self.resource_discovery.get_zones(project)
-
-    def explore(self) -> list[models.ScanResult]:
-        return asyncio.run(self.explore_async())
-
-    async def explore_async(self) -> list[models.ScanResult]:
-        if not self.config.gcp.enabled:
-            return []
-
-        tasks = []
-        for project in self.get_projects():
-            tasks.extend(
-                asyncio.to_thread(self.find_instances, project, zone)
-                for zone in self.get_zones(project)
-            )
-            tasks.extend(
-                asyncio.to_thread(self.find_services, project, region)
-                for region in self.get_regions(project)
-            )
-
-        scan_results = []
-        with logging_redirect_tqdm():
-            for coro in tqdm(
-                asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
-            ):
-                r = await coro
-                scan_results.extend(r)
-        logger.info("Completed scanning GCP")
-        return scan_results
-
-    def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
-        scan_results = []
-        instances = self.fetch_instances(project, zone)
-
-        # Query audit logs for all discovered instances if enabled
-        audit_log_events = []
-        if self.config.gcp.audit_logs.enabled and instances:
-            try:
-                logger.info(
-                    f"Querying GCP audit logs for {len(instances)} instances in project {project}/{zone}"
-                )
-                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
-                audit_log_events = audit_service.query_instance_events(instances)
-                logger.info(
-                    f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{zone}"
-                )
-            except Exception as e:
-                logger.error(f"Error querying audit logs for project {project}: {e}")
-
-        for gcp_instance in instances:
-            for public_ip in gcp_instance.get_public_ips():
-                scan_finding = models.ScanFindings(
-                    tool="GCP Instance",
-                    emoji_name="cloud",
-                    resources=[gcp_instance],
-                )
-
-                firewall_rules = self.get_applicable_firewall_rules(gcp_instance)
-                if firewall_rules:
-                    scan_finding.resources.append(firewall_rules)
-
-                # Add audit log events for this specific instance
-                instance_events = [
-                    event
-                    for event in audit_log_events
-                    if str(event.resource_id) == gcp_instance.resource_id
-                ]
-                if instance_events:
-                    scan_finding.events.extend(instance_events)
-
-                scan_results.append(
-                    models.ScanResult(
-                        ip=public_ip,
-                        findings=[scan_finding],
-                        region=zone,
-                    )
-                )
-        return scan_results
-
-    def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
-        try:
-            instances = self.clients.instances.list(
-                project=project,
-                zone=zone,
-            )
-            return [models.GcpInstance.from_gcp(instance) for instance in instances]
-        except Exception as e:
-            logger.error(
-                "Failed to fetch GCP instances for project %s in zone %s: %s",
-                project,
-                zone,
-                str(e),
-            )
-            return []
-
-    def find_services(self, project: str, location: str) -> list[models.ScanResult]:
-        scan_results = []
-        services = self.fetch_run_services(project, location)
-
-        # Query audit logs for all discovered services if enabled
-        audit_log_events = []
-        if self.config.gcp.audit_logs.enabled and services:
-            try:
-                logger.info(
-                    f"Querying GCP audit logs for {len(services)} Cloud Run services in project {project}/{location}"
-                )
-                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
-                audit_log_events = audit_service.query_service_events(services)
-                logger.info(
-                    f"Found {len(audit_log_events)} audit log events for {len(services)} services in {project}/{location}"
-                )
-            except Exception as e:
-                logger.error(
-                    f"Error querying service audit logs for project {project}: {e}"
-                )
-
-        for service in services:
-            if not service.allows_ingress():
-                logger.debug(
-                    "Skipping GCP Run Service %s as it does not have external ingress",
-                    service.name,
-                )
-                continue
-            scan_finding = models.ScanFindings(
-                tool="GCP Run Service",
-                emoji_name="cloud",
-                resources=[service],
-            )
-
-            # Add audit log events for this specific service
-            service_events = [
-                event
-                for event in audit_log_events
-                if event.resource_id == service.resource_id
-            ]
-            if service_events:
-                scan_finding.events.extend(service_events)
-
-            scan_results.append(
-                models.ScanResult(
-                    url=service.uri,
-                    findings=[scan_finding],
-                    region=location,
-                )
-            )
-        return scan_results
-
-    def fetch_run_services(
-        self, project: str, location: str
-    ) -> list[models.GcpService]:
-        try:
-            client = self.clients.services
-            services = client.list_services(
-                parent=f"projects/{project}/locations/{location}"
-            )
-            return [models.GcpService.from_gcp(service) for service in services]
-        except Exception as e:
-            logger.error(
-                "Failed to fetch GCP Run services for project %s in location %s: %s",
-                project,
-                location,
-                str(e),
-            )
-            return []
 
     def fetch_firewall_rules(
         self, project: str, network: str
@@ -426,3 +257,253 @@ class Gcp:
 
         # Rule applies if there's any overlap between instance tags and rule target tags
         return bool(set(instance.tags) & set(rule.target_tags))
+
+
+class GcpInstanceDiscovery:
+    """Handles discovery of GCP compute instances."""
+
+    def __init__(
+        self,
+        config: models.LuminautConfig,
+        clients: GcpClients,
+        firewall_manager: GcpFirewallManager,
+    ) -> None:
+        """Initialize the GCP instance discovery.
+
+        Args:
+            config: The Luminaut configuration object containing GCP settings
+            clients: The GCP clients manager for accessing GCP APIs
+            firewall_manager: The firewall manager for retrieving firewall rules
+        """
+        self.config = config
+        self.clients = clients
+        self.firewall_manager = firewall_manager
+
+    def find_resources(self, project: str, location: str) -> list[models.ScanResult]:
+        """Find GCP compute instances in the specified project and zone.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP zone name
+
+        Returns:
+            List of scan results for discovered instances with public IPs
+        """
+        scan_results = []
+        instances = self.fetch_resources(project, location)
+
+        # Query audit logs for all discovered instances if enabled
+        audit_log_events = []
+        if self.config.gcp.audit_logs.enabled and instances:
+            try:
+                logger.info(
+                    f"Querying GCP audit logs for {len(instances)} instances in project {project}/{location}"
+                )
+                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
+                audit_log_events = audit_service.query_instance_events(instances)
+                logger.info(
+                    f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{location}"
+                )
+            except Exception as e:
+                logger.error(f"Error querying audit logs for project {project}: {e}")
+
+        for gcp_instance in instances:
+            for public_ip in gcp_instance.get_public_ips():
+                scan_finding = models.ScanFindings(
+                    tool="GCP Instance",
+                    emoji_name="cloud",
+                    resources=[gcp_instance],
+                )
+
+                firewall_rules = self.firewall_manager.get_applicable_firewall_rules(
+                    gcp_instance
+                )
+                if firewall_rules:
+                    scan_finding.resources.append(firewall_rules)
+
+                # Add audit log events for this specific instance
+                instance_events = [
+                    event
+                    for event in audit_log_events
+                    if str(event.resource_id) == gcp_instance.resource_id
+                ]
+                if instance_events:
+                    scan_finding.events.extend(instance_events)
+
+                scan_results.append(
+                    models.ScanResult(
+                        ip=public_ip,
+                        findings=[scan_finding],
+                        region=location,
+                    )
+                )
+        return scan_results
+
+    def fetch_resources(self, project: str, location: str) -> list[models.GcpInstance]:
+        """Fetch GCP compute instances from the specified project and zone.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP zone name
+
+        Returns:
+            List of GCP compute instances
+        """
+        try:
+            instances = self.clients.instances.list(
+                project=project,
+                zone=location,
+            )
+            return [models.GcpInstance.from_gcp(instance) for instance in instances]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP instances for project %s in zone %s: %s",
+                project,
+                location,
+                str(e),
+            )
+            return []
+
+
+class GcpServiceDiscovery:
+    """Handles discovery of GCP Cloud Run services."""
+
+    def __init__(self, config: models.LuminautConfig, clients: GcpClients) -> None:
+        """Initialize the GCP service discovery.
+
+        Args:
+            config: The Luminaut configuration object containing GCP settings
+            clients: The GCP clients manager for accessing GCP APIs
+        """
+        self.config = config
+        self.clients = clients
+
+    def find_resources(self, project: str, location: str) -> list[models.ScanResult]:
+        """Find GCP Cloud Run services in the specified project and region.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP region name
+
+        Returns:
+            List of scan results for discovered services with external ingress
+        """
+        scan_results = []
+        services = self.fetch_resources(project, location)
+
+        # Query audit logs for all discovered services if enabled
+        audit_log_events = []
+        if self.config.gcp.audit_logs.enabled and services:
+            try:
+                logger.info(
+                    f"Querying GCP audit logs for {len(services)} Cloud Run services in project {project}/{location}"
+                )
+                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
+                audit_log_events = audit_service.query_service_events(services)
+                logger.info(
+                    f"Found {len(audit_log_events)} audit log events for {len(services)} services in {project}/{location}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error querying service audit logs for project {project}: {e}"
+                )
+
+        for service in services:
+            if not service.allows_ingress():
+                logger.debug(
+                    "Skipping GCP Run Service %s as it does not have external ingress",
+                    service.name,
+                )
+                continue
+            scan_finding = models.ScanFindings(
+                tool="GCP Run Service",
+                emoji_name="cloud",
+                resources=[service],
+            )
+
+            # Add audit log events for this specific service
+            service_events = [
+                event
+                for event in audit_log_events
+                if event.resource_id == service.resource_id
+            ]
+            if service_events:
+                scan_finding.events.extend(service_events)
+
+            scan_results.append(
+                models.ScanResult(
+                    url=service.uri,
+                    findings=[scan_finding],
+                    region=location,
+                )
+            )
+        return scan_results
+
+    def fetch_resources(self, project: str, location: str) -> list[models.GcpService]:
+        """Fetch GCP Cloud Run services from the specified project and region.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP region name
+
+        Returns:
+            List of GCP Cloud Run services
+        """
+        try:
+            client = self.clients.services
+            services = client.list_services(
+                parent=f"projects/{project}/locations/{location}"
+            )
+            return [models.GcpService.from_gcp(service) for service in services]
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP Run services for project %s in location %s: %s",
+                project,
+                location,
+                str(e),
+            )
+            return []
+
+
+class Gcp:
+    def __init__(
+        self, config: models.LuminautConfig, clients: GcpClients | None = None
+    ):
+        self.config = config
+        self.clients = clients if clients is not None else GcpClients()
+        self.resource_discovery = GcpResourceDiscovery(self.config, self.clients)
+        self.firewall_manager = GcpFirewallManager(self.clients)
+        self.instance_discovery = GcpInstanceDiscovery(
+            self.config, self.clients, self.firewall_manager
+        )
+        self.service_discovery = GcpServiceDiscovery(self.config, self.clients)
+
+    def explore(self) -> list[models.ScanResult]:
+        return asyncio.run(self.explore_async())
+
+    async def explore_async(self) -> list[models.ScanResult]:
+        if not self.config.gcp.enabled:
+            return []
+
+        tasks = []
+        for project in self.resource_discovery.get_projects():
+            tasks.extend(
+                asyncio.to_thread(self.instance_discovery.find_resources, project, zone)
+                for zone in self.resource_discovery.get_zones(project)
+            )
+            tasks.extend(
+                asyncio.to_thread(
+                    self.service_discovery.find_resources, project, region
+                )
+                for region in self.resource_discovery.get_regions(project)
+            )
+
+        scan_results = []
+        with logging_redirect_tqdm():
+            for coro in tqdm(
+                asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
+            ):
+                r = await coro
+                scan_results.extend(r)
+        logger.info("Completed scanning GCP")
+        return scan_results

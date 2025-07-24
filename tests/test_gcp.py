@@ -229,9 +229,9 @@ class TestGCP(TestCase):
 
         gcp = Gcp(self.config)
         mock_clients = setup_mock_clients(gcp, instances=[fake_gcp_instance])
-        instances = gcp.fetch_instances(
+        instances = gcp.instance_discovery.fetch_resources(
             project=self.config.gcp.projects[0],
-            zone=self.config.gcp.compute_zones[0],
+            location=self.config.gcp.compute_zones[0],
         )
 
         # Calls the list command
@@ -268,9 +268,9 @@ class TestGCP(TestCase):
             gcp,
             instances=[fake_gcp_instance_with_no_public_ip],
         )
-        instances = gcp.fetch_instances(
+        instances = gcp.instance_discovery.fetch_resources(
             project=self.config.gcp.projects[0],
-            zone=self.config.gcp.compute_zones[0],
+            location=self.config.gcp.compute_zones[0],
         )
 
         mock_clients["instances"].list.assert_called_once()
@@ -329,7 +329,9 @@ class TestGCP(TestCase):
             gcp,
             services=[fake_service],
         )
-        services = gcp.fetch_run_services(project="unittest", location="unittest")
+        services = gcp.service_discovery.fetch_resources(
+            project="unittest", location="unittest"
+        )
 
         self.assertEqual(mock_clients["services"].list_services.call_count, 1)
         self.assertEqual(len(services), 1)
@@ -394,7 +396,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         mock_clients = setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
-        firewall_rules = gcp.fetch_firewall_rules(
+        firewall_rules = gcp.firewall_manager.fetch_firewall_rules(
             project="test-project", network="default"
         )
 
@@ -437,7 +439,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         setup_mock_clients(gcp, firewalls=[fake_rule_no_tags])
 
-        firewall_rules = gcp.fetch_firewall_rules(
+        firewall_rules = gcp.firewall_manager.fetch_firewall_rules(
             project="test-project", network="default"
         )
 
@@ -463,7 +465,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         mock_clients = setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should call fetch_firewall_rules for the default network
         expected_request = gcp_compute_v1_types.ListFirewallsRequest(
@@ -495,7 +497,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should return empty rules since tags don't match
         self.assertEqual(len(firewall_rules.rules), 0)
@@ -531,7 +533,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         setup_mock_clients(gcp, firewalls=[rule_no_tags])
 
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should return the rule since it has no target tags
         self.assertEqual(len(firewall_rules.rules), 1)
@@ -562,7 +564,9 @@ class TestGcpScanResultsIntegration(TestCase):
             firewalls=[fake_firewall_rule],
         )
 
-        scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
+        scan_results = gcp.instance_discovery.find_resources(
+            project="test-project", location="us-central1-a"
+        )
 
         # Should have one scan result for the instance with public IP
         self.assertEqual(len(scan_results), 1)
@@ -601,7 +605,9 @@ class TestGcpScanResultsIntegration(TestCase):
             firewalls=[],  # No firewall rules
         )
 
-        scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
+        scan_results = gcp.instance_discovery.find_resources(
+            project="test-project", location="us-central1-a"
+        )
 
         # Should still have scan result but with empty firewall rules
         self.assertEqual(len(scan_results), 1)
@@ -628,7 +634,7 @@ class TestGcpScanResultsIntegration(TestCase):
         )
 
         gcp = Gcp(self.config)
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should return empty rules since there are no networks
         self.assertEqual(len(firewall_rules.rules), 0)
@@ -685,7 +691,9 @@ class TestGcpScanResultsIntegration(TestCase):
             ]
 
             # Call find_instances
-            scan_results = gcp.find_instances("test-project", "us-central1-a")
+            scan_results = gcp.instance_discovery.find_resources(
+                "test-project", "us-central1-a"
+            )
 
             # Verify audit logs service was called
             mock_audit_logs_class.assert_called_once_with(
@@ -718,7 +726,9 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock the audit logs service - it should not be called
         with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
             # Call find_instances
-            scan_results = gcp.find_instances("test-project", "us-central1-a")
+            scan_results = gcp.instance_discovery.find_resources(
+                "test-project", "us-central1-a"
+            )
 
             # Verify audit logs service was NOT called
             mock_audit_logs_class.assert_not_called()
@@ -757,7 +767,9 @@ class TestGcpScanResultsIntegration(TestCase):
             mock_audit_service.query_service_events.return_value = [mock_timeline_event]
 
             # Call find_services
-            scan_results = gcp.find_services("test-project", "us-central1")
+            scan_results = gcp.service_discovery.find_resources(
+                "test-project", "us-central1"
+            )
 
             # Verify audit logs service was called
             mock_audit_logs_class.assert_called_once_with(
@@ -787,7 +799,9 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock the audit logs service - it should not be called
         with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
             # Call find_services
-            scan_results = gcp.find_services("test-project", "us-central1")
+            scan_results = gcp.service_discovery.find_resources(
+                "test-project", "us-central1"
+            )
 
             # Verify audit logs service was NOT called
             mock_audit_logs_class.assert_not_called()
@@ -817,7 +831,9 @@ class TestGcpScanResultsIntegration(TestCase):
             mock_audit_service.query_service_events.return_value = []
 
             # Call find_services
-            scan_results = gcp.find_services("test-project", "us-central1")
+            scan_results = gcp.service_discovery.find_resources(
+                "test-project", "us-central1"
+            )
 
             # Verify audit logs service was still called (for all services discovered)
             mock_audit_logs_class.assert_called_once_with(
@@ -1036,7 +1052,7 @@ class TestGcpNetworkInterface(TestCase):
         gcp.clients._firewalls = mock_client
 
         # First call should fetch from API
-        rules1 = gcp.fetch_firewall_rules("test-project", "default")
+        rules1 = gcp.firewall_manager.fetch_firewall_rules("test-project", "default")
         self.assertEqual(len(rules1), 1)
         self.assertEqual(rules1[0].name, "allow-http")
 
@@ -1044,7 +1060,7 @@ class TestGcpNetworkInterface(TestCase):
         self.assertEqual(mock_client.list.call_count, 1)
 
         # Second call should use cache
-        rules2 = gcp.fetch_firewall_rules("test-project", "default")
+        rules2 = gcp.firewall_manager.fetch_firewall_rules("test-project", "default")
         self.assertEqual(len(rules2), 1)
         self.assertEqual(rules2[0].name, "allow-http")
 
@@ -1052,8 +1068,8 @@ class TestGcpNetworkInterface(TestCase):
         self.assertEqual(mock_client.list.call_count, 1)
 
         # Clear cache and verify it works
-        gcp.clear_firewall_rules_cache()
-        rules3 = gcp.fetch_firewall_rules("test-project", "default")
+        gcp.firewall_manager.clear_cache()
+        rules3 = gcp.firewall_manager.fetch_firewall_rules("test-project", "default")
         self.assertEqual(len(rules3), 1)
 
         # Verify API was called again after cache clear
@@ -1184,7 +1200,7 @@ class TestGcpClients(TestCase):
         gcp = Gcp(config, clients=mock_clients)
 
         # Call a method that uses clients
-        gcp.fetch_instances("test-project", "us-central1-a")
+        gcp.instance_discovery.fetch_resources("test-project", "us-central1-a")
 
         # Verify the mock was used
         mock_instances_client.list.assert_called_once_with(
@@ -1232,7 +1248,7 @@ class TestGcpResourceDiscovery(TestCase):
     def test_get_projects_from_config(self):
         """Test get_projects when projects are specified in config."""
         gcp = Gcp(self.config)
-        projects = gcp.get_projects()
+        projects = gcp.resource_discovery.get_projects()
 
         expected_projects = ["test-project-1", "test-project-2"]
         self.assertEqual(projects, expected_projects)
@@ -1254,7 +1270,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_auth.return_value = (Mock(), "default-project")
 
         gcp = Gcp(config_no_projects)
-        projects = gcp.get_projects()
+        projects = gcp.resource_discovery.get_projects()
 
         self.assertEqual(projects, ["default-project"])
         mock_auth.assert_called_once()
@@ -1276,7 +1292,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_auth.return_value = (Mock(), None)
 
         gcp = Gcp(config_no_projects)
-        projects = gcp.get_projects()
+        projects = gcp.resource_discovery.get_projects()
 
         self.assertEqual(projects, [])
         mock_auth.assert_called_once()
@@ -1284,7 +1300,7 @@ class TestGcpResourceDiscovery(TestCase):
     def test_get_regions_from_config(self):
         """Test get_regions when regions are specified in config."""
         gcp = Gcp(self.config)
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         expected_regions = ["us-central1", "us-east1"]
         self.assertEqual(regions, expected_regions)
@@ -1312,7 +1328,7 @@ class TestGcpResourceDiscovery(TestCase):
 
         mock_clients = setup_mock_clients(gcp, regions=[mock_region1, mock_region2])
 
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         expected_regions = ["us-central1", "us-east1"]
         self.assertEqual(regions, expected_regions)
@@ -1338,7 +1354,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_clients = setup_mock_clients(gcp, regions=[mock_region])
         mock_clients["regions"].list.side_effect = Exception("API Error")
 
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         self.assertEqual(regions, [])
         mock_clients["regions"].list.assert_called_once_with(project="test-project")
@@ -1346,7 +1362,7 @@ class TestGcpResourceDiscovery(TestCase):
     def test_get_zones_from_config(self):
         """Test get_zones when zones are specified in config."""
         gcp = Gcp(self.config)
-        zones = gcp.get_zones("test-project")
+        zones = gcp.resource_discovery.get_zones("test-project")
 
         expected_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
         self.assertEqual(zones, expected_zones)
@@ -1374,7 +1390,7 @@ class TestGcpResourceDiscovery(TestCase):
 
         mock_clients = setup_mock_clients(gcp, zones=[mock_zone1, mock_zone2])
 
-        zones = gcp.get_zones("test-project")
+        zones = gcp.resource_discovery.get_zones("test-project")
 
         expected_zones = ["us-central1-a", "us-central1-b"]
         self.assertEqual(zones, expected_zones)
@@ -1400,7 +1416,7 @@ class TestGcpResourceDiscovery(TestCase):
         mock_clients = setup_mock_clients(gcp, zones=[mock_zone])
         mock_clients["zones"].list.side_effect = Exception("API Error")
 
-        zones = gcp.get_zones("test-project")
+        zones = gcp.resource_discovery.get_zones("test-project")
 
         self.assertEqual(zones, [])
         mock_clients["zones"].list.assert_called_once_with(project="test-project")
@@ -1453,7 +1469,7 @@ class TestGcpResourceDiscoveryIntegration(TestCase):
         mock_clients["regions"].list.side_effect = Exception("API Error")
 
         # Error should propagate through delegation
-        regions = gcp.get_regions("test-project")
+        regions = gcp.resource_discovery.get_regions("test-project")
 
         self.assertEqual(regions, [])
         mock_clients["regions"].list.assert_called_once_with(project="test-project")
@@ -1477,7 +1493,7 @@ class TestGcpResourceDiscoveryIntegration(TestCase):
             mock_auth.return_value = (Mock(), "default-project")
 
             # Call through the Gcp class
-            projects = gcp.get_projects()
+            projects = gcp.resource_discovery.get_projects()
 
             # Verify both the Gcp instance and resource_discovery have the updated config
             self.assertEqual(projects, ["default-project"])
