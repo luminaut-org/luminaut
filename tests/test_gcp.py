@@ -394,7 +394,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         mock_clients = setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
-        firewall_rules = gcp.fetch_firewall_rules(
+        firewall_rules = gcp.firewall_manager.fetch_firewall_rules(
             project="test-project", network="default"
         )
 
@@ -437,7 +437,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         setup_mock_clients(gcp, firewalls=[fake_rule_no_tags])
 
-        firewall_rules = gcp.fetch_firewall_rules(
+        firewall_rules = gcp.firewall_manager.fetch_firewall_rules(
             project="test-project", network="default"
         )
 
@@ -463,7 +463,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         mock_clients = setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should call fetch_firewall_rules for the default network
         expected_request = gcp_compute_v1_types.ListFirewallsRequest(
@@ -495,7 +495,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         setup_mock_clients(gcp, firewalls=[fake_firewall_rule])
 
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should return empty rules since tags don't match
         self.assertEqual(len(firewall_rules.rules), 0)
@@ -531,7 +531,7 @@ class TestGcpFirewalls(TestCase):
         gcp = Gcp(self.config)
         setup_mock_clients(gcp, firewalls=[rule_no_tags])
 
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should return the rule since it has no target tags
         self.assertEqual(len(firewall_rules.rules), 1)
@@ -628,7 +628,7 @@ class TestGcpScanResultsIntegration(TestCase):
         )
 
         gcp = Gcp(self.config)
-        firewall_rules = gcp.get_applicable_firewall_rules(instance)
+        firewall_rules = gcp.firewall_manager.get_applicable_firewall_rules(instance)
 
         # Should return empty rules since there are no networks
         self.assertEqual(len(firewall_rules.rules), 0)
@@ -1036,7 +1036,7 @@ class TestGcpNetworkInterface(TestCase):
         gcp.clients._firewalls = mock_client
 
         # First call should fetch from API
-        rules1 = gcp.fetch_firewall_rules("test-project", "default")
+        rules1 = gcp.firewall_manager.fetch_firewall_rules("test-project", "default")
         self.assertEqual(len(rules1), 1)
         self.assertEqual(rules1[0].name, "allow-http")
 
@@ -1044,7 +1044,7 @@ class TestGcpNetworkInterface(TestCase):
         self.assertEqual(mock_client.list.call_count, 1)
 
         # Second call should use cache
-        rules2 = gcp.fetch_firewall_rules("test-project", "default")
+        rules2 = gcp.firewall_manager.fetch_firewall_rules("test-project", "default")
         self.assertEqual(len(rules2), 1)
         self.assertEqual(rules2[0].name, "allow-http")
 
@@ -1053,7 +1053,7 @@ class TestGcpNetworkInterface(TestCase):
 
         # Clear cache and verify it works
         gcp.clear_firewall_rules_cache()
-        rules3 = gcp.fetch_firewall_rules("test-project", "default")
+        rules3 = gcp.firewall_manager.fetch_firewall_rules("test-project", "default")
         self.assertEqual(len(rules3), 1)
 
         # Verify API was called again after cache clear

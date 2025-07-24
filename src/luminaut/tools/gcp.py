@@ -171,6 +171,94 @@ class GcpResourceDiscovery:
             return []
 
 
+class GcpFirewallManager:
+    """Manages GCP firewall rules including caching and instance matching."""
+
+    def __init__(self, clients: GcpClients) -> None:
+        """Initialize the GCP firewall manager.
+
+        Args:
+            clients: The GCP clients manager for accessing GCP APIs
+        """
+        self.clients = clients
+        # Cache for firewall rules by (project, network) tuple
+        self._firewall_rules_cache: dict[
+            tuple[str, str], list[models.GcpFirewallRule]
+        ] = {}
+
+    def clear_cache(self) -> None:
+        """Clear the firewall rules cache."""
+        self._firewall_rules_cache.clear()
+        logger.debug("Cleared firewall rules cache")
+
+    def fetch_firewall_rules(
+        self, project: str, network: str
+    ) -> list[models.GcpFirewallRule]:
+        """Fetch firewall rules for a given project and network."""
+        # Check cache first
+        cache_key = (project, network)
+        if cache_key in self._firewall_rules_cache:
+            return self._firewall_rules_cache[cache_key]
+
+        network_url = f"https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}"
+        filter_expression = f'network="{network_url}"'
+
+        request = gcp_compute_v1_types.ListFirewallsRequest(
+            project=project, filter=filter_expression
+        )
+        try:
+            client = self.clients.firewalls
+            firewall_rules = client.list(request=request)
+            rules = [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
+
+            # Cache the results
+            self._firewall_rules_cache[cache_key] = rules
+            return rules
+        except Exception as e:
+            logger.error(
+                "Failed to fetch GCP firewall rules for project %s network %s: %s",
+                project,
+                network,
+                str(e),
+            )
+            return []
+
+    def get_applicable_firewall_rules(
+        self, instance: models.GcpInstance
+    ) -> models.GcpFirewallRules:
+        """Get firewall rules that apply to a given GCP instance."""
+        applicable_rules = {}
+        for nic in instance.network_interfaces:
+            project_name = nic.get_project_name()
+            network_name = nic.get_network_name()
+
+            if not project_name or not network_name:
+                continue
+
+            firewall_rules = self.fetch_firewall_rules(project_name, network_name)
+
+            # Filter rules based on target tags
+            for rule in firewall_rules:
+                if (
+                    rule.resource_id not in applicable_rules
+                    and self._rule_applies_to_instance(rule, instance)
+                ):
+                    applicable_rules[rule.resource_id] = rule
+
+        return models.GcpFirewallRules(rules=list(applicable_rules.values()))
+
+    def _rule_applies_to_instance(
+        self, rule: models.GcpFirewallRule, instance: models.GcpInstance
+    ) -> bool:
+        """Check if a firewall rule applies to an instance based on target tags."""
+        # If rule has no target tags, it applies to all instances in the network
+        if not rule.target_tags:
+            return True
+
+        # Rule applies if there's any overlap between instance tags and rule target tags
+        return bool(set(instance.tags) & set(rule.target_tags))
+
+
 class Gcp:
     def __init__(
         self, config: models.LuminautConfig, clients: GcpClients | None = None
@@ -178,15 +266,11 @@ class Gcp:
         self.config = config
         self.clients = clients if clients is not None else GcpClients()
         self.resource_discovery = GcpResourceDiscovery(self.config, self.clients)
-        # Cache for firewall rules by (project, network) tuple
-        self._firewall_rules_cache: dict[
-            tuple[str, str], list[models.GcpFirewallRule]
-        ] = {}
+        self.firewall_manager = GcpFirewallManager(self.clients)
 
     def clear_firewall_rules_cache(self) -> None:
         """Clear the firewall rules cache."""
-        self._firewall_rules_cache.clear()
-        logger.debug("Cleared firewall rules cache")
+        self.firewall_manager.clear_cache()
 
     def get_projects(self) -> list[str]:
         return self.resource_discovery.get_projects()
@@ -252,7 +336,9 @@ class Gcp:
                     resources=[gcp_instance],
                 )
 
-                firewall_rules = self.get_applicable_firewall_rules(gcp_instance)
+                firewall_rules = self.firewall_manager.get_applicable_firewall_rules(
+                    gcp_instance
+                )
                 if firewall_rules:
                     scan_finding.resources.append(firewall_rules)
 
@@ -359,70 +445,3 @@ class Gcp:
                 str(e),
             )
             return []
-
-    def fetch_firewall_rules(
-        self, project: str, network: str
-    ) -> list[models.GcpFirewallRule]:
-        """Fetch firewall rules for a given project and network."""
-        # Check cache first
-        cache_key = (project, network)
-        if cache_key in self._firewall_rules_cache:
-            return self._firewall_rules_cache[cache_key]
-
-        network_url = f"https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}"
-        filter_expression = f'network="{network_url}"'
-
-        request = gcp_compute_v1_types.ListFirewallsRequest(
-            project=project, filter=filter_expression
-        )
-        try:
-            client = self.clients.firewalls
-            firewall_rules = client.list(request=request)
-            rules = [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
-
-            # Cache the results
-            self._firewall_rules_cache[cache_key] = rules
-            return rules
-        except Exception as e:
-            logger.error(
-                "Failed to fetch GCP firewall rules for project %s network %s: %s",
-                project,
-                network,
-                str(e),
-            )
-            return []
-
-    def get_applicable_firewall_rules(
-        self, instance: models.GcpInstance
-    ) -> models.GcpFirewallRules:
-        """Get firewall rules that apply to a given GCP instance."""
-        applicable_rules = {}
-        for nic in instance.network_interfaces:
-            project_name = nic.get_project_name()
-            network_name = nic.get_network_name()
-
-            if not project_name or not network_name:
-                continue
-
-            firewall_rules = self.fetch_firewall_rules(project_name, network_name)
-
-            # Filter rules based on target tags
-            for rule in firewall_rules:
-                if (
-                    rule.resource_id not in applicable_rules
-                    and self._rule_applies_to_instance(rule, instance)
-                ):
-                    applicable_rules[rule.resource_id] = rule
-
-        return models.GcpFirewallRules(rules=list(applicable_rules.values()))
-
-    def _rule_applies_to_instance(
-        self, rule: models.GcpFirewallRule, instance: models.GcpInstance
-    ) -> bool:
-        """Check if a firewall rule applies to an instance based on target tags."""
-        # If rule has no target tags, it applies to all instances in the network
-        if not rule.target_tags:
-            return True
-
-        # Rule applies if there's any overlap between instance tags and rule target tags
-        return bool(set(instance.tags) & set(rule.target_tags))
