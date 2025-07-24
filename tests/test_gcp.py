@@ -1068,7 +1068,7 @@ class TestGcpNetworkInterface(TestCase):
         self.assertEqual(mock_client.list.call_count, 1)
 
         # Clear cache and verify it works
-        gcp.clear_firewall_rules_cache()
+        gcp.firewall_manager.clear_cache()
         rules3 = gcp.firewall_manager.fetch_firewall_rules("test-project", "default")
         self.assertEqual(len(rules3), 1)
 

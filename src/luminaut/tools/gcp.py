@@ -478,10 +478,6 @@ class Gcp:
         )
         self.service_discovery = GcpServiceDiscovery(self.config, self.clients)
 
-    def clear_firewall_rules_cache(self) -> None:
-        """Clear the firewall rules cache."""
-        self.firewall_manager.clear_cache()
-
     def explore(self) -> list[models.ScanResult]:
         return asyncio.run(self.explore_async())
 
