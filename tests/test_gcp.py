@@ -229,9 +229,9 @@ class TestGCP(TestCase):
 
         gcp = Gcp(self.config)
         mock_clients = setup_mock_clients(gcp, instances=[fake_gcp_instance])
-        instances = gcp.fetch_instances(
+        instances = gcp.instance_discovery.fetch_resources(
             project=self.config.gcp.projects[0],
-            zone=self.config.gcp.compute_zones[0],
+            location=self.config.gcp.compute_zones[0],
         )
 
         # Calls the list command
@@ -268,9 +268,9 @@ class TestGCP(TestCase):
             gcp,
             instances=[fake_gcp_instance_with_no_public_ip],
         )
-        instances = gcp.fetch_instances(
+        instances = gcp.instance_discovery.fetch_resources(
             project=self.config.gcp.projects[0],
-            zone=self.config.gcp.compute_zones[0],
+            location=self.config.gcp.compute_zones[0],
         )
 
         mock_clients["instances"].list.assert_called_once()
@@ -562,7 +562,9 @@ class TestGcpScanResultsIntegration(TestCase):
             firewalls=[fake_firewall_rule],
         )
 
-        scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
+        scan_results = gcp.instance_discovery.find_resources(
+            project="test-project", location="us-central1-a"
+        )
 
         # Should have one scan result for the instance with public IP
         self.assertEqual(len(scan_results), 1)
@@ -601,7 +603,9 @@ class TestGcpScanResultsIntegration(TestCase):
             firewalls=[],  # No firewall rules
         )
 
-        scan_results = gcp.find_instances(project="test-project", zone="us-central1-a")
+        scan_results = gcp.instance_discovery.find_resources(
+            project="test-project", location="us-central1-a"
+        )
 
         # Should still have scan result but with empty firewall rules
         self.assertEqual(len(scan_results), 1)
@@ -685,7 +689,9 @@ class TestGcpScanResultsIntegration(TestCase):
             ]
 
             # Call find_instances
-            scan_results = gcp.find_instances("test-project", "us-central1-a")
+            scan_results = gcp.instance_discovery.find_resources(
+                "test-project", "us-central1-a"
+            )
 
             # Verify audit logs service was called
             mock_audit_logs_class.assert_called_once_with(
@@ -718,7 +724,9 @@ class TestGcpScanResultsIntegration(TestCase):
         # Mock the audit logs service - it should not be called
         with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
             # Call find_instances
-            scan_results = gcp.find_instances("test-project", "us-central1-a")
+            scan_results = gcp.instance_discovery.find_resources(
+                "test-project", "us-central1-a"
+            )
 
             # Verify audit logs service was NOT called
             mock_audit_logs_class.assert_not_called()
@@ -1184,7 +1192,7 @@ class TestGcpClients(TestCase):
         gcp = Gcp(config, clients=mock_clients)
 
         # Call a method that uses clients
-        gcp.fetch_instances("test-project", "us-central1-a")
+        gcp.instance_discovery.fetch_resources("test-project", "us-central1-a")
 
         # Verify the mock was used
         mock_instances_client.list.assert_called_once_with(

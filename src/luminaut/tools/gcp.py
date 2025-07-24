@@ -259,71 +259,50 @@ class GcpFirewallManager:
         return bool(set(instance.tags) & set(rule.target_tags))
 
 
-class Gcp:
+class GcpInstanceDiscovery:
+    """Handles discovery of GCP compute instances."""
+
     def __init__(
-        self, config: models.LuminautConfig, clients: GcpClients | None = None
-    ):
+        self,
+        config: models.LuminautConfig,
+        clients: GcpClients,
+        firewall_manager: GcpFirewallManager,
+    ) -> None:
+        """Initialize the GCP instance discovery.
+
+        Args:
+            config: The Luminaut configuration object containing GCP settings
+            clients: The GCP clients manager for accessing GCP APIs
+            firewall_manager: The firewall manager for retrieving firewall rules
+        """
         self.config = config
-        self.clients = clients if clients is not None else GcpClients()
-        self.resource_discovery = GcpResourceDiscovery(self.config, self.clients)
-        self.firewall_manager = GcpFirewallManager(self.clients)
+        self.clients = clients
+        self.firewall_manager = firewall_manager
 
-    def clear_firewall_rules_cache(self) -> None:
-        """Clear the firewall rules cache."""
-        self.firewall_manager.clear_cache()
+    def find_resources(self, project: str, location: str) -> list[models.ScanResult]:
+        """Find GCP compute instances in the specified project and zone.
 
-    def get_projects(self) -> list[str]:
-        return self.resource_discovery.get_projects()
+        Args:
+            project: The GCP project ID
+            location: The GCP zone name
 
-    def get_regions(self, project: str) -> list[str]:
-        return self.resource_discovery.get_regions(project)
-
-    def get_zones(self, project: str) -> list[str]:
-        return self.resource_discovery.get_zones(project)
-
-    def explore(self) -> list[models.ScanResult]:
-        return asyncio.run(self.explore_async())
-
-    async def explore_async(self) -> list[models.ScanResult]:
-        if not self.config.gcp.enabled:
-            return []
-
-        tasks = []
-        for project in self.get_projects():
-            tasks.extend(
-                asyncio.to_thread(self.find_instances, project, zone)
-                for zone in self.get_zones(project)
-            )
-            tasks.extend(
-                asyncio.to_thread(self.find_services, project, region)
-                for region in self.get_regions(project)
-            )
-
+        Returns:
+            List of scan results for discovered instances with public IPs
+        """
         scan_results = []
-        with logging_redirect_tqdm():
-            for coro in tqdm(
-                asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
-            ):
-                r = await coro
-                scan_results.extend(r)
-        logger.info("Completed scanning GCP")
-        return scan_results
-
-    def find_instances(self, project: str, zone: str) -> list[models.ScanResult]:
-        scan_results = []
-        instances = self.fetch_instances(project, zone)
+        instances = self.fetch_resources(project, location)
 
         # Query audit logs for all discovered instances if enabled
         audit_log_events = []
         if self.config.gcp.audit_logs.enabled and instances:
             try:
                 logger.info(
-                    f"Querying GCP audit logs for {len(instances)} instances in project {project}/{zone}"
+                    f"Querying GCP audit logs for {len(instances)} instances in project {project}/{location}"
                 )
                 audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
                 audit_log_events = audit_service.query_instance_events(instances)
                 logger.info(
-                    f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{zone}"
+                    f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{location}"
                 )
             except Exception as e:
                 logger.error(f"Error querying audit logs for project {project}: {e}")
@@ -355,26 +334,89 @@ class Gcp:
                     models.ScanResult(
                         ip=public_ip,
                         findings=[scan_finding],
-                        region=zone,
+                        region=location,
                     )
                 )
         return scan_results
 
-    def fetch_instances(self, project: str, zone: str) -> list[models.GcpInstance]:
+    def fetch_resources(self, project: str, location: str) -> list[models.GcpInstance]:
+        """Fetch GCP compute instances from the specified project and zone.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP zone name
+
+        Returns:
+            List of GCP compute instances
+        """
         try:
             instances = self.clients.instances.list(
                 project=project,
-                zone=zone,
+                zone=location,
             )
             return [models.GcpInstance.from_gcp(instance) for instance in instances]
         except Exception as e:
             logger.error(
                 "Failed to fetch GCP instances for project %s in zone %s: %s",
                 project,
-                zone,
+                location,
                 str(e),
             )
             return []
+
+
+class Gcp:
+    def __init__(
+        self, config: models.LuminautConfig, clients: GcpClients | None = None
+    ):
+        self.config = config
+        self.clients = clients if clients is not None else GcpClients()
+        self.resource_discovery = GcpResourceDiscovery(self.config, self.clients)
+        self.firewall_manager = GcpFirewallManager(self.clients)
+        self.instance_discovery = GcpInstanceDiscovery(
+            self.config, self.clients, self.firewall_manager
+        )
+
+    def clear_firewall_rules_cache(self) -> None:
+        """Clear the firewall rules cache."""
+        self.firewall_manager.clear_cache()
+
+    def get_projects(self) -> list[str]:
+        return self.resource_discovery.get_projects()
+
+    def get_regions(self, project: str) -> list[str]:
+        return self.resource_discovery.get_regions(project)
+
+    def get_zones(self, project: str) -> list[str]:
+        return self.resource_discovery.get_zones(project)
+
+    def explore(self) -> list[models.ScanResult]:
+        return asyncio.run(self.explore_async())
+
+    async def explore_async(self) -> list[models.ScanResult]:
+        if not self.config.gcp.enabled:
+            return []
+
+        tasks = []
+        for project in self.get_projects():
+            tasks.extend(
+                asyncio.to_thread(self.instance_discovery.find_resources, project, zone)
+                for zone in self.get_zones(project)
+            )
+            tasks.extend(
+                asyncio.to_thread(self.find_services, project, region)
+                for region in self.get_regions(project)
+            )
+
+        scan_results = []
+        with logging_redirect_tqdm():
+            for coro in tqdm(
+                asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
+            ):
+                r = await coro
+                scan_results.extend(r)
+        logger.info("Completed scanning GCP")
+        return scan_results
 
     def find_services(self, project: str, location: str) -> list[models.ScanResult]:
         scan_results = []
