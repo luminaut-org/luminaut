@@ -317,8 +317,10 @@ class GcpInstanceDiscovery:
         self.clients = clients
         self.firewall_manager = firewall_manager
 
-    def find_resources(self, project: str, location: str) -> list[models.ScanResult]:
-        """Find GCP compute instances in the specified project and zone.
+    async def find_resources_async(
+        self, project: str, location: str
+    ) -> list[models.ScanResult]:
+        """Find GCP compute instances in the specified project and zone asynchronously.
 
         Args:
             project: The GCP project ID
@@ -328,7 +330,7 @@ class GcpInstanceDiscovery:
             List of scan results for discovered instances with public IPs
         """
         scan_results = []
-        instances = self.fetch_resources(project, location)
+        instances = await self.fetch_resources_async(project, location)
 
         # Query audit logs for all discovered instances if enabled
         audit_log_events = []
@@ -338,7 +340,10 @@ class GcpInstanceDiscovery:
                     f"Querying GCP audit logs for {len(instances)} instances in project {project}/{location}"
                 )
                 audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
-                audit_log_events = audit_service.query_instance_events(instances)
+                # Use async audit log querying when available
+                audit_log_events = await asyncio.to_thread(
+                    audit_service.query_instance_events, instances
+                )
                 logger.info(
                     f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{location}"
                 )
@@ -353,8 +358,11 @@ class GcpInstanceDiscovery:
                     resources=[gcp_instance],
                 )
 
-                firewall_rules = self.firewall_manager.get_applicable_firewall_rules(
-                    gcp_instance
+                # Use async firewall rule fetching
+                firewall_rules = (
+                    await self.firewall_manager.get_applicable_firewall_rules_async(
+                        gcp_instance
+                    )
                 )
                 if firewall_rules:
                     scan_finding.resources.append(firewall_rules)
@@ -377,8 +385,22 @@ class GcpInstanceDiscovery:
                 )
         return scan_results
 
-    def fetch_resources(self, project: str, location: str) -> list[models.GcpInstance]:
-        """Fetch GCP compute instances from the specified project and zone.
+    def find_resources(self, project: str, location: str) -> list[models.ScanResult]:
+        """Find GCP compute instances in the specified project and zone.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP zone name
+
+        Returns:
+            List of scan results for discovered instances with public IPs
+        """
+        return asyncio.run(self.find_resources_async(project, location))
+
+    async def fetch_resources_async(
+        self, project: str, location: str
+    ) -> list[models.GcpInstance]:
+        """Fetch GCP compute instances from the specified project and zone asynchronously.
 
         Args:
             project: The GCP project ID
@@ -388,7 +410,8 @@ class GcpInstanceDiscovery:
             List of GCP compute instances
         """
         try:
-            instances = self.clients.instances.list(
+            instances = await asyncio.to_thread(
+                self.clients.instances.list,
                 project=project,
                 zone=location,
             )
@@ -401,6 +424,18 @@ class GcpInstanceDiscovery:
                 str(e),
             )
             return []
+
+    def fetch_resources(self, project: str, location: str) -> list[models.GcpInstance]:
+        """Fetch GCP compute instances from the specified project and zone.
+
+        Args:
+            project: The GCP project ID
+            location: The GCP zone name
+
+        Returns:
+            List of GCP compute instances
+        """
+        return asyncio.run(self.fetch_resources_async(project, location))
 
 
 class GcpServiceDiscovery:
