@@ -591,14 +591,13 @@ class Gcp:
 
         tasks = []
         for project in self.resource_discovery.get_projects():
+            # Use native async methods directly instead of asyncio.to_thread()
             tasks.extend(
-                asyncio.to_thread(self.instance_discovery.find_resources, project, zone)
+                self.instance_discovery.find_resources_async(project, zone)
                 for zone in self.resource_discovery.get_zones(project)
             )
             tasks.extend(
-                asyncio.to_thread(
-                    self.service_discovery.find_resources, project, region
-                )
+                self.service_discovery.find_resources_async(project, region)
                 for region in self.resource_discovery.get_regions(project)
             )
 
