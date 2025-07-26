@@ -209,7 +209,6 @@ class GcpFirewallManager:
         )
         try:
             client = self.clients.firewalls
-            # Run the blocking GCP API call in a thread pool
             firewall_rules = await asyncio.to_thread(client.list, request=request)
             rules = [models.GcpFirewallRule.from_gcp(rule) for rule in firewall_rules]
 
@@ -268,7 +267,6 @@ class GcpFirewallManager:
                     )
                 else:
                     # Filter rules based on target tags
-                    # result is guaranteed to be list[models.GcpFirewallRule] here
                     rules: list[models.GcpFirewallRule] = result
                     for rule in rules:
                         if (
@@ -340,7 +338,6 @@ class GcpInstanceDiscovery:
                     f"Querying GCP audit logs for {len(instances)} instances in project {project}/{location}"
                 )
                 audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
-                # Use async audit log querying when available
                 audit_log_events = await asyncio.to_thread(
                     audit_service.query_instance_events, instances
                 )
@@ -358,7 +355,6 @@ class GcpInstanceDiscovery:
                     resources=[gcp_instance],
                 )
 
-                # Use async firewall rule fetching
                 firewall_rules = (
                     await self.firewall_manager.get_applicable_firewall_rules_async(
                         gcp_instance
@@ -474,7 +470,6 @@ class GcpServiceDiscovery:
                     f"Querying GCP audit logs for {len(services)} Cloud Run services in project {project}/{location}"
                 )
                 audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
-                # Use async audit log querying when available
                 audit_log_events = await asyncio.to_thread(
                     audit_service.query_service_events, services
                 )
@@ -591,7 +586,6 @@ class Gcp:
 
         tasks = []
         for project in self.resource_discovery.get_projects():
-            # Use native async methods directly instead of asyncio.to_thread()
             tasks.extend(
                 self.instance_discovery.find_resources_async(project, zone)
                 for zone in self.resource_discovery.get_zones(project)
