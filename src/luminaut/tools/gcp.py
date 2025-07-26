@@ -234,8 +234,6 @@ class GcpFirewallManager:
         self, instance: models.GcpInstance
     ) -> models.GcpFirewallRules:
         """Get firewall rules that apply to a given GCP instance asynchronously."""
-        applicable_rules = {}
-
         # Collect all unique (project, network) combinations
         network_queries = set()
         for nic in instance.network_interfaces:
@@ -254,7 +252,7 @@ class GcpFirewallManager:
             firewall_results: list[Any] = await asyncio.gather(
                 *firewall_tasks, return_exceptions=True
             )
-
+            applicable_rules = {}
             # Process results and handle any exceptions
             for i, result in enumerate(firewall_results):
                 if isinstance(result, Exception):
@@ -274,8 +272,8 @@ class GcpFirewallManager:
                             and self._rule_applies_to_instance(rule, instance)
                         ):
                             applicable_rules[rule.resource_id] = rule
-
-        return models.GcpFirewallRules(rules=list(applicable_rules.values()))
+            return models.GcpFirewallRules(rules=list(applicable_rules.values()))
+        return models.GcpFirewallRules(rules=[])
 
     def get_applicable_firewall_rules(
         self, instance: models.GcpInstance
