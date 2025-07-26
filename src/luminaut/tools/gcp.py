@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from typing import Any
 
 import google.auth
 from google.cloud import compute_v1, run_v2
@@ -241,6 +240,7 @@ class GcpFirewallManager:
             network_name = nic.get_network_name()
             if project_name and network_name:
                 network_queries.add((project_name, network_name))
+        network_queries = list(network_queries)
 
         # Fetch firewall rules concurrently for all networks
         firewall_tasks = [
@@ -249,31 +249,42 @@ class GcpFirewallManager:
         ]
 
         if firewall_tasks:
-            firewall_results: list[Any] = await asyncio.gather(
-                *firewall_tasks, return_exceptions=True
+            firewall_results: list[
+                list[models.GcpFirewallRule] | BaseException
+            ] = await asyncio.gather(*firewall_tasks, return_exceptions=True)
+            applicable_rules = self._match_firewall_rules(
+                firewall_results, network_queries, instance
             )
-            applicable_rules = {}
-            # Process results and handle any exceptions
-            for i, result in enumerate(firewall_results):
-                if isinstance(result, Exception):
-                    project, network = list(network_queries)[i]
-                    logger.error(
-                        "Error fetching firewall rules for %s/%s: %s",
-                        project,
-                        network,
-                        str(result),
-                    )
-                else:
-                    # Filter rules based on target tags
-                    rules: list[models.GcpFirewallRule] = result
-                    for rule in rules:
-                        if (
-                            rule.resource_id not in applicable_rules
-                            and self._rule_applies_to_instance(rule, instance)
-                        ):
-                            applicable_rules[rule.resource_id] = rule
             return models.GcpFirewallRules(rules=list(applicable_rules.values()))
         return models.GcpFirewallRules(rules=[])
+
+    def _match_firewall_rules(
+        self,
+        firewall_results: list[list[models.GcpFirewallRule] | BaseException],
+        network_queries: list[tuple[str, str]],
+        instance: models.GcpInstance,
+    ) -> dict[str, models.GcpFirewallRule]:
+        applicable_rules = {}
+        # Process results and handle any exceptions
+        for i, result in enumerate(firewall_results):
+            if isinstance(result, BaseException):
+                project, network = network_queries[i]
+                logger.error(
+                    "Error fetching firewall rules for %s/%s: %s",
+                    project,
+                    network,
+                    str(result),
+                )
+            else:
+                # Filter rules based on target tags
+                rules: list[models.GcpFirewallRule] = result
+                for rule in rules:
+                    if (
+                        rule.resource_id not in applicable_rules
+                        and self._rule_applies_to_instance(rule, instance)
+                    ):
+                        applicable_rules[rule.resource_id] = rule
+        return applicable_rules
 
     def get_applicable_firewall_rules(
         self, instance: models.GcpInstance
