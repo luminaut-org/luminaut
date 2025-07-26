@@ -597,10 +597,10 @@ class Gcp:
 
         scan_results = []
         with logging_redirect_tqdm():
-            for coro in tqdm(
+            for coroutine in tqdm(
                 asyncio.as_completed(tasks), total=len(tasks), desc="Scanning GCP"
             ):
-                r = await coro
+                r = await coroutine
                 scan_results.extend(r)
         logger.info("Completed scanning GCP")
         return scan_results
