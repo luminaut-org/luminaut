@@ -5,6 +5,7 @@ from pathlib import Path
 from luminaut import Luminaut, __version__, models
 
 logger = logging.getLogger()
+logger.getChild("asyncio").setLevel(logging.ERROR)
 logger.getChild("boto3").setLevel(logging.ERROR)
 logger.getChild("botocore").setLevel(logging.ERROR)
 logger.getChild("urllib3.connectionpool").setLevel(logging.ERROR)
