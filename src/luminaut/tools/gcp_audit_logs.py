@@ -141,6 +141,34 @@ class GcpAuditLogs:
         },
     }
 
+    # Mapping of GCP Firewall events to timeline event types and messages
+    SUPPORTED_FIREWALL_EVENTS = {
+        "beta.compute.firewalls.insert": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_CREATED,
+            "message": "Firewall rule created",
+        },
+        "v1.compute.firewalls.insert": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_CREATED,
+            "message": "Firewall rule created",
+        },
+        "beta.compute.firewalls.update": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_UPDATED,
+            "message": "Firewall rule updated",
+        },
+        "v1.compute.firewalls.update": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_UPDATED,
+            "message": "Firewall rule updated",
+        },
+        "beta.compute.firewalls.delete": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_DELETED,
+            "message": "Firewall rule deleted",
+        },
+        "v1.compute.firewalls.delete": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_DELETED,
+            "message": "Firewall rule deleted",
+        },
+    }
+
     def __init__(self, project: str, config: models.LuminautConfigToolGcpAuditLogs):
         self.project = project
         self.config = config

@@ -296,6 +296,11 @@ class TestGcpAuditLogsService(unittest.TestCase):
         # Should return empty list when no log entries
         self.assertEqual(events, [])
 
+    def test_supported_events_use_timeline_event_types(self):
+        for event in GcpAuditLogs.SUPPORTED_FIREWALL_EVENTS.values():
+            # Ensure all events use TimelineEventType
+            self.assertIsInstance(event["event_type"], models.TimelineEventType)
+
 
 class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
     """Test GCP Audit Logs service functionality for Cloud Run services."""
