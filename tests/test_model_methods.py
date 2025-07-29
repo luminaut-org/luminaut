@@ -122,6 +122,19 @@ class TestModels(unittest.TestCase):
         expected_default_ports = {80, 443, 3000, 5000, 8000, 8080, 8443, 8888}
         self.assertEqual(target_ports, expected_default_ports)
 
+    def test_firewall_timeline_event_types(self):
+        """Test that firewall timeline event types are properly defined."""
+        # Test that the new firewall event types exist and can be used
+        self.assertEqual(
+            models.TimelineEventType.FIREWALL_RULE_CREATED, "Firewall rule created"
+        )
+        self.assertEqual(
+            models.TimelineEventType.FIREWALL_RULE_UPDATED, "Firewall rule updated"
+        )
+        self.assertEqual(
+            models.TimelineEventType.FIREWALL_RULE_DELETED, "Firewall rule deleted"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
