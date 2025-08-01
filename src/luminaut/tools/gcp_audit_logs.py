@@ -185,6 +185,11 @@ class GcpAuditLogs:
             self.SOURCE_NAME,
             self.project,
         )
+        self._firewall_parser = FirewallEventParser(
+            self.SUPPORTED_FIREWALL_EVENTS,
+            self.SOURCE_NAME,
+            self.project,
+        )
 
     @property
     def client(self) -> gcp_logging.Client:
@@ -233,9 +238,31 @@ class GcpAuditLogs:
             self._build_resource_name_id_mapping(services),
         )
 
+    def query_firewall_events(
+        self, firewalls: list[models.GcpFirewallRule]
+    ) -> list[models.TimelineEvent]:
+        """Query audit logs for GCP firewall rule lifecycle events.
+
+        Args:
+            firewalls: List of GCP firewall rules to query audit logs for.
+
+        Returns:
+            List of timeline events found in audit logs for the given firewalls.
+            Returns empty list if audit logs are disabled, no firewalls provided,
+            or if an error occurs during querying.
+        """
+        return self._query_audit_events(
+            firewalls,
+            self._build_firewall_audit_log_filter,
+            self._parse_firewall_audit_log_entry,
+            self._build_resource_name_id_mapping(firewalls),
+        )
+
     @staticmethod
     def _build_resource_name_id_mapping(
-        resources: Sequence[models.GcpInstance | models.GcpService],
+        resources: Sequence[
+            models.GcpInstance | models.GcpService | models.GcpFirewallRule
+        ],
     ) -> dict[str, str]:
         """Build a mapping from resource names to their IDs.
 
@@ -326,6 +353,17 @@ class GcpAuditLogs:
             )
             .build()
         )
+
+    def _parse_firewall_audit_log_entry(
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        """Directly dispatch to the Firewall parser for Firewall events."""
+        method_name = (
+            entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+        )
+        if method_name in self.SUPPORTED_FIREWALL_EVENTS:
+            return self._firewall_parser.parse(entry, name_to_resource_id)
+        return None
 
     def _parse_service_audit_log_entry(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
