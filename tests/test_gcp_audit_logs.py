@@ -531,6 +531,11 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
 
 
 class TestGcpAuditLogsFirewallEvents(unittest.TestCase):
+    def setUp(self):
+        """Set up test configuration and mock objects."""
+        self.config = models.LuminautConfig()
+        self.config.gcp.audit_logs.enabled = True
+
     def test_parse_firewall_audit_log_entry(self):
         timestamp = datetime(2025, 1, 1, tzinfo=UTC)
         resource = Mock(
@@ -590,6 +595,37 @@ class TestGcpAuditLogsFirewallEvents(unittest.TestCase):
         ).parse(resource, {"test-firewall": "1234"})
 
         self.assertEqual(actual_event, expected_event)
+
+    def test_audit_log_filter(self):
+        """Test that audit log filters use the correct namespaces/project/services/name format."""
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+
+        # Create a service with the resource_id format that comes from the API
+        firewall_rule = models.GcpFirewallRule(
+            resource_id="projects/test-project/global/firewalls/test-firewall",
+            name="test-firewall",
+            source_ranges=["0.0.0.0/0"],
+            target_tags=["web-server"],
+            allowed_protocols=[{"IPProtocol": "tcp", "ports": ["80", "443"]}],
+            direction=models.Direction.INGRESS,
+            creation_timestamp=datetime(2025, 1, 1, tzinfo=UTC),
+            priority=1000,
+            action=models.FirewallAction.ALLOW,
+        )
+
+        # Build the filter
+        filter_str = audit_service._build_firewall_audit_log_filter([firewall_rule])
+
+        # Verify the filter uses the correct audit log resource name format
+        self.assertIn("compute.googleapis.com", filter_str)
+
+        self.assertIn(
+            "projects/test-project/global/firewalls/test-firewall", filter_str
+        )
+        self.assertNotIn(
+            "projects/test-project/global/firewalls/unknown-firewall",
+            filter_str,
+        )
 
 
 if __name__ == "__main__":

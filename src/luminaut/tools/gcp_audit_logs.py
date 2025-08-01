@@ -303,6 +303,30 @@ class GcpAuditLogs:
             .build()
         )
 
+    def _build_firewall_audit_log_filter(
+        self, firewalls: Sequence[models.GcpFirewallRule]
+    ) -> str:
+        firewall_resource_path_template = (
+            "projects/{project}/global/firewalls/{firewall}"
+        )
+        resource_names = []
+        for firewall in firewalls:
+            resource_path = firewall_resource_path_template.format(
+                project=self.project, firewall=firewall.name
+            )
+            resource_names.append(resource_path)
+        return (
+            GcpAuditLogFilterBuilder(self.project, self.LOG_NAME_TEMPLATE)
+            .with_log_name()
+            .with_service_name(self.SERVICE_NAME_COMPUTE)
+            .with_method_names(self.SUPPORTED_FIREWALL_EVENTS.keys())
+            .with_resource_names(resource_names)
+            .with_time_range(
+                self.config.start_time, self.config.end_time, self.TIMESTAMP_FORMAT
+            )
+            .build()
+        )
+
     def _parse_service_audit_log_entry(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
