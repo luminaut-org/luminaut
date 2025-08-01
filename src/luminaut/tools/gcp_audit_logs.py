@@ -547,14 +547,17 @@ class FirewallEventParser:
     def __init__(
         self,
         supported_events: dict[str, dict[str, Any]],
-        extract_resource_name: Callable,
         source_name: str,
         project: str,
     ):
         self.supported_events = supported_events
-        self.extract_resource_name = extract_resource_name
         self.source_name = source_name
         self.project = project
+
+    @classmethod
+    def extract_resource_name(cls, resource_path: str) -> str:
+        # Resource path format: projects/{project}/global/firewalls/{name}
+        return resource_path.rsplit("/", 1)[-1]
 
     def parse(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]

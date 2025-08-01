@@ -585,7 +585,6 @@ class TestGcpAuditLogsFirewallEvents(unittest.TestCase):
 
         actual_event = FirewallEventParser(
             supported_events=GcpAuditLogs.SUPPORTED_FIREWALL_EVENTS,
-            extract_resource_name=lambda x: "test-firewall",
             source_name="GCP Audit Logs",
             project="test-project",
         ).parse(resource, {"test-firewall": "1234"})
