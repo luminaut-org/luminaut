@@ -4,7 +4,11 @@ from io import BytesIO
 from unittest.mock import MagicMock, Mock, patch
 
 from luminaut import models
-from luminaut.tools.gcp_audit_logs import FirewallEventParser, GcpAuditLogs
+from luminaut.tools.gcp_audit_logs import (
+    CloudRunServiceEventParser,
+    FirewallEventParser,
+    GcpAuditLogs,
+)
 
 sample_toml_config_with_audit_logs = b"""
 [tool.gcp]
@@ -429,37 +433,39 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
 
     def test_extract_service_name_from_path(self):
         """Test extraction of service name from GCP Cloud Run resource path."""
-        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
-
         # Test Cloud Run audit log resource path format
         audit_log_resource_path = "namespaces/test-project/services/test-service"
-        service_name = audit_service._extract_service_name(audit_log_resource_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(
+            audit_log_resource_path
+        )
         self.assertEqual(service_name, "test-service")
 
         # Test with more complex service name
         complex_resource_path = (
             "namespaces/my-gcp-project-123/services/my-api-service-v2"
         )
-        service_name = audit_service._extract_service_name(complex_resource_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(
+            complex_resource_path
+        )
         self.assertEqual(service_name, "my-api-service-v2")
 
         # Test API resource format for backward compatibility
         api_format_path = (
             "projects/test-project/locations/us-central1/services/test-service"
         )
-        service_name = audit_service._extract_service_name(api_format_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(api_format_path)
         self.assertEqual(service_name, "test-service")
 
         # Test invalid resource path
         invalid_path = "invalid/path"
-        service_name = audit_service._extract_service_name(invalid_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(invalid_path)
         self.assertEqual(
             service_name, invalid_path
         )  # Should return original if can't parse
 
         # Test partial path
         partial_path = "namespaces/test-project"
-        service_name = audit_service._extract_service_name(partial_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(partial_path)
         self.assertEqual(
             service_name, partial_path
         )  # Should return original if can't parse

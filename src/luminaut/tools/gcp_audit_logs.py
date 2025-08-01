@@ -182,7 +182,6 @@ class GcpAuditLogs:
         )
         self._cloudrun_parser = CloudRunServiceEventParser(
             self.SUPPORTED_CLOUD_RUN_EVENTS,
-            self._extract_service_name,
             self.SOURCE_NAME,
             self.project,
         )
@@ -323,7 +322,9 @@ class GcpAuditLogs:
         """Build the filter string for querying Cloud Run service audit logs."""
         resource_names = []
         for service in services:
-            service_name = self._extract_service_name(service.resource_id)
+            service_name = CloudRunServiceEventParser.extract_service_name(
+                service.resource_id
+            )
             audit_log_resource_name = (
                 f"namespaces/{self.project}/services/{service_name}"
             )
@@ -385,33 +386,6 @@ class GcpAuditLogs:
         if method_name in self.SUPPORTED_CLOUD_RUN_EVENTS:
             return self._cloudrun_parser.parse(entry, name_to_resource_id)
         return None
-
-    @staticmethod
-    def _extract_service_name(resource_path: str) -> str:
-        """Extract the service name from a GCP Cloud Run resource path.
-
-        Args:
-            resource_path: Full GCP resource path. Can be either:
-                - namespaces/{project}/services/{name} (actual audit log format)
-                - projects/{project}/locations/{region}/services/{name} (API resource format)
-
-        Returns:
-            The service name or the original path if parsing fails.
-        """
-        try:
-            parts = resource_path.split("/")
-
-            # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
-            if len(parts) >= 6 and parts[4] == "services":
-                return parts[5]
-
-            # Handle actual audit log format: namespaces/{project}/services/{service-name}
-            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
-                return parts[3]
-
-            return resource_path
-        except (IndexError, AttributeError):
-            return resource_path
 
     @classmethod
     def _extract_resource_name(cls, resource_path: str) -> str:
@@ -552,14 +526,39 @@ class CloudRunServiceEventParser:
     def __init__(
         self,
         supported_events: dict[str, dict[str, Any]],
-        extract_service_name: Callable,
         source_name: str,
         project: str,
     ):
         self.supported_events = supported_events
-        self.extract_service_name = extract_service_name
         self.source_name = source_name
         self.project = project
+
+    @staticmethod
+    def extract_service_name(resource_path: str) -> str:
+        """Extract the service name from a GCP Cloud Run resource path.
+
+        Args:
+            resource_path: Full GCP resource path. Can be either:
+                - namespaces/{project}/services/{name} (actual audit log format)
+                - projects/{project}/locations/{region}/services/{name} (API resource format)
+
+        Returns:
+            The service name or the original path if parsing fails.
+        """
+        try:
+            parts = resource_path.split("/")
+
+            # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
+            if len(parts) >= 6 and parts[4] == "services":
+                return parts[5]
+
+            # Handle actual audit log format: namespaces/{project}/services/{service-name}
+            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
+                return parts[3]
+
+            return resource_path
+        except (IndexError, AttributeError):
+            return resource_path
 
     def parse(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]

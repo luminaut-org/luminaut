@@ -11,7 +11,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from luminaut import models
 from luminaut.tools.gcp import Gcp, GcpClients, GcpResourceDiscovery
-from luminaut.tools.gcp_audit_logs import GcpAuditLogs
+from luminaut.tools.gcp_audit_logs import CloudRunServiceEventParser
 
 
 def setup_mock_clients(
@@ -338,7 +338,8 @@ class TestGCP(TestCase):
 
         service = services[0]
         self.assertEqual(
-            service.name, GcpAuditLogs._extract_service_name(fake_service.name)
+            service.name,
+            CloudRunServiceEventParser.extract_service_name(fake_service.name),
         )
         self.assertEqual(service.uri, fake_service.uri)
         self.assertEqual(service.resource_id, fake_service.name)
