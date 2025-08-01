@@ -89,9 +89,6 @@ class GcpAuditLogs:
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
     RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
-    RESOURCE_PATH_PARTS_COUNT = 6
-    RESOURCE_PATH_INSTANCES_INDEX = 4
-    RESOURCE_PATH_NAME_INDEX = 5
 
     # Mapping of GCP audit log method names to timeline event types and messages
     SUPPORTED_INSTANCE_EVENTS = {
@@ -389,25 +386,8 @@ class GcpAuditLogs:
 
     @classmethod
     def _extract_resource_name(cls, resource_path: str) -> str:
-        """Extract the resource name from a GCP resource path.
-
-        Args:
-            resource_path: Full GCP resource path (e.g., projects/{project}/zones/{zone}/instances/{name}).
-
-        Returns:
-            The resource name (e.g., instance name) or the original path if parsing fails.
-        """
-        try:
-            # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
-            parts = resource_path.split("/")
-            if (
-                len(parts) >= cls.RESOURCE_PATH_PARTS_COUNT
-                and parts[cls.RESOURCE_PATH_INSTANCES_INDEX] == "instances"
-            ):
-                return parts[cls.RESOURCE_PATH_NAME_INDEX]
-            return resource_path
-        except (IndexError, AttributeError):
-            return resource_path
+        # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
+        return resource_path.rsplit("/", 1)[-1]
 
     def _query_audit_events(
         self,

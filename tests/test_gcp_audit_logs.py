@@ -238,7 +238,7 @@ class TestGcpAuditLogsService(unittest.TestCase):
         self.assertEqual(resource_name, "test-instance")
 
         # Test invalid resource path
-        invalid_path = "invalid/path"
+        invalid_path = "invalid_path"
         resource_name = audit_service._extract_resource_name(invalid_path)
         self.assertEqual(
             resource_name, invalid_path
