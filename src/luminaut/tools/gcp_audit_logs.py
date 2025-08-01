@@ -629,10 +629,34 @@ class FirewallEventParser:
                     firewall_name,
                 )
                 return None
+
+            request_parameters = entry.payload.get("request", {})
             principal_email = AuditLogParseTools.get_principal_email(entry)
             message = AuditLogParseTools.build_message(
                 event_config["message"], principal_email
             )
+
+            allowed_ports = [
+                int(port_number)
+                for allowed in request_parameters.get("alloweds", [])
+                for port_number in allowed["ports"]
+                if "ports" in allowed
+            ]
+            if allowed_ports:
+                allowed_ports = sorted(set(allowed_ports))
+                message += f" with ports {', '.join(map(str, allowed_ports))}"
+            allowed_protocols = [
+                x["IPProtocol"]
+                for x in request_parameters.get("alloweds", [])
+                if "IPProtocol" in x
+            ]
+            source_ranges = request_parameters.get("sourceRanges", [])
+            if source_ranges:
+                message += f" from source ranges `{', '.join(source_ranges)}`"
+            target_tags = request_parameters.get("targetTags", [])
+            if target_tags:
+                message += f" with target tags `{', '.join(target_tags)}`"
+
             if not isinstance(entry.timestamp, datetime):
                 logger.warning(
                     "Invalid timestamp format in audit log entry: %s %s",
@@ -641,7 +665,6 @@ class FirewallEventParser:
                 )
                 return None
             timestamp = AuditLogParseTools.normalize_timestamp(entry.timestamp)
-            request_parameters = entry.payload.get("request", {})
 
             return models.TimelineEvent(
                 timestamp=timestamp,
@@ -655,19 +678,10 @@ class FirewallEventParser:
                     "resourceName": resource_name,
                     "principalEmail": principal_email,
                     "rule_detail": {
-                        "allowed_protocols": [
-                            x["IPProtocol"]
-                            for x in request_parameters.get("alloweds", [])
-                            if "IPProtocol" in x
-                        ],
-                        "allowed_ports": [
-                            port_number
-                            for allowed in request_parameters.get("alloweds", [])
-                            for port_number in allowed["ports"]
-                            if "ports" in allowed
-                        ],
-                        "sourceRanges": request_parameters.get("sourceRanges", []),
-                        "targetTags": request_parameters.get("targetTags", []),
+                        "allowed_protocols": allowed_protocols,
+                        "allowed_ports": allowed_ports,
+                        "sourceRanges": source_ranges,
+                        "targetTags": target_tags,
                         "description": request_parameters.get("description", ""),
                         "network": request_parameters.get("network", ""),
                     },

@@ -576,14 +576,14 @@ class TestGcpAuditLogsFirewallEvents(unittest.TestCase):
             resource_type=models.ResourceType.GCP_Firewall_Rule,
             timestamp=timestamp,
             source="GCP Audit Logs",
-            message=("Firewall rule created by unittest@luminaut.org"),
+            message="Firewall rule created by unittest@luminaut.org with ports 80, 443 from source ranges `0.0.0.0/0` with target tags `web-server`",
             details={
                 "methodName": "beta.compute.firewalls.insert",
                 "resourceName": "projects/test-project/global/firewalls/test-firewall",
                 "principalEmail": "unittest@luminaut.org",
                 "rule_detail": {
                     "allowed_protocols": ["tcp"],
-                    "allowed_ports": ["80", "443"],
+                    "allowed_ports": [80, 443],
                     "sourceRanges": ["0.0.0.0/0"],
                     "targetTags": ["web-server"],
                     "description": "Test firewall rule",
