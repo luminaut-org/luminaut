@@ -340,13 +340,13 @@ class GcpInstanceDiscovery:
         instances = await self.fetch_resources_async(project, location)
 
         # Query audit logs for all discovered instances if enabled
+        audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
         audit_log_events = []
         if self.config.gcp.audit_logs.enabled and instances:
             try:
                 logger.info(
                     f"Querying GCP audit logs for {len(instances)} instances in project {project}/{location}"
                 )
-                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
                 audit_log_events = await asyncio.to_thread(
                     audit_service.query_instance_events, instances
                 )
@@ -371,6 +371,11 @@ class GcpInstanceDiscovery:
                 )
                 if firewall_rules:
                     scan_finding.resources.append(firewall_rules)
+                    firewall_events = await asyncio.to_thread(
+                        audit_service.query_firewall_events, firewall_rules.rules
+                    )
+                    if firewall_events:
+                        scan_finding.events.extend(firewall_events)
 
                 # Add audit log events for this specific instance
                 instance_events = [
