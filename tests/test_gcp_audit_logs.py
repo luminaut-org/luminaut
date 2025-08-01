@@ -4,7 +4,7 @@ from io import BytesIO
 from unittest.mock import MagicMock, Mock, patch
 
 from luminaut import models
-from luminaut.tools.gcp_audit_logs import GcpAuditLogs
+from luminaut.tools.gcp_audit_logs import FirewallEventParser, GcpAuditLogs
 
 sample_toml_config_with_audit_logs = b"""
 [tool.gcp]
@@ -528,6 +528,69 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
             "projects/test-project/locations/us-central1/services/test-service",
             filter_str,
         )
+
+
+class TestGcpAuditLogsFirewallEvents(unittest.TestCase):
+    def test_parse_firewall_audit_log_entry(self):
+        timestamp = datetime(2025, 1, 1, tzinfo=UTC)
+        resource = Mock(
+            timestamp=timestamp,
+            log_name="projects/test-project/logs/cloudaudit.googleapis.com%2Factivity",
+            payload={
+                "methodName": "beta.compute.firewalls.insert",
+                "resourceName": "projects/test-project/global/firewalls/test-firewall",
+                "authenticationInfo": {"principalEmail": "unittest@luminaut.org"},
+                "request": {
+                    "alloweds": [
+                        {"IPProtocol": "tcp", "ports": ["80", "443"]},
+                    ],
+                    "description": "Test firewall rule",
+                    "name": "test-firewall",
+                    "network": "projects/test-project/global/networks/default",
+                    "sourceRanges": ["0.0.0.0/0"],
+                    "targetTags": ["web-server"],
+                },
+                "resource": {
+                    "labels": {
+                        "firewall_rule_id": "1234",
+                        "project_id": "test-project",
+                    },
+                },
+            },
+        )
+        gcp_internal_client = Mock()
+        gcp_internal_client.project = "test-project"
+
+        expected_event = models.TimelineEvent(
+            event_type=models.TimelineEventType.FIREWALL_RULE_CREATED,
+            resource_id="1234",
+            resource_type=models.ResourceType.GCP_Firewall_Rule,
+            timestamp=timestamp,
+            source="GCP Audit Logs",
+            message=("Firewall rule created by unittest@luminaut.org"),
+            details={
+                "methodName": "beta.compute.firewalls.insert",
+                "resourceName": "projects/test-project/global/firewalls/test-firewall",
+                "principalEmail": "unittest@luminaut.org",
+                "rule_detail": {
+                    "allowed_protocols": ["tcp"],
+                    "allowed_ports": ["80", "443"],
+                    "sourceRanges": ["0.0.0.0/0"],
+                    "targetTags": ["web-server"],
+                    "description": "Test firewall rule",
+                    "network": "projects/test-project/global/networks/default",
+                },
+            },
+        )
+
+        actual_event = FirewallEventParser(
+            supported_events=GcpAuditLogs.SUPPORTED_FIREWALL_EVENTS,
+            extract_resource_name=lambda x: "test-firewall",
+            source_name="GCP Audit Logs",
+            project="test-project",
+        ).parse(resource, {"test-firewall": "1234"})
+
+        self.assertEqual(actual_event, expected_event)
 
 
 if __name__ == "__main__":

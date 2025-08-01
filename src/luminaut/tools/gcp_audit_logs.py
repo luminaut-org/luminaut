@@ -543,6 +543,90 @@ class CloudRunServiceEventParser:
             return None
 
 
+class FirewallEventParser:
+    def __init__(
+        self,
+        supported_events: dict[str, dict[str, Any]],
+        extract_resource_name: Callable,
+        source_name: str,
+        project: str,
+    ):
+        self.supported_events = supported_events
+        self.extract_resource_name = extract_resource_name
+        self.source_name = source_name
+        self.project = project
+
+    def parse(
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        try:
+            method_name = AuditLogParseTools.get_method_name(entry)
+            event_config = AuditLogParseTools.get_event_config(
+                method_name, self.supported_events
+            )
+            if not entry.payload or not event_config:
+                return None
+            resource_name = AuditLogParseTools.get_resource_name(entry)
+            firewall_name = self.extract_resource_name(resource_name)
+            resource_id = AuditLogParseTools.get_resource_id(
+                name_to_resource_id, firewall_name
+            )
+            if resource_id is None:
+                logger.warning(
+                    "Firewall resource ID not found for resource: %s and firewall: %s",
+                    resource_name,
+                    firewall_name,
+                )
+                return None
+            principal_email = AuditLogParseTools.get_principal_email(entry)
+            message = AuditLogParseTools.build_message(
+                event_config["message"], principal_email
+            )
+            if not isinstance(entry.timestamp, datetime):
+                logger.warning(
+                    "Invalid timestamp format in audit log entry: %s %s",
+                    entry.timestamp,
+                    type(entry.timestamp),
+                )
+                return None
+            timestamp = AuditLogParseTools.normalize_timestamp(entry.timestamp)
+            request_parameters = entry.payload.get("request", {})
+
+            return models.TimelineEvent(
+                timestamp=timestamp,
+                source=self.source_name,
+                event_type=event_config["event_type"],
+                resource_id=resource_id,
+                resource_type=models.ResourceType.GCP_Firewall_Rule,
+                message=message,
+                details={
+                    "methodName": method_name,
+                    "resourceName": resource_name,
+                    "principalEmail": principal_email,
+                    "rule_detail": {
+                        "allowed_protocols": [
+                            x["IPProtocol"]
+                            for x in request_parameters.get("alloweds", [])
+                            if "IPProtocol" in x
+                        ],
+                        "allowed_ports": [
+                            port_number
+                            for allowed in request_parameters.get("alloweds", [])
+                            for port_number in allowed["ports"]
+                            if "ports" in allowed
+                        ],
+                        "sourceRanges": request_parameters.get("sourceRanges", []),
+                        "targetTags": request_parameters.get("targetTags", []),
+                        "description": request_parameters.get("description", ""),
+                        "network": request_parameters.get("network", ""),
+                    },
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Error parsing firewall audit log entry: {e}")
+            raise e
+
+
 class AuditLogParseTools:
     @staticmethod
     def get_method_name(entry: gcp_logging.types.LogEntry) -> str:

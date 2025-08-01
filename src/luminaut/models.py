@@ -105,6 +105,7 @@ class ResourceType(StrEnum):
     GCP_Service = "GCP::Run::Service"
     GCP_Task = "GCP::Run::Task"
     GCP_Firewall = "GCP::Compute::Firewall"
+    GCP_Firewall_Rule = "GCP::Compute::FirewallRule"
     Hostname = "Hostname"
 
 
