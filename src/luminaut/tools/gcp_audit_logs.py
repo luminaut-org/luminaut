@@ -173,7 +173,6 @@ class GcpAuditLogs:
         self._client: gcp_logging.Client | None = None
         self._compute_parser = ComputeInstanceEventParser(
             self.SUPPORTED_INSTANCE_EVENTS,
-            self._extract_resource_name,
             self.SOURCE_NAME,
             self.project,
         )
@@ -384,11 +383,6 @@ class GcpAuditLogs:
             return self._cloudrun_parser.parse(entry, name_to_resource_id)
         return None
 
-    @classmethod
-    def _extract_resource_name(cls, resource_path: str) -> str:
-        # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
-        return resource_path.rsplit("/", 1)[-1]
-
     def _query_audit_events(
         self,
         resources: list[Any],
@@ -439,14 +433,17 @@ class ComputeInstanceEventParser:
     def __init__(
         self,
         supported_events: dict[str, dict[str, Any]],
-        extract_resource_name: Callable,
         source_name: str,
         project: str,
     ):
         self.supported_events = supported_events
-        self.extract_resource_name = extract_resource_name
         self.source_name = source_name
         self.project = project
+
+    @classmethod
+    def extract_resource_name(cls, resource_path: str) -> str:
+        # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
+        return resource_path.rsplit("/", 1)[-1]
 
     def parse(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]

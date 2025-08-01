@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 from luminaut import models
 from luminaut.tools.gcp_audit_logs import (
     CloudRunServiceEventParser,
+    ComputeInstanceEventParser,
     FirewallEventParser,
     GcpAuditLogs,
 )
@@ -227,19 +228,16 @@ class TestGcpAuditLogsService(unittest.TestCase):
 
     def test_extract_resource_name_from_path(self):
         """Test extraction of resource name from GCP resource path."""
-        # Create service without triggering client initialization
-        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
-
         # Test instance resource path
         resource_path = (
             "projects/test-project/zones/us-central1-a/instances/test-instance"
         )
-        resource_name = audit_service._extract_resource_name(resource_path)
+        resource_name = ComputeInstanceEventParser.extract_resource_name(resource_path)
         self.assertEqual(resource_name, "test-instance")
 
         # Test invalid resource path
         invalid_path = "invalid_path"
-        resource_name = audit_service._extract_resource_name(invalid_path)
+        resource_name = ComputeInstanceEventParser.extract_resource_name(invalid_path)
         self.assertEqual(
             resource_name, invalid_path
         )  # Should return original if can't parse
