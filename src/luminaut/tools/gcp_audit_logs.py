@@ -172,6 +172,7 @@ class GcpAuditLogs:
     def __init__(self, project: str, config: models.LuminautConfigToolGcpAuditLogs):
         self.project = project
         self.config = config
+        self.enabled = config.enabled
         self._client: gcp_logging.Client | None = None
         self._compute_parser = ComputeInstanceEventParser(
             self.SUPPORTED_INSTANCE_EVENTS,
@@ -211,6 +212,9 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no instances provided,
             or if an error occurs during querying.
         """
+        if not self.config.enabled:
+            logger.debug("GCP audit logs are disabled, skipping query")
+            return []
         return self._query_audit_events(
             instances,
             self._build_instance_audit_log_filter,
@@ -231,6 +235,9 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no services provided,
             or if an error occurs during querying.
         """
+        if not self.config.enabled:
+            logger.debug("GCP audit logs are disabled, skipping query")
+            return []
         return self._query_audit_events(
             services,
             self._build_service_audit_log_filter,
@@ -251,6 +258,9 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no firewalls provided,
             or if an error occurs during querying.
         """
+        if not self.config.enabled:
+            logger.debug("GCP audit logs are disabled, skipping query")
+            return []
         return self._query_audit_events(
             firewalls,
             self._build_firewall_audit_log_filter,

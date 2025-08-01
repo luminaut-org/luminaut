@@ -723,23 +723,21 @@ class TestGcpScanResultsIntegration(TestCase):
             instances=[fake_gcp_instance],
         )
 
-        # Mock the audit logs service - it should not be called
-        with patch("luminaut.tools.gcp.GcpAuditLogs") as mock_audit_logs_class:
-            # Call find_instances
-            scan_results = gcp.instance_discovery.find_resources(
-                "test-project", "us-central1-a"
-            )
+        audit_log_manager = gcp.instance_discovery.get_audit_log_manager("foo")
+        self.assertFalse(audit_log_manager.enabled)
 
-            # Verify audit logs service was NOT called
-            mock_audit_logs_class.assert_not_called()
+        # Call find_instances
+        scan_results = gcp.instance_discovery.find_resources(
+            "test-project", "us-central1-a"
+        )
 
-            # Verify scan results don't contain audit log events
-            self.assertEqual(len(scan_results), 1)
-            scan_result = scan_results[0]
-            self.assertEqual(len(scan_result.findings), 1)
+        # Verify scan results don't contain audit log events
+        self.assertEqual(len(scan_results), 1)
+        scan_result = scan_results[0]
+        self.assertEqual(len(scan_result.findings), 1)
 
-            scan_finding = scan_result.findings[0]
-            self.assertEqual(len(scan_finding.events), 0)
+        scan_finding = scan_result.findings[0]
+        self.assertEqual(len(scan_finding.events), 0)
 
     def test_find_services_with_audit_logs_enabled(self):
         """Test that Cloud Run service audit logs are queried when enabled and events are added to scan findings."""
