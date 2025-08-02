@@ -690,7 +690,7 @@ class FirewallEventParser:
             )
         except Exception as e:
             logger.warning(f"Error parsing firewall audit log entry: {e}")
-            raise e
+            return None
 
 
 class AuditLogParseTools:
