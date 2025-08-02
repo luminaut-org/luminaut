@@ -89,6 +89,7 @@ class GcpAuditLogs:
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
     RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
+    DISABLED_IN_CONFIG_MESSAGE = "GCP audit logs are disabled, skipping query"
 
     # Mapping of GCP audit log method names to timeline event types and messages
     SUPPORTED_INSTANCE_EVENTS = {
@@ -208,7 +209,7 @@ class GcpAuditLogs:
             or if an error occurs during querying.
         """
         if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
             return []
         return self._query_audit_events(
             instances,
@@ -231,7 +232,7 @@ class GcpAuditLogs:
             or if an error occurs during querying.
         """
         if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
             return []
         return self._query_audit_events(
             services,
@@ -254,7 +255,7 @@ class GcpAuditLogs:
             or if an error occurs during querying.
         """
         if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
             return []
         return self._query_audit_events(
             firewalls,
@@ -404,7 +405,7 @@ class GcpAuditLogs:
             Returns an empty list if audit logs are disabled, no items are provided, or if an error occurs during querying.
         """
         if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
             return []
         if not resources:
             logger.debug("No resources provided for audit log query")
