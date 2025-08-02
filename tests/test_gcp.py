@@ -14,7 +14,7 @@ from luminaut.tools.gcp import Gcp, GcpClients, GcpResourceDiscovery
 from luminaut.tools.gcp_audit_logs import CloudRunServiceEventParser
 
 
-def setup_mock_clients(
+def setup_mock_clients(  # noqa: PLR0913
     gcp: Gcp,
     instances: list | None = None,
     services: list | None = None,

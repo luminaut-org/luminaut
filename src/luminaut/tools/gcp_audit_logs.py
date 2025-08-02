@@ -527,11 +527,17 @@ class CloudRunServiceEventParser:
             parts = resource_path.split("/")
 
             # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
-            if len(parts) >= 6 and parts[4] == "services":
+            num_server_name_components = 6
+            if len(parts) >= num_server_name_components and parts[4] == "services":
                 return parts[5]
 
             # Handle actual audit log format: namespaces/{project}/services/{service-name}
-            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
+            num_namespace_components = 4
+            if (
+                len(parts) >= num_namespace_components
+                and parts[0] == "namespaces"
+                and parts[2] == "services"
+            ):
                 return parts[3]
 
             return resource_path
