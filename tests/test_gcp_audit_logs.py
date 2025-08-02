@@ -4,7 +4,12 @@ from io import BytesIO
 from unittest.mock import MagicMock, Mock, patch
 
 from luminaut import models
-from luminaut.tools.gcp_audit_logs import GcpAuditLogs
+from luminaut.tools.gcp_audit_logs import (
+    CloudRunServiceEventParser,
+    ComputeInstanceEventParser,
+    FirewallEventParser,
+    GcpAuditLogs,
+)
 
 sample_toml_config_with_audit_logs = b"""
 [tool.gcp]
@@ -223,19 +228,16 @@ class TestGcpAuditLogsService(unittest.TestCase):
 
     def test_extract_resource_name_from_path(self):
         """Test extraction of resource name from GCP resource path."""
-        # Create service without triggering client initialization
-        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
-
         # Test instance resource path
         resource_path = (
             "projects/test-project/zones/us-central1-a/instances/test-instance"
         )
-        resource_name = audit_service._extract_resource_name(resource_path)
+        resource_name = ComputeInstanceEventParser.extract_resource_name(resource_path)
         self.assertEqual(resource_name, "test-instance")
 
         # Test invalid resource path
-        invalid_path = "invalid/path"
-        resource_name = audit_service._extract_resource_name(invalid_path)
+        invalid_path = "invalid_path"
+        resource_name = ComputeInstanceEventParser.extract_resource_name(invalid_path)
         self.assertEqual(
             resource_name, invalid_path
         )  # Should return original if can't parse
@@ -295,6 +297,11 @@ class TestGcpAuditLogsService(unittest.TestCase):
 
         # Should return empty list when no log entries
         self.assertEqual(events, [])
+
+    def test_supported_events_use_timeline_event_types(self):
+        for event in GcpAuditLogs.SUPPORTED_FIREWALL_EVENTS.values():
+            # Ensure all events use TimelineEventType
+            self.assertIsInstance(event["event_type"], models.TimelineEventType)
 
 
 class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
@@ -424,37 +431,39 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
 
     def test_extract_service_name_from_path(self):
         """Test extraction of service name from GCP Cloud Run resource path."""
-        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
-
         # Test Cloud Run audit log resource path format
         audit_log_resource_path = "namespaces/test-project/services/test-service"
-        service_name = audit_service._extract_service_name(audit_log_resource_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(
+            audit_log_resource_path
+        )
         self.assertEqual(service_name, "test-service")
 
         # Test with more complex service name
         complex_resource_path = (
             "namespaces/my-gcp-project-123/services/my-api-service-v2"
         )
-        service_name = audit_service._extract_service_name(complex_resource_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(
+            complex_resource_path
+        )
         self.assertEqual(service_name, "my-api-service-v2")
 
         # Test API resource format for backward compatibility
         api_format_path = (
             "projects/test-project/locations/us-central1/services/test-service"
         )
-        service_name = audit_service._extract_service_name(api_format_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(api_format_path)
         self.assertEqual(service_name, "test-service")
 
         # Test invalid resource path
         invalid_path = "invalid/path"
-        service_name = audit_service._extract_service_name(invalid_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(invalid_path)
         self.assertEqual(
             service_name, invalid_path
         )  # Should return original if can't parse
 
         # Test partial path
         partial_path = "namespaces/test-project"
-        service_name = audit_service._extract_service_name(partial_path)
+        service_name = CloudRunServiceEventParser.extract_service_name(partial_path)
         self.assertEqual(
             service_name, partial_path
         )  # Should return original if can't parse
@@ -521,6 +530,104 @@ class TestGcpAuditLogsServiceCloudRun(unittest.TestCase):
         self.assertIn("namespaces/test-project/services/test-service", filter_str)
         self.assertNotIn(
             "projects/test-project/locations/us-central1/services/test-service",
+            filter_str,
+        )
+
+
+class TestGcpAuditLogsFirewallEvents(unittest.TestCase):
+    def setUp(self):
+        """Set up test configuration and mock objects."""
+        self.config = models.LuminautConfig()
+        self.config.gcp.audit_logs.enabled = True
+
+    def test_parse_firewall_audit_log_entry(self):
+        timestamp = datetime(2025, 1, 1, tzinfo=UTC)
+        resource = Mock(
+            timestamp=timestamp,
+            log_name="projects/test-project/logs/cloudaudit.googleapis.com%2Factivity",
+            payload={
+                "methodName": "beta.compute.firewalls.insert",
+                "resourceName": "projects/test-project/global/firewalls/test-firewall",
+                "authenticationInfo": {"principalEmail": "unittest@luminaut.org"},
+                "request": {
+                    "alloweds": [
+                        {"IPProtocol": "tcp", "ports": ["80", "443"]},
+                    ],
+                    "description": "Test firewall rule",
+                    "name": "test-firewall",
+                    "network": "projects/test-project/global/networks/default",
+                    "sourceRanges": ["0.0.0.0/0"],
+                    "targetTags": ["web-server"],
+                },
+                "resource": {
+                    "labels": {
+                        "firewall_rule_id": "1234",
+                        "project_id": "test-project",
+                    },
+                },
+            },
+        )
+        gcp_internal_client = Mock()
+        gcp_internal_client.project = "test-project"
+
+        expected_event = models.TimelineEvent(
+            event_type=models.TimelineEventType.FIREWALL_RULE_CREATED,
+            resource_id="1234",
+            resource_type=models.ResourceType.GCP_Firewall_Rule,
+            timestamp=timestamp,
+            source="GCP Audit Logs",
+            message="Firewall rule created by unittest@luminaut.org with ports 80, 443 from source ranges `0.0.0.0/0` with target tags `web-server`",
+            details={
+                "methodName": "beta.compute.firewalls.insert",
+                "resourceName": "projects/test-project/global/firewalls/test-firewall",
+                "principalEmail": "unittest@luminaut.org",
+                "rule_detail": {
+                    "allowed_protocols": ["tcp"],
+                    "allowed_ports": [80, 443],
+                    "sourceRanges": ["0.0.0.0/0"],
+                    "targetTags": ["web-server"],
+                    "description": "Test firewall rule",
+                    "network": "projects/test-project/global/networks/default",
+                },
+            },
+        )
+
+        actual_event = FirewallEventParser(
+            supported_events=GcpAuditLogs.SUPPORTED_FIREWALL_EVENTS,
+            source_name="GCP Audit Logs",
+            project="test-project",
+        ).parse(resource, {"test-firewall": "1234"})
+
+        self.assertEqual(actual_event, expected_event)
+
+    def test_audit_log_filter(self):
+        """Test that audit log filters use the correct namespaces/project/services/name format."""
+        audit_service = GcpAuditLogs("test-project", self.config.gcp.audit_logs)
+
+        # Create a service with the resource_id format that comes from the API
+        firewall_rule = models.GcpFirewallRule(
+            resource_id="projects/test-project/global/firewalls/test-firewall",
+            name="test-firewall",
+            source_ranges=["0.0.0.0/0"],
+            target_tags=["web-server"],
+            allowed_protocols=[{"IPProtocol": "tcp", "ports": ["80", "443"]}],
+            direction=models.Direction.INGRESS,
+            creation_timestamp=datetime(2025, 1, 1, tzinfo=UTC),
+            priority=1000,
+            action=models.FirewallAction.ALLOW,
+        )
+
+        # Build the filter
+        filter_str = audit_service._build_firewall_audit_log_filter([firewall_rule])
+
+        # Verify the filter uses the correct audit log resource name format
+        self.assertIn("compute.googleapis.com", filter_str)
+
+        self.assertIn(
+            "projects/test-project/global/firewalls/test-firewall", filter_str
+        )
+        self.assertNotIn(
+            "projects/test-project/global/firewalls/unknown-firewall",
             filter_str,
         )
 

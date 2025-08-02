@@ -324,6 +324,10 @@ class GcpInstanceDiscovery:
         self.clients = clients
         self.firewall_manager = firewall_manager
 
+    def get_audit_log_manager(self, project: str) -> GcpAuditLogs:
+        """Get the GCP audit logs manager for the specified project."""
+        return GcpAuditLogs(project, self.config.gcp.audit_logs)
+
     async def find_resources_async(
         self, project: str, location: str
     ) -> list[models.ScanResult]:
@@ -338,23 +342,27 @@ class GcpInstanceDiscovery:
         """
         scan_results = []
         instances = await self.fetch_resources_async(project, location)
+        if not instances:
+            logger.info(
+                f"No GCP compute instances found in project {project} zone {location}"
+            )
+            return scan_results
 
         # Query audit logs for all discovered instances if enabled
+        audit_service = self.get_audit_log_manager(project)
         audit_log_events = []
-        if self.config.gcp.audit_logs.enabled and instances:
-            try:
-                logger.info(
-                    f"Querying GCP audit logs for {len(instances)} instances in project {project}/{location}"
-                )
-                audit_service = GcpAuditLogs(project, self.config.gcp.audit_logs)
-                audit_log_events = await asyncio.to_thread(
-                    audit_service.query_instance_events, instances
-                )
-                logger.info(
-                    f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{location}"
-                )
-            except Exception as e:
-                logger.error(f"Error querying audit logs for project {project}: {e}")
+        try:
+            logger.info(
+                f"Querying GCP audit logs for {len(instances)} instances in project {project}/{location}"
+            )
+            audit_log_events = await asyncio.to_thread(
+                audit_service.query_instance_events, instances
+            )
+            logger.info(
+                f"Found {len(audit_log_events)} audit log events for {len(instances)} instances in {project}/{location}"
+            )
+        except Exception as e:
+            logger.error(f"Error querying audit logs for project {project}: {e}")
 
         for gcp_instance in instances:
             for public_ip in gcp_instance.get_public_ips():
@@ -371,6 +379,11 @@ class GcpInstanceDiscovery:
                 )
                 if firewall_rules:
                     scan_finding.resources.append(firewall_rules)
+                    firewall_events = await asyncio.to_thread(
+                        audit_service.query_firewall_events, firewall_rules.rules
+                    )
+                    if firewall_events:
+                        scan_finding.events.extend(firewall_events)
 
                 # Add audit log events for this specific instance
                 instance_events = [

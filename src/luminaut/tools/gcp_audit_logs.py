@@ -89,9 +89,7 @@ class GcpAuditLogs:
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
     RESOURCE_PATH_TEMPLATE = "projects/{project}/zones/{zone}/instances/{instance}"
-    RESOURCE_PATH_PARTS_COUNT = 6
-    RESOURCE_PATH_INSTANCES_INDEX = 4
-    RESOURCE_PATH_NAME_INDEX = 5
+    DISABLED_IN_CONFIG_MESSAGE = "GCP audit logs are disabled, skipping query"
 
     # Mapping of GCP audit log method names to timeline event types and messages
     SUPPORTED_INSTANCE_EVENTS = {
@@ -141,19 +139,51 @@ class GcpAuditLogs:
         },
     }
 
+    # Mapping of GCP Firewall events to timeline event types and messages
+    SUPPORTED_FIREWALL_EVENTS = {
+        "beta.compute.firewalls.insert": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_CREATED,
+            "message": "Firewall rule created",
+        },
+        "v1.compute.firewalls.insert": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_CREATED,
+            "message": "Firewall rule created",
+        },
+        "beta.compute.firewalls.update": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_UPDATED,
+            "message": "Firewall rule updated",
+        },
+        "v1.compute.firewalls.update": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_UPDATED,
+            "message": "Firewall rule updated",
+        },
+        "beta.compute.firewalls.delete": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_DELETED,
+            "message": "Firewall rule deleted",
+        },
+        "v1.compute.firewalls.delete": {
+            "event_type": models.TimelineEventType.FIREWALL_RULE_DELETED,
+            "message": "Firewall rule deleted",
+        },
+    }
+
     def __init__(self, project: str, config: models.LuminautConfigToolGcpAuditLogs):
         self.project = project
         self.config = config
+        self.enabled = config.enabled
         self._client: gcp_logging.Client | None = None
         self._compute_parser = ComputeInstanceEventParser(
             self.SUPPORTED_INSTANCE_EVENTS,
-            self._extract_resource_name,
             self.SOURCE_NAME,
             self.project,
         )
         self._cloudrun_parser = CloudRunServiceEventParser(
             self.SUPPORTED_CLOUD_RUN_EVENTS,
-            self._extract_service_name,
+            self.SOURCE_NAME,
+            self.project,
+        )
+        self._firewall_parser = FirewallEventParser(
+            self.SUPPORTED_FIREWALL_EVENTS,
             self.SOURCE_NAME,
             self.project,
         )
@@ -178,6 +208,9 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no instances provided,
             or if an error occurs during querying.
         """
+        if not self.config.enabled:
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
+            return []
         return self._query_audit_events(
             instances,
             self._build_instance_audit_log_filter,
@@ -198,6 +231,9 @@ class GcpAuditLogs:
             Returns empty list if audit logs are disabled, no services provided,
             or if an error occurs during querying.
         """
+        if not self.config.enabled:
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
+            return []
         return self._query_audit_events(
             services,
             self._build_service_audit_log_filter,
@@ -205,9 +241,34 @@ class GcpAuditLogs:
             self._build_resource_name_id_mapping(services),
         )
 
+    def query_firewall_events(
+        self, firewalls: list[models.GcpFirewallRule]
+    ) -> list[models.TimelineEvent]:
+        """Query audit logs for GCP firewall rule lifecycle events.
+
+        Args:
+            firewalls: List of GCP firewall rules to query audit logs for.
+
+        Returns:
+            List of timeline events found in audit logs for the given firewalls.
+            Returns empty list if audit logs are disabled, no firewalls provided,
+            or if an error occurs during querying.
+        """
+        if not self.config.enabled:
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
+            return []
+        return self._query_audit_events(
+            firewalls,
+            self._build_firewall_audit_log_filter,
+            self._parse_firewall_audit_log_entry,
+            self._build_resource_name_id_mapping(firewalls),
+        )
+
     @staticmethod
     def _build_resource_name_id_mapping(
-        resources: Sequence[models.GcpInstance | models.GcpService],
+        resources: Sequence[
+            models.GcpInstance | models.GcpService | models.GcpFirewallRule
+        ],
     ) -> dict[str, str]:
         """Build a mapping from resource names to their IDs.
 
@@ -258,7 +319,9 @@ class GcpAuditLogs:
         """Build the filter string for querying Cloud Run service audit logs."""
         resource_names = []
         for service in services:
-            service_name = self._extract_service_name(service.resource_id)
+            service_name = CloudRunServiceEventParser.extract_service_name(
+                service.resource_id
+            )
             audit_log_resource_name = (
                 f"namespaces/{self.project}/services/{service_name}"
             )
@@ -275,6 +338,41 @@ class GcpAuditLogs:
             .build()
         )
 
+    def _build_firewall_audit_log_filter(
+        self, firewalls: Sequence[models.GcpFirewallRule]
+    ) -> str:
+        firewall_resource_path_template = (
+            "projects/{project}/global/firewalls/{firewall}"
+        )
+        resource_names = []
+        for firewall in firewalls:
+            resource_path = firewall_resource_path_template.format(
+                project=self.project, firewall=firewall.name
+            )
+            resource_names.append(resource_path)
+        return (
+            GcpAuditLogFilterBuilder(self.project, self.LOG_NAME_TEMPLATE)
+            .with_log_name()
+            .with_service_name(self.SERVICE_NAME_COMPUTE)
+            .with_method_names(self.SUPPORTED_FIREWALL_EVENTS.keys())
+            .with_resource_names(resource_names)
+            .with_time_range(
+                self.config.start_time, self.config.end_time, self.TIMESTAMP_FORMAT
+            )
+            .build()
+        )
+
+    def _parse_firewall_audit_log_entry(
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        """Directly dispatch to the Firewall parser for Firewall events."""
+        method_name = (
+            entry.payload.get("methodName", "") if hasattr(entry, "payload") else ""
+        )
+        if method_name in self.SUPPORTED_FIREWALL_EVENTS:
+            return self._firewall_parser.parse(entry, name_to_resource_id)
+        return None
+
     def _parse_service_audit_log_entry(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
     ) -> models.TimelineEvent | None:
@@ -285,55 +383,6 @@ class GcpAuditLogs:
         if method_name in self.SUPPORTED_CLOUD_RUN_EVENTS:
             return self._cloudrun_parser.parse(entry, name_to_resource_id)
         return None
-
-    @staticmethod
-    def _extract_service_name(resource_path: str) -> str:
-        """Extract the service name from a GCP Cloud Run resource path.
-
-        Args:
-            resource_path: Full GCP resource path. Can be either:
-                - namespaces/{project}/services/{name} (actual audit log format)
-                - projects/{project}/locations/{region}/services/{name} (API resource format)
-
-        Returns:
-            The service name or the original path if parsing fails.
-        """
-        try:
-            parts = resource_path.split("/")
-
-            # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
-            if len(parts) >= 6 and parts[4] == "services":
-                return parts[5]
-
-            # Handle actual audit log format: namespaces/{project}/services/{service-name}
-            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
-                return parts[3]
-
-            return resource_path
-        except (IndexError, AttributeError):
-            return resource_path
-
-    @classmethod
-    def _extract_resource_name(cls, resource_path: str) -> str:
-        """Extract the resource name from a GCP resource path.
-
-        Args:
-            resource_path: Full GCP resource path (e.g., projects/{project}/zones/{zone}/instances/{name}).
-
-        Returns:
-            The resource name (e.g., instance name) or the original path if parsing fails.
-        """
-        try:
-            # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
-            parts = resource_path.split("/")
-            if (
-                len(parts) >= cls.RESOURCE_PATH_PARTS_COUNT
-                and parts[cls.RESOURCE_PATH_INSTANCES_INDEX] == "instances"
-            ):
-                return parts[cls.RESOURCE_PATH_NAME_INDEX]
-            return resource_path
-        except (IndexError, AttributeError):
-            return resource_path
 
     def _query_audit_events(
         self,
@@ -356,7 +405,7 @@ class GcpAuditLogs:
             Returns an empty list if audit logs are disabled, no items are provided, or if an error occurs during querying.
         """
         if not self.config.enabled:
-            logger.debug("GCP audit logs are disabled, skipping query")
+            logger.debug(self.DISABLED_IN_CONFIG_MESSAGE)
             return []
         if not resources:
             logger.debug("No resources provided for audit log query")
@@ -385,14 +434,17 @@ class ComputeInstanceEventParser:
     def __init__(
         self,
         supported_events: dict[str, dict[str, Any]],
-        extract_resource_name: Callable,
         source_name: str,
         project: str,
     ):
         self.supported_events = supported_events
-        self.extract_resource_name = extract_resource_name
         self.source_name = source_name
         self.project = project
+
+    @classmethod
+    def extract_resource_name(cls, resource_path: str) -> str:
+        # Resource path format: projects/{project}/zones/{zone}/instances/{instance-name}
+        return resource_path.rsplit("/", 1)[-1]
 
     def parse(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
@@ -452,14 +504,39 @@ class CloudRunServiceEventParser:
     def __init__(
         self,
         supported_events: dict[str, dict[str, Any]],
-        extract_service_name: Callable,
         source_name: str,
         project: str,
     ):
         self.supported_events = supported_events
-        self.extract_service_name = extract_service_name
         self.source_name = source_name
         self.project = project
+
+    @staticmethod
+    def extract_service_name(resource_path: str) -> str:
+        """Extract the service name from a GCP Cloud Run resource path.
+
+        Args:
+            resource_path: Full GCP resource path. Can be either:
+                - namespaces/{project}/services/{name} (actual audit log format)
+                - projects/{project}/locations/{region}/services/{name} (API resource format)
+
+        Returns:
+            The service name or the original path if parsing fails.
+        """
+        try:
+            parts = resource_path.split("/")
+
+            # Handle API resource format for backward compatibility: projects/{project}/locations/{region}/services/{service-name}
+            if len(parts) >= 6 and parts[4] == "services":
+                return parts[5]
+
+            # Handle actual audit log format: namespaces/{project}/services/{service-name}
+            if len(parts) >= 4 and parts[0] == "namespaces" and parts[2] == "services":
+                return parts[3]
+
+            return resource_path
+        except (IndexError, AttributeError):
+            return resource_path
 
     def parse(
         self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
@@ -512,6 +589,107 @@ class CloudRunServiceEventParser:
             )
         except Exception as e:
             logger.warning(f"Error parsing service audit log entry: {e}")
+            return None
+
+
+class FirewallEventParser:
+    def __init__(
+        self,
+        supported_events: dict[str, dict[str, Any]],
+        source_name: str,
+        project: str,
+    ):
+        self.supported_events = supported_events
+        self.source_name = source_name
+        self.project = project
+
+    @classmethod
+    def extract_resource_name(cls, resource_path: str) -> str:
+        # Resource path format: projects/{project}/global/firewalls/{name}
+        return resource_path.rsplit("/", 1)[-1]
+
+    def parse(
+        self, entry: gcp_logging.types.LogEntry, name_to_resource_id: dict[str, str]
+    ) -> models.TimelineEvent | None:
+        try:
+            method_name = AuditLogParseTools.get_method_name(entry)
+            event_config = AuditLogParseTools.get_event_config(
+                method_name, self.supported_events
+            )
+            if not entry.payload or not event_config:
+                return None
+            resource_name = AuditLogParseTools.get_resource_name(entry)
+            firewall_name = self.extract_resource_name(resource_name)
+            resource_id = AuditLogParseTools.get_resource_id(
+                name_to_resource_id, firewall_name
+            )
+            if resource_id is None:
+                logger.warning(
+                    "Firewall resource ID not found for resource: %s and firewall: %s",
+                    resource_name,
+                    firewall_name,
+                )
+                return None
+
+            request_parameters = entry.payload.get("request", {})
+            principal_email = AuditLogParseTools.get_principal_email(entry)
+            message = AuditLogParseTools.build_message(
+                event_config["message"], principal_email
+            )
+
+            allowed_ports = [
+                int(port_number)
+                for allowed in request_parameters.get("alloweds", [])
+                for port_number in allowed["ports"]
+                if "ports" in allowed
+            ]
+            if allowed_ports:
+                allowed_ports = sorted(set(allowed_ports))
+                message += f" with ports {', '.join(map(str, allowed_ports))}"
+            allowed_protocols = [
+                x["IPProtocol"]
+                for x in request_parameters.get("alloweds", [])
+                if "IPProtocol" in x
+            ]
+            source_ranges = request_parameters.get("sourceRanges", [])
+            if source_ranges:
+                message += f" from source ranges `{', '.join(source_ranges)}`"
+            target_tags = request_parameters.get("targetTags", [])
+            if target_tags:
+                message += f" with target tags `{', '.join(target_tags)}`"
+
+            if not isinstance(entry.timestamp, datetime):
+                logger.warning(
+                    "Invalid timestamp format in audit log entry: %s %s",
+                    entry.timestamp,
+                    type(entry.timestamp),
+                )
+                return None
+            timestamp = AuditLogParseTools.normalize_timestamp(entry.timestamp)
+
+            return models.TimelineEvent(
+                timestamp=timestamp,
+                source=self.source_name,
+                event_type=event_config["event_type"],
+                resource_id=resource_id,
+                resource_type=models.ResourceType.GCP_Firewall_Rule,
+                message=message,
+                details={
+                    "methodName": method_name,
+                    "resourceName": resource_name,
+                    "principalEmail": principal_email,
+                    "rule_detail": {
+                        "allowed_protocols": allowed_protocols,
+                        "allowed_ports": allowed_ports,
+                        "sourceRanges": source_ranges,
+                        "targetTags": target_tags,
+                        "description": request_parameters.get("description", ""),
+                        "network": request_parameters.get("network", ""),
+                    },
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Error parsing firewall audit log entry: {e}")
             return None
 
 

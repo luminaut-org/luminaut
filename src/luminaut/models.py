@@ -105,6 +105,7 @@ class ResourceType(StrEnum):
     GCP_Service = "GCP::Run::Service"
     GCP_Task = "GCP::Run::Task"
     GCP_Firewall = "GCP::Compute::Firewall"
+    GCP_Firewall_Rule = "GCP::Compute::FirewallRule"
     Hostname = "Hostname"
 
 
@@ -1370,6 +1371,9 @@ class TimelineEventType(StrEnum):
     COMPUTE_INSTANCE_NETWORKING_CHANGE = "Instance networking change"
     SECURITY_GROUP_ASSOCIATION_CHANGE = "Security group changed"
     SECURITY_GROUP_RULE_CHANGE = "Security group rule changed"
+    FIREWALL_RULE_CREATED = "Firewall rule created"
+    FIREWALL_RULE_UPDATED = "Firewall rule updated"
+    FIREWALL_RULE_DELETED = "Firewall rule deleted"
     RESOURCE_CREATED = "Resource created"
     SERVICE_CREATED = "Service created"
     SERVICE_DELETED = "Service deleted"
