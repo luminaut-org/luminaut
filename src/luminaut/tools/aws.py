@@ -138,10 +138,10 @@ class Aws:
             emoji_name="lock",
         )
         for security_group in security_groups:
-            security_group = self.populate_permissive_ingress_security_group_rules(
-                security_group
+            sg_with_permissive_rules = (
+                self.populate_permissive_ingress_security_group_rules(security_group)
             )
-            sg_finding.resources.append(security_group)
+            sg_finding.resources.append(sg_with_permissive_rules)
 
         return sg_finding
 

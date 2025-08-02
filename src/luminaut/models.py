@@ -364,7 +364,8 @@ class GcpNetworkInterface:
 
         # Network format: https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}
         network_parts = self.network.split("/")
-        if len(network_parts) >= 7 and network_parts[5] == "projects":
+        num_network_parts = 7
+        if len(network_parts) >= num_network_parts and network_parts[5] == "projects":
             return network_parts[6]
         return None
 
@@ -375,7 +376,11 @@ class GcpNetworkInterface:
 
         # Network format: https://www.googleapis.com/compute/v1/projects/{project}/global/networks/{network}
         network_parts = self.network.split("/")
-        if len(network_parts) >= 10 and network_parts[8] == "networks":
+        num_network_identifier_parts = 10
+        if (
+            len(network_parts) >= num_network_identifier_parts
+            and network_parts[8] == "networks"
+        ):
             return network_parts[9]
         return None
 
@@ -462,10 +467,11 @@ class GcpFirewallRule:
         """Build rich text representation of the firewall rule."""
         # Format source ranges - show first few if many
         if self.source_ranges:
-            if len(self.source_ranges) <= 3:
+            max_to_show = 3
+            if len(self.source_ranges) <= max_to_show:
                 sources = ", ".join(self.source_ranges)
             else:
-                sources = f"{', '.join(self.source_ranges[:3])} (+{len(self.source_ranges) - 3} more)"
+                sources = f"{', '.join(self.source_ranges[:max_to_show])} (+{len(self.source_ranges) - max_to_show} more)"
             source_text = f"[green]{sources}[/green]"
         else:
             source_text = "[green]Any source[/green]"
@@ -1217,7 +1223,8 @@ class ShodanService:
             rich_text += "".join(
                 x.build_rich_text() for x in self.opt_vulnerabilities[:5]
             )
-            if len(self.opt_vulnerabilities) > 5:
+            max_to_display = 5
+            if len(self.opt_vulnerabilities) > max_to_display:
                 rich_text += f"  {len(self.opt_vulnerabilities)} total vulnerabilities found. See JSON for full report.\n"
 
         return rich_text
@@ -1475,7 +1482,7 @@ class ScanFindings:
 
             other_items = len(items) - len(attribute_text)
             if other_items:
-                other_text = f"  {other_items} {'additional ' if len(attribute_text) else ''}{attribute} discovered.\n"
+                other_text = f"  {other_items} {'additional ' if attribute_text else ''}{attribute} discovered.\n"
                 if not len(rich_text):
                     rich_text += attribute_title
                 rich_text += other_text
