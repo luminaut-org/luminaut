@@ -1585,11 +1585,15 @@ class ScanResult:
             return set()
         if not site.port:
             return self.generate_default_scan_targets(site.hostname)
+
+        # Infer scheme from port if not provided
+        schema = site.scheme or ("https" if site.port in {443, 5443, 8443} else "http")
+
         return {
             ScanTarget(
                 target=site.hostname,
                 port=site.port,
-                schema=site.scheme or "http",
+                schema=schema,
             )
         }
 

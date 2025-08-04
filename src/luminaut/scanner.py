@@ -94,7 +94,9 @@ class Scanner:
         try:
             host = shodan_client.host(ip_addr)
         except shodan.APIError as e:
-            logger.warning("Incomplete Shodan finding due to API error: %s", e)
+            logger.warning(
+                "Incomplete Shodan finding due to API error for ip %s: %s", ip_addr, e
+            )
             return shodan_findings
 
         for service in host["data"]:
