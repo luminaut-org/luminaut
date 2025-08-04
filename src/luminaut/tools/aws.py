@@ -544,6 +544,11 @@ class CloudTrailEventMessageFormatter:
                     ip_range.get("cidrIpv6"), items
                 )
                 added_rules.append(rule_summary)
+            for security_group in items.get("groups", {}).get("items", []):
+                rule_summary = CloudTrailEventMessageFormatter.build_rule_summary(
+                    security_group.get("groupId"), items
+                )
+                added_rules.append(rule_summary)
 
         return ". Allow: " + ", ".join(added_rules)
 
