@@ -100,9 +100,13 @@ class Scanner:
             return shodan_findings
 
         for service in host["data"]:
-            shodan_findings.services.append(
-                models.ShodanService.from_shodan_host(service)
-            )
+            shodan_service = models.ShodanService.from_shodan_host(service)
+            
+            # Sort vulnerabilities by KEV status first, then by CVSS score descending
+            if shodan_service.opt_vulnerabilities:
+                shodan_service.opt_vulnerabilities.sort(key=lambda v: v.sort_key())
+            
+            shodan_findings.services.append(shodan_service)
 
         logger.info(
             "Shodan found %s services on %s", len(shodan_findings.services), ip_addr
