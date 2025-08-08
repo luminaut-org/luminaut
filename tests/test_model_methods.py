@@ -135,6 +135,111 @@ class TestModels(unittest.TestCase):
             models.TimelineEventType.FIREWALL_RULE_DELETED, "Firewall rule deleted"
         )
 
+    def test_vulnerability_kev_sorting(self):
+        """Test that vulnerabilities are sorted correctly by KEV status and CVSS score."""
+        # Mock KEV data for testing
+        original_kev_cves = models.KEVChecker._kev_cves
+        models.KEVChecker._kev_cves = {"CVE-2021-44228", "CVE-2017-0144"}
+        
+        try:
+            # Create test vulnerabilities
+            vulnerabilities = [
+                models.Vulnerability(cve="CVE-2022-1234", cvss=9.5),   # Non-KEV, high score
+                models.Vulnerability(cve="CVE-2021-44228", cvss=10.0), # KEV, highest score
+                models.Vulnerability(cve="CVE-2023-5678", cvss=7.2),   # Non-KEV, medium score
+                models.Vulnerability(cve="CVE-2017-0144", cvss=8.1),   # KEV, medium score
+                models.Vulnerability(cve="CVE-2024-9999", cvss=6.5),   # Non-KEV, low score
+            ]
+            
+            # Sort using the sort_key method
+            sorted_vulns = sorted(vulnerabilities, key=lambda v: v.sort_key())
+            
+            # Verify KEV vulnerabilities come first
+            kev_vulns = [v for v in sorted_vulns if v.is_kev]
+            non_kev_vulns = [v for v in sorted_vulns if not v.is_kev]
+            
+            self.assertEqual(len(kev_vulns), 2)
+            self.assertEqual(len(non_kev_vulns), 3)
+            
+            # Verify that all KEV vulnerabilities come before all non-KEV vulnerabilities
+            kev_positions = [i for i, v in enumerate(sorted_vulns) if v.is_kev]
+            non_kev_positions = [i for i, v in enumerate(sorted_vulns) if not v.is_kev]
+            
+            self.assertTrue(max(kev_positions) < min(non_kev_positions))
+            
+            # Verify KEV vulnerabilities are sorted by CVSS score descending
+            kev_scores = [v.cvss for v in kev_vulns]
+            self.assertEqual(kev_scores, [10.0, 8.1])  # Highest CVSS first
+            
+            # Verify non-KEV vulnerabilities are sorted by CVSS score descending
+            non_kev_scores = [v.cvss for v in non_kev_vulns]
+            self.assertEqual(non_kev_scores, [9.5, 7.2, 6.5])  # Highest CVSS first
+            
+        finally:
+            # Restore original KEV data
+            models.KEVChecker._kev_cves = original_kev_cves
+    
+    def test_vulnerability_rich_text_with_kev(self):
+        """Test that vulnerability rich text output includes KEV indicator."""
+        # Mock KEV data
+        original_kev_cves = models.KEVChecker._kev_cves
+        models.KEVChecker._kev_cves = {"CVE-2021-44228"}
+        
+        try:
+            kev_vuln = models.Vulnerability(cve="CVE-2021-44228", cvss=10.0)
+            non_kev_vuln = models.Vulnerability(cve="CVE-2022-1234", cvss=9.5)
+            
+            kev_text = kev_vuln.build_rich_text()
+            non_kev_text = non_kev_vuln.build_rich_text()
+            
+            # KEV vulnerability should include KEV indicator
+            self.assertIn("[bold red]KEV[/bold red]", kev_text)
+            self.assertIn("CVE-2021-44228", kev_text)
+            self.assertIn("CVSS: 10.0", kev_text)
+            
+            # Non-KEV vulnerability should not include KEV indicator
+            self.assertNotIn("[bold red]KEV[/bold red]", non_kev_text)
+            self.assertIn("CVE-2022-1234", non_kev_text)
+            self.assertIn("CVSS: 9.5", non_kev_text)
+            
+        finally:
+            # Restore original KEV data
+            models.KEVChecker._kev_cves = original_kev_cves
+    
+    def test_shodan_service_vulnerability_sorting(self):
+        """Test that ShodanService sorts vulnerabilities correctly in display."""
+        # Mock KEV data
+        original_kev_cves = models.KEVChecker._kev_cves
+        models.KEVChecker._kev_cves = {"CVE-2021-44228"}
+        
+        try:
+            service = models.ShodanService(
+                timestamp=datetime(2024, 1, 1, 0, 0, 0, 0, UTC),
+                port=443,
+                protocol=models.Protocol.TCP,
+                opt_vulnerabilities=[
+                    models.Vulnerability(cve="CVE-2022-1234", cvss=9.5),   # Non-KEV
+                    models.Vulnerability(cve="CVE-2021-44228", cvss=10.0), # KEV
+                    models.Vulnerability(cve="CVE-2023-5678", cvss=7.2),   # Non-KEV
+                ]
+            )
+            
+            rich_text = service.build_rich_text()
+            
+            # Verify that KEV vulnerability appears first in the output
+            kev_index = rich_text.find("CVE-2021-44228")
+            high_cvss_non_kev_index = rich_text.find("CVE-2022-1234")
+            
+            # KEV vulnerability should appear before higher CVSS non-KEV vulnerability
+            self.assertLess(kev_index, high_cvss_non_kev_index)
+            
+            # Verify KEV indicator is present
+            self.assertIn("[bold red]KEV[/bold red]", rich_text)
+            
+        finally:
+            # Restore original KEV data
+            models.KEVChecker._kev_cves = original_kev_cves
+
 
 if __name__ == "__main__":
     unittest.main()
