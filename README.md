@@ -13,6 +13,8 @@ Casting light on shadow cloud deployments. Detect exposure of resources deployed
 ![PyPI - Version](https://img.shields.io/pypi/v/luminaut)
 ![GitHub License](https://img.shields.io/github/license/luminaut-org/luminaut)
 
+[Shmoocon 2025 Presentation](https://www.youtube.com/watch?v=-_jUZBMeU5w&t=16700s) | [BSides Las Vegas 2025 Presentation](https://www.youtube.com/live/goERQMqAv50?si=YtMBXI9AGp7EqWy1&t=15856)
+
 ## Introduction
 
 Luminaut is a utility to scope cloud environment exposure for triage. The goal is to quickly identify exposed resources and collect information to start an investigation.
