@@ -1,4 +1,5 @@
 import json
+import logging
 import textwrap
 import tomllib
 from collections.abc import Iterable, Mapping, MutableSequence
@@ -10,6 +11,8 @@ from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, Self, TypeVar
 from typing import Protocol as TypingProtocol
 from urllib.parse import urlparse
+from urllib.request import urlopen
+from urllib.error import URLError
 
 from google.cloud.compute_v1 import types as gcp_compute_v1_types
 from google.cloud.run_v2 import types as gcp_run_v2_types
@@ -18,6 +21,34 @@ from rich.emoji import Emoji
 T = TypeVar("T")
 IPAddress = IPv4Address | IPv6Address
 QUAD_ZERO_ADDRESSES = (IPv4Address("0.0.0.0"), IPv6Address("::"))  # noqa: S104
+
+logger = logging.getLogger(__name__)
+
+
+class KEVChecker:
+    """Checks if CVEs are in the CISA Known Exploited Vulnerabilities catalog."""
+    
+    _kev_cves: set[str] | None = None
+    KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    
+    @classmethod
+    def is_kev(cls, cve: str) -> bool:
+        """Check if a CVE is in the CISA KEV catalog."""
+        if cls._kev_cves is None:
+            cls._load_kev_data()
+        return cve.upper() in (cls._kev_cves or set())
+    
+    @classmethod
+    def _load_kev_data(cls) -> None:
+        """Load KEV data from CISA's API."""
+        try:
+            with urlopen(cls.KEV_URL, timeout=10) as response:
+                data = json.loads(response.read())
+                cls._kev_cves = {vuln["cveID"].upper() for vuln in data.get("vulnerabilities", [])}
+            logger.info("Loaded %d CVEs from CISA KEV catalog", len(cls._kev_cves or []))
+        except (URLError, json.JSONDecodeError, KeyError) as e:
+            logger.warning("Failed to load CISA KEV data: %s", e)
+            cls._kev_cves = set()  # Empty set to avoid repeated attempts
 
 
 def convert_tag_set_to_dict(tag_set: Iterable[dict[str, str]]) -> dict[str, str]:
@@ -1220,8 +1251,10 @@ class ShodanService:
             rich_text += "  " + http_information + "\n"
 
         if self.opt_vulnerabilities:
+            # Sort vulnerabilities by KEV status first, then by CVSS score
+            sorted_vulns = sorted(self.opt_vulnerabilities, key=lambda v: v.sort_key())
             rich_text += "".join(
-                x.build_rich_text() for x in self.opt_vulnerabilities[:5]
+                x.build_rich_text() for x in sorted_vulns[:5]
             )
             max_to_display = 5
             if len(self.opt_vulnerabilities) > max_to_display:
@@ -1295,13 +1328,20 @@ class Vulnerability:
     summary: str | None = None
     references: list[str] = field(default_factory=list)
     timestamp: datetime | None = None
+    is_kev: bool = field(default=False)
+
+    def __post_init__(self) -> None:
+        """Set KEV status after initialization."""
+        self.is_kev = KEVChecker.is_kev(self.cve)
 
     def build_rich_text(self) -> str:
         emphasis = self.cve
         if self.cvss:
             emphasis += f" (CVSS: {self.cvss})"
-
-        return f"  Vulnerability: [red]{emphasis}[/red]\n"
+        
+        kev_indicator = "[bold red]KEV[/bold red] " if self.is_kev else ""
+        
+        return f"  Vulnerability: {kev_indicator}[red]{emphasis}[/red]\n"
 
     @classmethod
     def from_shodan(
@@ -1315,6 +1355,14 @@ class Vulnerability:
             references=shodan_data.get("references", []),
             timestamp=timestamp,
         )
+    
+    def sort_key(self) -> tuple[int, float]:
+        """Return sort key for prioritizing KEV vulnerabilities and high CVSS scores."""
+        # KEV vulnerabilities get priority (0 for KEV, 1 for non-KEV)
+        kev_priority = 0 if self.is_kev else 1
+        # Sort by CVSS score descending (negate for reverse order, default to 0 if None)
+        cvss_score = -(self.cvss or 0.0)
+        return (kev_priority, cvss_score)
 
 
 @dataclass
