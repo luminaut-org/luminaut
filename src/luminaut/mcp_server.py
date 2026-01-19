@@ -1,3 +1,11 @@
+"""#MCP server for Luminaut
+
+## Configuration with Claude Code
+
+Run this command, replacing `LUMINAUT_DIR` with the root of the Luminaut repository:
+`claude mcp add --transport stdio --scope user luminaut "uv" "--directory" "LUMINAUT_DIR\src\luminaut\" "run" "mcp_server.py"`
+
+"""
 import logging
 import json
 from mcp.server.fastmcp import FastMCP
