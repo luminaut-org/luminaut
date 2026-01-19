@@ -1,4 +1,5 @@
 import logging
+import orjson as json
 from mcp.server.fastmcp import FastMCP
 
 from luminaut.tools.aws import Aws
@@ -25,16 +26,12 @@ async def explore_region(region_name: str) -> str:
     :param region_name: AWS region to fetch perimeter information. Uses format `us-east-1`
 
     Returns:
-        str: String containing the perimeter information in a human-readable format
+        str: String containing the perimeter information in as json.
 
     """
     aws = Aws()
     scan_results = aws.explore_region(region_name)
-    result = ''
-    for scan_result in scan_results:
-        title, rich_text = scan_result.build_rich_panel()
-        result += f"\n{'='*80}\n{title}\n{'='*80}\n{rich_text}\n"
-    return result
+    return json.dumps(scan_results)
 
 
 def main():
