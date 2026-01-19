@@ -1,5 +1,5 @@
 import logging
-import orjson as json
+import json
 from mcp.server.fastmcp import FastMCP
 
 from luminaut.tools.aws import Aws
