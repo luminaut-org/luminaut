@@ -322,6 +322,8 @@ class GcpInstance:
     name: str
     network_interfaces: list[GcpNetworkInterface] = field(default_factory=list)
     creation_time: datetime | None = None
+    last_start_timestamp: datetime | None = None
+    last_stop_timestamp: datetime | None = None
     zone: str | None = None
     status: str | None = None
     description: str | None = None
@@ -335,6 +337,10 @@ class GcpInstance:
 
     def build_rich_text(self) -> str:
         rich_text = f"[dark_orange3]{self.name}[/dark_orange3] Id: {self.resource_id} ([green]{self.status}[/green]) Created: {self.creation_time or 'Unknown'}\n"
+        if self.last_start_timestamp:
+            rich_text += f"  Last started: {self.last_start_timestamp}\n"
+        if self.last_stop_timestamp:
+            rich_text += f"  Last stopped: {self.last_stop_timestamp}\n"
         if description := self.description:
             rich_text += f"  Description: {description}\n"
         for nic in self.network_interfaces:
@@ -346,6 +352,14 @@ class GcpInstance:
 
     @classmethod
     def from_gcp(cls, instance: Any) -> Self:
+        last_start_timestamp = None
+        if hasattr(instance, "last_start_timestamp") and instance.last_start_timestamp:
+            last_start_timestamp = datetime.fromisoformat(instance.last_start_timestamp)
+
+        last_stop_timestamp = None
+        if hasattr(instance, "last_stop_timestamp") and instance.last_stop_timestamp:
+            last_stop_timestamp = datetime.fromisoformat(instance.last_stop_timestamp)
+
         return cls(
             resource_id=instance.id,
             name=instance.name,
@@ -353,6 +367,8 @@ class GcpInstance:
                 GcpNetworkInterface.from_gcp(nic) for nic in instance.network_interfaces
             ],
             creation_time=datetime.fromisoformat(instance.creation_timestamp),
+            last_start_timestamp=last_start_timestamp,
+            last_stop_timestamp=last_stop_timestamp,
             zone=instance.zone.split("/")[-1],
             status=instance.status,
             description=instance.description,

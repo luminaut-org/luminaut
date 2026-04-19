@@ -29,6 +29,8 @@ class FakeGcpInstance:
     name = "test-instance"
     network_interfaces = [FakeGcpNetworkInterface()]
     creation_timestamp = "2025-05-19T05:35:09.886-07:00"
+    last_start_timestamp = "2025-05-19T06:00:00.000-07:00"
+    last_stop_timestamp = "2025-05-19T04:30:00.000-07:00"
     zone = "https://www.googleapis.com/compute/v1/projects/luminaut/zones/us-central1-c"
     status = "RUNNING"
     description = "Test instance"
@@ -170,6 +172,26 @@ class TestGCP(TestCase):
                 886000,
                 tzinfo=datetime.timezone(datetime.timedelta(hours=-7)),
             ),
+            last_start_timestamp=datetime.datetime(
+                2025,
+                5,
+                19,
+                6,
+                0,
+                0,
+                0,
+                tzinfo=datetime.timezone(datetime.timedelta(hours=-7)),
+            ),
+            last_stop_timestamp=datetime.datetime(
+                2025,
+                5,
+                19,
+                4,
+                30,
+                0,
+                0,
+                tzinfo=datetime.timezone(datetime.timedelta(hours=-7)),
+            ),
             zone="us-central1-c",
             status=FakeGcpInstance.status,
             description=FakeGcpInstance.description,
@@ -199,6 +221,12 @@ class TestGCP(TestCase):
         self.assertEqual(actual_nic.resource_id, expected_nic.resource_id)
         self.assertEqual(actual_nic.public_ip, expected_nic.public_ip)
         self.assertEqual(actual_instance.resource_id, expected_instance.resource_id)
+        self.assertEqual(
+            actual_instance.last_start_timestamp, expected_instance.last_start_timestamp
+        )
+        self.assertEqual(
+            actual_instance.last_stop_timestamp, expected_instance.last_stop_timestamp
+        )
 
     def test_enumerate_instances_without_public_ips(self):
         expected_nic = models.GcpNetworkInterface(

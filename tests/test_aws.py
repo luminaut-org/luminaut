@@ -85,8 +85,8 @@ class AwsTool(unittest.TestCase):
         aws.config.aws.cloudtrail.enabled = False
 
         aws._fetch_enis_with_public_ips = lambda: [self.sample_eni]
-        aws.populate_permissive_ingress_security_group_rules = (
-            lambda security_group: self.sample_sg
+        aws.populate_permissive_ingress_security_group_rules = lambda security_group: (
+            self.sample_sg
         )
         aws.get_config_history_for_resource = mock_get_config_history_for_resource
         return aws
